@@ -20,7 +20,7 @@
 1. 克隆或下载本项目
 2. 运行 `npm install` 安装依赖
 3. 运行 `npm run build` 构建脚本
-4. 在用户脚本管理器中导入生成的 `dist/rust-wiki-reading-helper.user.js` 文件
+4. 在用户脚本管理器中导入生成的 `dist/rustwiki-tools.user.js` 文件
 
 ## 🚀 开发
 
