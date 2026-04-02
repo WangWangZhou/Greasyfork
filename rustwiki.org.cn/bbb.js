@@ -29,6 +29,8 @@
                 top: '100px',
                 left: '20px',
                 shadow: true,
+                storage: null,
+                positionKey: null,
                 ...options
             };
             this.element = null;
@@ -51,8 +53,6 @@
             this.element.style.position = 'fixed';
             this.element.style.width = this.options.width;
             this.element.style.height = this.options.height;
-            this.element.style.top = this.options.top;
-            this.element.style.left = this.options.left;
             this.element.style.zIndex = '9998';
             this.element.style.transition = 'all 0.3s ease';
             this.element.style.borderRadius = '8px';
@@ -60,6 +60,19 @@
             if (this.options.shadow) {
                 this.element.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
             }
+
+            // 加载保存的位置或使用默认位置
+            let top = this.options.top;
+            let left = this.options.left;
+            if (this.options.storage && this.options.positionKey) {
+                const savedPosition = this.options.storage.get(this.options.positionKey);
+                if (savedPosition) {
+                    top = savedPosition.top;
+                    left = savedPosition.left;
+                }
+            }
+            this.element.style.top = top;
+            this.element.style.left = left;
 
             // 创建头部
             this.header = document.createElement('div');
@@ -165,6 +178,14 @@
             this.element.style.zIndex = '9998';
             // 恢复文本选择
             document.body.style.userSelect = '';
+            
+            // 保存位置到storage
+            if (this.options.storage && this.options.positionKey) {
+                this.options.storage.set(this.options.positionKey, {
+                    top: this.element.style.top,
+                    left: this.element.style.left
+                });
+            }
         }
 
         updateContent(content) {
@@ -473,7 +494,9 @@
                 width: '250px',
                 top: '120px',
                 left: leftPosition,
-                shadow: true
+                shadow: true,
+                storage: this.storage,
+                positionKey: 'toc-position'
             });
 
             // 生成目录
