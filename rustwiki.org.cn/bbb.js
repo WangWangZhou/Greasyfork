@@ -6,7 +6,10 @@
 // @description:zh-cn  添加返回顶部、直到底部、暗黑模式按钮和目录导航
 // @author       小明
 // @license MIT
-// @match        https://www.rustwiki.org.cn/zh-CN/book/*
+// @match        https://www.rustwiki.org.cn/zh-CN/*
+// @match        https://www.rustwiki.org.cn/en/*
+// @match        https://rustwiki.org/zh-CN/*
+// @match        https://rustwiki.org/en/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=rustwiki.org.cn
 // @grant        none
 // ==/UserScript==
@@ -183,6 +186,37 @@
         }
     }
 
+    // 存储类
+    class Storage {
+        constructor(prefix = 'rustwiki-') {
+            this.prefix = prefix;
+        }
+
+        get(key, defaultValue = null) {
+            const value = localStorage.getItem(this.prefix + key);
+            if (value === null) return defaultValue;
+            try {
+                return JSON.parse(value);
+            } catch {
+                return value;
+            }
+        }
+
+        set(key, value) {
+            localStorage.setItem(this.prefix + key, JSON.stringify(value));
+        }
+
+        remove(key) {
+            localStorage.removeItem(this.prefix + key);
+        }
+
+        clear() {
+            Object.keys(localStorage)
+                .filter(key => key.startsWith(this.prefix))
+                .forEach(key => localStorage.removeItem(key));
+        }
+    }
+
     // 按钮类
     class Button {
         constructor(options = {}) {
@@ -203,7 +237,7 @@
             this.element.className = this.options.className;
             this.element.innerHTML = this.options.html;
             this.element.title = this.options.title;
-            
+
             if (this.options.onClick) {
                 this.element.addEventListener('click', this.options.onClick);
             }
@@ -237,6 +271,7 @@
             this.tocBtn = null;
             this.tocCard = null;
             this.tocVisible = true;
+            this.storage = new Storage();
         }
 
         // 初始化所有功能
@@ -403,8 +438,8 @@
 
         // 创建暗黑模式按钮
         createDarkModeButton() {
-            // 检查本地存储中的暗黑模式状态
-            const isDarkMode = localStorage.getItem('rustwiki-dark-mode') === 'true';
+            // 使用Storage类检查暗黑模式状态，默认为false
+            const isDarkMode = this.storage.get('dark-mode', false);
             if (isDarkMode) {
                 document.body.classList.add('dark-mode');
             }
@@ -415,7 +450,7 @@
                 parent: this.toolsContainer,
                 onClick: () => {
                     const isDark = document.body.classList.toggle('dark-mode');
-                    localStorage.setItem('rustwiki-dark-mode', isDark);
+                    this.storage.set('dark-mode', isDark);
                     this.darkModeBtn.setHtml(isDark ? '☀️' : '🌙');
                 }
             });
@@ -444,6 +479,16 @@
             // 生成目录
             this.generateToc();
 
+            // 从storage加载目录显示状态，默认为true
+            this.tocVisible = this.storage.get('toc-visible', true);
+            
+            // 根据加载的状态设置目录显示
+            if (this.tocVisible) {
+                this.tocCard.show();
+            } else {
+                this.tocCard.hide();
+            }
+
             // 创建目录显示/隐藏按钮
             this.tocBtn = new Button({
                 html: '📑',
@@ -451,6 +496,8 @@
                 parent: this.toolsContainer,
                 onClick: () => {
                     this.tocVisible = !this.tocVisible;
+                    // 保存状态到storage
+                    this.storage.set('toc-visible', this.tocVisible);
                     if (this.tocVisible) {
                         this.tocCard.show();
                     } else {
@@ -465,7 +512,7 @@
             const mainContent = document.querySelector('main') || document.querySelector('.book-body') || document.body;
             if (!mainContent) return;
             
-            const headings = mainContent.querySelectorAll('h2, h3');
+            const headings = mainContent.querySelectorAll('h1,h2, h3');
             if (headings.length === 0) return;
             
             const tocList = document.createElement('ul');
