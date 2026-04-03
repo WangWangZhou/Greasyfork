@@ -22,6 +22,9 @@
  */
 
 import logger from './loggerModule.js';
+import { initProgress } from './videoSpeedProgressModule.js';
+import { init as initVideoInfoPanel } from './videoInfoDisplayPanelModule.js';
+import { formatTime } from './timeUtil.js';
 
 // 默认配置
 const DEFAULT_CONFIG = {
@@ -46,6 +49,8 @@ const DEFAULT_CONFIG = {
     // 是否在控制台输出日志
     debug: false
 };
+
+var totalSec = 0;
 
 /**
  * 判断是否为直播页面
@@ -201,33 +206,35 @@ function calculateTotalDuration() {
 }
 
 /**
- * 格式化秒数为 mm:ss 或 hh:mm:ss
- * @param {number} seconds
- * @returns {string}
- */
-function formatSeconds(seconds) {
-    if (seconds < 0) seconds = 0;
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
-    if (hours > 0) {
-        return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    } else {
-        return `${minutes}:${secs.toString().padStart(2, '0')}`;
-    }
-}
-
-/**
- * 在界面上显示合集总时长
+ * 在界面上显示消息
  * 查找 .bui-dropdown-name 元素并设置文本
  */
-function displayTotalDuration() {
+function displayMessage() {
     const target = document.querySelector('.bui-dropdown-name');
     if (!target) return;
-    const totalSec = calculateTotalDuration();
+    totalSec = calculateTotalDuration();
     if (totalSec === 0) return;
-    const formatted = formatSeconds(totalSec);
+    const formatted = formatTime(totalSec);
     target.textContent = formatted;
+}
+
+//剩余时长
+function getRemainingTime(){
+let remainingTime = 0;
+// 获取页面中的第一个 video 元素
+const video = document.querySelector('video');
+
+if (video) {
+  // 计算剩余时间（单位：秒）
+  remainingTime = video.duration - video.currentTime;
+  
+  //console.log(`剩余时长: ${remainingTime.toFixed(2)} 秒`);
+  //console.log(`格式化剩余时间: ${formatTime(remainingTime)}`);
+} else {
+  //console.log('未找到 video 元素');
+}
+
+return remainingTime;
 }
 
 /**
@@ -275,12 +282,18 @@ export function init(userConfig = {}) {
     // 显示合集总时长（元素可能动态加载）
     const tryDisplayDuration = () => {
         if (document.querySelector('.bui-dropdown-name')) {
-            displayTotalDuration();
+                displayMessage();
+                // 初始化视频进度条
+                //initProgress();
+                // 初始化视频信息面板
+                initVideoInfoPanel();
         } else {
             setTimeout(tryDisplayDuration, 500);
         }
     };
     tryDisplayDuration();
+
+
 
     // 设置初始倍速
     applyInitialSpeed(config);

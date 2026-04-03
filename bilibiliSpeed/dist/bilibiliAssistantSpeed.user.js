@@ -24,7 +24,7 @@
     NONE: 4
   };
   const DEFAULT_CONFIG$2 = {
-    enabled: true,
+    enabled: false,
 level: LogLevel.DEBUG,
 showTimestamp: true,
 showModule: true,
@@ -120,6 +120,186 @@ debugMode: false
     log: logMessage,
     LogLevel
   };
+  function formatTime(seconds) {
+    if (seconds < 0) seconds = 0;
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor(seconds % 3600 / 60);
+    const secs = Math.floor(seconds % 60);
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    } else {
+      return `${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    }
+  }
+  const DEFAULT_OPTIONS = {
+updateInterval: 250,
+showTitle: true,
+style: {
+      backgroundColor: "rgba(0, 0, 0, 0.7)",
+      color: "#fff",
+      fontSize: "14px",
+      fontFamily: "system-ui, sans-serif",
+      padding: "8px 12px",
+      borderRadius: "8px",
+      position: "absolute",
+      top: "10px",
+      right: "10px",
+      zIndex: "1000",
+      backdropFilter: "blur(4px)",
+      boxShadow: "0 2px 8px rgba(0,0,0,0.3)"
+    }
+  };
+  function getTotalDuration() {
+    let total = 0;
+    if (window.__INITIAL_STATE__ && window.__INITIAL_STATE__.videoData) {
+      const pages = window.__INITIAL_STATE__.videoData.pages;
+      if (Array.isArray(pages)) {
+        pages.forEach((page) => {
+          if (page && typeof page.duration === "number") {
+            total += page.duration;
+          }
+        });
+      }
+    }
+    return total;
+  }
+  function createPanelElement(options) {
+    const panel = document.createElement("div");
+    panel.className = "video-info-panel";
+    const styles = options.style;
+    Object.assign(panel.style, styles);
+    panel.style.position = styles.position || "absolute";
+    let html = "";
+    if (options.showTitle) {
+      html += '<div style="font-weight:bold; margin-bottom:4px;">📊 视频信息</div>';
+    }
+    html += `
+        <div>⏱️ 剩余: <span class="video-remaining">--:--</span></div>
+        <div>📅 总长: <span class="video-total">--:--</span></div>
+        <div>⚡ 速度: <span class="video-speed">1.00</span>x</div>
+    `;
+    panel.innerHTML = html;
+    return panel;
+  }
+  function updateRemainingTime(panel, video) {
+    if (!video || !panel) return;
+    const remaining = video.duration - video.currentTime;
+    const remainingFormatted = formatTime(remaining > 0 ? remaining : 0);
+    const remainingSpan = panel.querySelector(".video-remaining");
+    if (remainingSpan) remainingSpan.textContent = remainingFormatted;
+  }
+  function updateTotalDuration(panel) {
+    const total = getTotalDuration();
+    const totalFormatted = formatTime(total);
+    const totalSpan = panel.querySelector(".video-total");
+    if (totalSpan) totalSpan.textContent = totalFormatted;
+  }
+  function updatePlaybackRate(panel, video) {
+    if (!video || !panel) return;
+    const rate = video.playbackRate;
+    const speedSpan = panel.querySelector(".video-speed");
+    if (speedSpan) speedSpan.textContent = rate.toFixed(2);
+  }
+  function waitForElement(selector, timeout = 1e4) {
+    return new Promise((resolve, reject) => {
+      const existing = document.querySelector(selector);
+      if (existing) return resolve(existing);
+      const observer = new MutationObserver(() => {
+        const el = document.querySelector(selector);
+        if (el) {
+          observer.disconnect();
+          resolve(el);
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+      setTimeout(() => {
+        observer.disconnect();
+        reject(new Error(`等待元素 ${selector} 超时`));
+      }, timeout);
+    });
+  }
+  async function init$1(userOptions = {}) {
+    const options = { ...DEFAULT_OPTIONS, ...userOptions };
+    if (userOptions.style) {
+      options.style = { ...DEFAULT_OPTIONS.style, ...userOptions.style };
+    }
+    let danmakuContainer;
+    try {
+      danmakuContainer = await waitForElement(".danmaku-wrap", 15e3);
+    } catch (err) {
+      console.warn("[视频信息面板] 未找到 .danmaku-wrap，无法显示面板");
+      return { destroy: () => {
+      }, update: () => {
+      } };
+    }
+    if (getComputedStyle(danmakuContainer).position === "static") {
+      danmakuContainer.style.position = "relative";
+    }
+    const panel = createPanelElement(options);
+    danmakuContainer.appendChild(panel);
+    let video = document.querySelector("video");
+    if (!video) {
+      try {
+        video = await waitForElement("video", 1e4);
+      } catch (err) {
+        console.warn("[视频信息面板] 未找到 video 元素，面板将无数据");
+        panel.remove();
+        return { destroy: () => {
+        }, update: () => {
+        } };
+      }
+    }
+    updateTotalDuration(panel);
+    const onTimeUpdate = () => updateRemainingTime(panel, video);
+    const onRateChange = () => updatePlaybackRate(panel, video);
+    const onLoadedMetadata = () => {
+      updateTotalDuration(panel);
+      updateRemainingTime(panel, video);
+      updatePlaybackRate(panel, video);
+    };
+    video.addEventListener("timeupdate", onTimeUpdate);
+    video.addEventListener("ratechange", onRateChange);
+    video.addEventListener("loadedmetadata", onLoadedMetadata);
+    onLoadedMetadata();
+    let intervalId = setInterval(() => {
+      if (video && video.duration && !isNaN(video.duration)) {
+        updateRemainingTime(panel, video);
+        updatePlaybackRate(panel, video);
+      }
+    }, options.updateInterval);
+    const videoObserver = new MutationObserver(() => {
+      const newVideo = document.querySelector("video");
+      if (newVideo && newVideo !== video) {
+        video.removeEventListener("timeupdate", onTimeUpdate);
+        video.removeEventListener("ratechange", onRateChange);
+        video.removeEventListener("loadedmetadata", onLoadedMetadata);
+        video = newVideo;
+        video.addEventListener("timeupdate", onTimeUpdate);
+        video.addEventListener("ratechange", onRateChange);
+        video.addEventListener("loadedmetadata", onLoadedMetadata);
+        onLoadedMetadata();
+      }
+    });
+    videoObserver.observe(document.body, { childList: true, subtree: true });
+    const destroy = () => {
+      clearInterval(intervalId);
+      videoObserver.disconnect();
+      if (video) {
+        video.removeEventListener("timeupdate", onTimeUpdate);
+        video.removeEventListener("ratechange", onRateChange);
+        video.removeEventListener("loadedmetadata", onLoadedMetadata);
+      }
+      if (panel && panel.parentNode) panel.remove();
+    };
+    const update = () => {
+      if (video) {
+        updateRemainingTime(panel, video);
+        updateTotalDuration(panel);
+        updatePlaybackRate(panel, video);
+      }
+    };
+    return { destroy, update };
+  }
   const DEFAULT_CONFIG$1 = {
 step: 0.05,
 minSpeed: 0.125,
@@ -134,6 +314,7 @@ tipDuration: 500,
 showTip: true,
 debug: false
   };
+  var totalSec = 0;
   function isLivePage() {
     if (location.pathname.includes("/live/")) return true;
     const liveEl = document.querySelector(".live-player, .bpx-player-live");
@@ -234,23 +415,12 @@ debug: false
     }
     return totalDuration;
   }
-  function formatSeconds(seconds) {
-    if (seconds < 0) seconds = 0;
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor(seconds % 3600 / 60);
-    const secs = Math.floor(seconds % 60);
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-    } else {
-      return `${minutes}:${secs.toString().padStart(2, "0")}`;
-    }
-  }
-  function displayTotalDuration() {
+  function displayMessage() {
     const target = document.querySelector(".bui-dropdown-name");
     if (!target) return;
-    const totalSec = calculateTotalDuration();
+    totalSec = calculateTotalDuration();
     if (totalSec === 0) return;
-    const formatted = formatSeconds(totalSec);
+    const formatted = formatTime(totalSec);
     target.textContent = formatted;
   }
   function applyInitialSpeed(config2) {
@@ -279,7 +449,8 @@ debug: false
     window.addEventListener("keydown", keydownHandler, true);
     const tryDisplayDuration = () => {
       if (document.querySelector(".bui-dropdown-name")) {
-        displayTotalDuration();
+        displayMessage();
+        init$1();
       } else {
         setTimeout(tryDisplayDuration, 500);
       }

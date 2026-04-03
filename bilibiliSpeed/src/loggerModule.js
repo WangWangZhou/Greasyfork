@@ -19,7 +19,7 @@ const LogLevel = {
 
 // 默认配置
 const DEFAULT_CONFIG = {
-    enabled: true,           // 是否启用日志
+    enabled: false,           // 是否启用日志
     level: LogLevel.DEBUG,   // 日志级别
     showTimestamp: true,     // 是否显示时间戳
     showModule: true,        // 是否显示模块名称
