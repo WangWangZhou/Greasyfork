@@ -585,6 +585,125 @@ debug: false
     }
     return remainingTime;
   }
+  class IconCard {
+    constructor(options = {}) {
+      this.options = {
+        icon: "📊",
+        size: "40px",
+        backgroundColor: "#F9F9F9",
+        ...options
+      };
+      this.element = null;
+      this.isDragging = false;
+      this.dragOffsetX = 0;
+      this.dragOffsetY = 0;
+      this.position = { x: 100, y: 100 };
+      this.onShowPanel = null;
+      this.clickTimer = null;
+      this.clickCount = 0;
+      this.hasDragged = false;
+      this.dragStartX = 0;
+      this.dragStartY = 0;
+    }
+    create() {
+      const card = document.createElement("div");
+      card.className = "video-info-icon-card";
+      card.style.cssText = `
+            width: ${this.options.size};
+            height: ${this.options.size};
+            background-color: ${this.options.backgroundColor};
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            z-index: 1001;
+            position: fixed;
+            user-select: none;
+            transition: transform 0.1s ease;
+        `;
+      card.textContent = this.options.icon;
+      this.element = card;
+      this.bindEvents();
+      this.setPosition(this.position.x, this.position.y);
+      return card;
+    }
+    bindEvents() {
+      if (!this.element) return;
+      this.element.addEventListener("mousedown", (e) => {
+        this.isDragging = true;
+        this.hasDragged = false;
+        this.dragStartX = e.clientX;
+        this.dragStartY = e.clientY;
+        this.dragOffsetX = e.clientX - this.position.x;
+        this.dragOffsetY = e.clientY - this.position.y;
+        this.element.style.transform = "scale(0.95)";
+        e.preventDefault();
+      });
+      document.addEventListener("mousemove", (e) => {
+        if (!this.isDragging) return;
+        const moveX = Math.abs(e.clientX - this.dragStartX);
+        const moveY = Math.abs(e.clientY - this.dragStartY);
+        if (moveX > 5 || moveY > 5) {
+          this.hasDragged = true;
+        }
+        const x = e.clientX - this.dragOffsetX;
+        const y = e.clientY - this.dragOffsetY;
+        this.setPosition(x, y);
+      });
+      document.addEventListener("mouseup", () => {
+        if (this.isDragging) {
+          this.isDragging = false;
+          this.element.style.transform = "scale(1)";
+        }
+      });
+      this.element.addEventListener("click", (e) => {
+        if (this.hasDragged) return;
+        this.clickCount++;
+        if (this.clickCount === 1) {
+          this.clickTimer = setTimeout(() => {
+            this.clickCount = 0;
+          }, 300);
+        } else if (this.clickCount === 2) {
+          clearTimeout(this.clickTimer);
+          this.clickCount = 0;
+          if (this.onShowPanel) {
+            this.onShowPanel(this.position);
+          }
+        }
+      });
+    }
+    setPosition(x, y) {
+      this.position = { x, y };
+      if (this.element) {
+        this.element.style.left = `${x}px`;
+        this.element.style.top = `${y}px`;
+      }
+    }
+    show() {
+      if (this.element) {
+        this.element.style.display = "flex";
+      }
+    }
+    hide() {
+      if (this.element) {
+        this.element.style.display = "none";
+      }
+    }
+    destroy() {
+      if (this.clickTimer) {
+        clearTimeout(this.clickTimer);
+        this.clickTimer = null;
+      }
+      if (this.element && this.element.parentNode) {
+        this.element.parentNode.removeChild(this.element);
+      }
+      this.element = null;
+      this.onShowPanel = null;
+    }
+  }
   class ProgressBar {
     constructor(options = {}) {
       this.options = {
@@ -658,6 +777,11 @@ debug: false
       this.progressBar = null;
       this.videoElement = null;
       this.updateInterval = null;
+      this.isDragging = false;
+      this.dragOffsetX = 0;
+      this.dragOffsetY = 0;
+      this.iconCard = null;
+      this.isPanelVisible = true;
       this.styles = {
         width: "411px",
         backgroundColor: "#F9F9F9",
@@ -711,14 +835,66 @@ debug: false
             margin-bottom: 8px;
             display: flex;
             align-items: center;
+            justify-content: space-between;
             gap: 8px;
         `;
       header.innerHTML = `
-            <span>📊</span>
-            <span>视频信息</span>
+            <div class="header-left">
+                <span>📊</span>
+                <span>视频信息</span>
+            </div>
+            <div class="header-center" style="flex: 1; cursor: move; min-height: 20px;"></div>
+            <div class="header-right" style="cursor: pointer; user-select: none; font-size: 20px; padding: 4px 8px; border-radius: 4px; transition: background-color 0.2s;">
+                <span style="display: inline-block; transform: rotate(180deg);">❮</span>
+            </div>
         `;
       this.headerElement = header;
+      this.bindHeaderEvents(header);
       return header;
+    }
+    bindHeaderEvents(header) {
+      const right = header.querySelector(".header-right");
+      if (this._headerEventHandlers) {
+        document.removeEventListener("mousemove", this._headerEventHandlers.mousemove);
+        document.removeEventListener("mouseup", this._headerEventHandlers.mouseup);
+      }
+      this._headerEventHandlers = {
+        mousemove: (e) => {
+          if (!this.isDragging) return;
+          const x = e.clientX - this.dragOffsetX;
+          const y = e.clientY - this.dragOffsetY;
+          this.panelElement.style.left = `${x}px`;
+          this.panelElement.style.top = `${y}px`;
+        },
+        mouseup: () => {
+          this.isDragging = false;
+        }
+      };
+      header.addEventListener("mousedown", (e) => {
+        if (e.target.closest(".header-right")) return;
+        this.isDragging = true;
+        const rect = this.panelElement.getBoundingClientRect();
+        this.dragOffsetX = e.clientX - rect.left;
+        this.dragOffsetY = e.clientY - rect.top;
+        this.panelElement.style.position = "fixed";
+        this.panelElement.style.left = `${rect.left}px`;
+        this.panelElement.style.top = `${rect.top}px`;
+        e.preventDefault();
+      });
+      if (right) {
+        right.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.hidePanel();
+        });
+        right.addEventListener("mouseenter", () => {
+          right.style.backgroundColor = "rgba(0,0,0,0.1)";
+        });
+        right.addEventListener("mouseleave", () => {
+          right.style.backgroundColor = "transparent";
+        });
+      }
+      document.addEventListener("mousemove", this._headerEventHandlers.mousemove);
+      document.addEventListener("mouseup", this._headerEventHandlers.mouseup);
     }
     createBody() {
       const body = document.createElement("div");
@@ -759,6 +935,11 @@ debug: false
             .info-row > span {
                 flex: 1;
                 text-align: center;
+            }
+            .header-left {
+                display: flex;
+                align-items: center;
+                gap: 8px;
             }
         `;
       body.appendChild(style);
@@ -877,6 +1058,47 @@ debug: false
         this.updateInterval = null;
       }
     }
+    hidePanel() {
+      if (this.panelElement) {
+        const rect = this.panelElement.getBoundingClientRect();
+        this.panelElement.style.display = "none";
+        if (this.iconCard) {
+          this.iconCard.setPosition(rect.left, rect.top);
+          this.iconCard.show();
+        }
+      }
+      this.isPanelVisible = false;
+    }
+    showPanel(iconPosition) {
+      if (this.panelElement) {
+        this.panelElement.style.display = "flex";
+        this.panelElement.style.position = "fixed";
+        let x, y;
+        const panelWidth = this.panelElement.offsetWidth || 411;
+        const panelHeight = this.panelElement.offsetHeight || 200;
+        if (iconPosition) {
+          x = iconPosition.x;
+          y = iconPosition.y;
+          if (x + panelWidth > window.innerWidth) {
+            x = window.innerWidth - panelWidth - 10;
+          }
+          if (y + panelHeight > window.innerHeight) {
+            y = window.innerHeight - panelHeight - 20;
+          }
+          if (x < 10) x = 10;
+          if (y < 10) y = 10;
+        } else {
+          x = 100;
+          y = 100;
+        }
+        this.panelElement.style.left = `${x}px`;
+        this.panelElement.style.top = `${y}px`;
+      }
+      this.isPanelVisible = true;
+      if (this.iconCard) {
+        this.iconCard.hide();
+      }
+    }
     initialize(container) {
       if (!container) {
         console.warn("[视频信息面板] 容器元素不存在");
@@ -907,11 +1129,27 @@ debug: false
       }
       this.startAutoUpdate();
       container.appendChild(panel);
+      this.iconCard = new IconCard();
+      this.iconCard.onShowPanel = (pos) => {
+        this.showPanel(pos);
+      };
+      document.body.appendChild(this.iconCard.create());
+      this.iconCard.hide();
+      this.isPanelVisible = true;
       return true;
     }
     destroy() {
       this.stopAutoUpdate();
       this.unbindVideoEvents();
+      if (this._headerEventHandlers) {
+        document.removeEventListener("mousemove", this._headerEventHandlers.mousemove);
+        document.removeEventListener("mouseup", this._headerEventHandlers.mouseup);
+        this._headerEventHandlers = null;
+      }
+      if (this.iconCard) {
+        this.iconCard.destroy();
+        this.iconCard = null;
+      }
       if (this.progressBar) {
         this.progressBar.destroy();
         this.progressBar = null;
