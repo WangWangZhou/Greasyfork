@@ -49,9 +49,71 @@ export function getCurrentTimestamp() {
     return Math.floor(Date.now() / 1000);
 }
 
+/**
+ * 计算合集总时长（秒）
+ * @returns {number}
+ */
+export function calculateTotalDuration() {
+    let totalDuration = 0;
+    if (window.__INITIAL_STATE__ && window.__INITIAL_STATE__.videoData) {
+        const pages = window.__INITIAL_STATE__.videoData.pages;
+        if (Array.isArray(pages)) {
+            pages.forEach(page => {
+                if (page && typeof page.duration === 'number') {
+                    totalDuration += page.duration;
+                }
+            });
+        }
+    }
+    return totalDuration;
+}
+
+//是否是合集 
+export function isCollection(){
+    return window.__INITIAL_STATE__.videoData.pages.length > 1;
+}
+
+//当前视频时长
+export function getCurrentVideoDuration(){
+    const video = document.querySelector('video');
+    return video.duration;
+}
+
+//当前视频已播放时长
+export function getCurrentVideoPlayedTime(){
+    const video = document.querySelector('video');
+    return video.currentTime;
+}
+
+//当前视频剩余时长
+export function getRemainingTime(){
+    let remainingTime = 0;
+    // 获取页面中的第一个 video 元素
+    const video = document.querySelector('video');
+
+    if (video) {
+    // 计算剩余时间（单位：秒）
+    remainingTime = video.duration - video.currentTime;
+    
+    //console.log(`剩余时长: ${remainingTime.toFixed(2)} 秒`);
+    //console.log(`格式化剩余时间: ${formatTime(remainingTime)}`);
+    } else {
+    //console.log('未找到 video 元素');
+    }
+
+    return remainingTime;
+}
+
 // 默认导出（包含所有函数）
 export default {
     formatTime,
     formatTimeFixed,
-    getCurrentTimestamp
+    getCurrentTimestamp,
+    calculateTotalDuration,
+    getRemainingTime,
+    isCollection,
+    getCurrentVideoDuration,
+    getCurrentVideoPlayedTime
 };
+
+

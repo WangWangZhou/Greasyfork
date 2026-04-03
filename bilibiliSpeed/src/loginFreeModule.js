@@ -10,7 +10,7 @@
  *   removeLimitMask();                // 单独移除限制遮罩层
  */
 
-import logger from './loggerModule.js';
+import logger from './utils/loggerModule.js';
 
 // 登录弹窗关闭按钮的选择器（基于B站实际DOM结构）
 const CLOSE_SELECTOR = '.bili-mini-close-icon';

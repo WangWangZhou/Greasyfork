@@ -8,9 +8,9 @@
 // @icon         chrome://favicon/https://www.bilibili.com
 // @match        https://www.bilibili.com/video/*
 // @grant        GM_addStyle
-// @grant        GM_getValue
 // @grant        GM_registerMenuCommand
-// @grant        GM_setValue
+// @grant        GM_unregisterMenuCommand
+// @run-at       document-end
 // ==/UserScript==
 
 (function () {
@@ -23,14 +23,14 @@
     ERROR: 3,
     NONE: 4
   };
-  const DEFAULT_CONFIG$2 = {
+  const DEFAULT_CONFIG$1 = {
     enabled: false,
 level: LogLevel.DEBUG,
 showTimestamp: true,
 showModule: true,
 debugMode: false
 };
-  let config = { ...DEFAULT_CONFIG$2 };
+  let config = { ...DEFAULT_CONFIG$1 };
   const moduleNames = {
     "speed": "倍速模块",
     "ad": "广告模块",
@@ -120,190 +120,118 @@ debugMode: false
     log: logMessage,
     LogLevel
   };
-  function formatTime(seconds) {
-    if (seconds < 0) seconds = 0;
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor(seconds % 3600 / 60);
-    const secs = Math.floor(seconds % 60);
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-    } else {
-      return `${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  class VideoTipUI {
+    constructor(options = {}) {
+      this.options = {
+        containerSelector: ".bpx-player-video-wrap, .bpx-player-mini-wrap",
+        className: "bili-custom-speed-tip",
+        tipDuration: 500,
+        ...options
+      };
+      this.currentTip = null;
+      this.hideTimer = null;
     }
-  }
-  const DEFAULT_OPTIONS = {
-updateInterval: 250,
-showTitle: true,
-style: {
-      backgroundColor: "rgba(0, 0, 0, 0.7)",
-      color: "#fff",
-      fontSize: "14px",
-      fontFamily: "system-ui, sans-serif",
-      padding: "8px 12px",
-      borderRadius: "8px",
-      position: "absolute",
-      top: "10px",
-      right: "10px",
-      zIndex: "1000",
-      backdropFilter: "blur(4px)",
-      boxShadow: "0 2px 8px rgba(0,0,0,0.3)"
+findContainer() {
+      const selectors = this.options.containerSelector.split(",");
+      for (const selector of selectors) {
+        const container = document.querySelector(selector.trim());
+        if (container) return container;
+      }
+      return null;
     }
-  };
-  function getTotalDuration() {
-    let total = 0;
-    if (window.__INITIAL_STATE__ && window.__INITIAL_STATE__.videoData) {
-      const pages = window.__INITIAL_STATE__.videoData.pages;
-      if (Array.isArray(pages)) {
-        pages.forEach((page) => {
-          if (page && typeof page.duration === "number") {
-            total += page.duration;
-          }
-        });
+removeExistingTip() {
+      const existingTip = document.querySelector(`.${this.options.className}`);
+      if (existingTip) {
+        existingTip.remove();
+      }
+      if (this.currentTip) {
+        this.currentTip = null;
+      }
+      if (this.hideTimer) {
+        clearTimeout(this.hideTimer);
+        this.hideTimer = null;
       }
     }
-    return total;
-  }
-  function createPanelElement(options) {
-    const panel = document.createElement("div");
-    panel.className = "video-info-panel";
-    const styles = options.style;
-    Object.assign(panel.style, styles);
-    panel.style.position = styles.position || "absolute";
-    let html = "";
-    if (options.showTitle) {
-      html += '<div style="font-weight:bold; margin-bottom:4px;">📊 视频信息</div>';
-    }
-    html += `
-        <div>⏱️ 剩余: <span class="video-remaining">--:--</span></div>
-        <div>📅 总长: <span class="video-total">--:--</span></div>
-        <div>⚡ 速度: <span class="video-speed">1.00</span>x</div>
-    `;
-    panel.innerHTML = html;
-    return panel;
-  }
-  function updateRemainingTime(panel, video) {
-    if (!video || !panel) return;
-    const remaining = video.duration - video.currentTime;
-    const remainingFormatted = formatTime(remaining > 0 ? remaining : 0);
-    const remainingSpan = panel.querySelector(".video-remaining");
-    if (remainingSpan) remainingSpan.textContent = remainingFormatted;
-  }
-  function updateTotalDuration(panel) {
-    const total = getTotalDuration();
-    const totalFormatted = formatTime(total);
-    const totalSpan = panel.querySelector(".video-total");
-    if (totalSpan) totalSpan.textContent = totalFormatted;
-  }
-  function updatePlaybackRate(panel, video) {
-    if (!video || !panel) return;
-    const rate = video.playbackRate;
-    const speedSpan = panel.querySelector(".video-speed");
-    if (speedSpan) speedSpan.textContent = rate.toFixed(2);
-  }
-  function waitForElement(selector, timeout = 1e4) {
-    return new Promise((resolve, reject) => {
-      const existing = document.querySelector(selector);
-      if (existing) return resolve(existing);
-      const observer = new MutationObserver(() => {
-        const el = document.querySelector(selector);
-        if (el) {
-          observer.disconnect();
-          resolve(el);
-        }
+createTipElement(rate) {
+      const container = this.findContainer();
+      if (!container) return null;
+      this.removeExistingTip();
+      const tip = document.createElement("div");
+      tip.className = this.options.className;
+      tip.textContent = `${rate.toFixed(2)}x`;
+      Object.assign(tip.style, {
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        backgroundColor: "rgba(0, 0, 0, 0.7)",
+        color: "#fff",
+        fontSize: "2rem",
+        fontWeight: "bold",
+        padding: "12px 24px",
+        borderRadius: "8px",
+        fontFamily: "system-ui, sans-serif",
+        zIndex: "9999",
+        pointerEvents: "none",
+        whiteSpace: "nowrap",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.3)"
       });
-      observer.observe(document.body, { childList: true, subtree: true });
-      setTimeout(() => {
-        observer.disconnect();
-        reject(new Error(`等待元素 ${selector} 超时`));
-      }, timeout);
-    });
+      container.style.position = "relative";
+      container.appendChild(tip);
+      this.currentTip = tip;
+      return tip;
+    }
+show(rate, duration) {
+      const tipDuration = duration || this.options.tipDuration;
+      const tip = this.createTipElement(rate);
+      if (!tip) return false;
+      this.hideTimer = setTimeout(() => {
+        this.hide();
+      }, tipDuration);
+      return true;
+    }
+hide() {
+      if (this.currentTip && this.currentTip.parentNode) {
+        this.currentTip.remove();
+      }
+      this.currentTip = null;
+      if (this.hideTimer) {
+        clearTimeout(this.hideTimer);
+        this.hideTimer = null;
+      }
+    }
+destroy() {
+      this.hide();
+    }
   }
-  async function init$1(userOptions = {}) {
-    const options = { ...DEFAULT_OPTIONS, ...userOptions };
-    if (userOptions.style) {
-      options.style = { ...DEFAULT_OPTIONS.style, ...userOptions.style };
-    }
-    let danmakuContainer;
-    try {
-      danmakuContainer = await waitForElement(".danmaku-wrap", 15e3);
-    } catch (err) {
-      console.warn("[视频信息面板] 未找到 .danmaku-wrap，无法显示面板");
-      return { destroy: () => {
-      }, update: () => {
-      } };
-    }
-    if (getComputedStyle(danmakuContainer).position === "static") {
-      danmakuContainer.style.position = "relative";
-    }
-    const panel = createPanelElement(options);
-    danmakuContainer.appendChild(panel);
-    let video = document.querySelector("video");
-    if (!video) {
-      try {
-        video = await waitForElement("video", 1e4);
-      } catch (err) {
-        console.warn("[视频信息面板] 未找到 video 元素，面板将无数据");
-        panel.remove();
-        return { destroy: () => {
-        }, update: () => {
-        } };
-      }
-    }
-    updateTotalDuration(panel);
-    const onTimeUpdate = () => updateRemainingTime(panel, video);
-    const onRateChange = () => updatePlaybackRate(panel, video);
-    const onLoadedMetadata = () => {
-      updateTotalDuration(panel);
-      updateRemainingTime(panel, video);
-      updatePlaybackRate(panel, video);
-    };
-    video.addEventListener("timeupdate", onTimeUpdate);
-    video.addEventListener("ratechange", onRateChange);
-    video.addEventListener("loadedmetadata", onLoadedMetadata);
-    onLoadedMetadata();
-    let intervalId = setInterval(() => {
-      if (video && video.duration && !isNaN(video.duration)) {
-        updateRemainingTime(panel, video);
-        updatePlaybackRate(panel, video);
-      }
-    }, options.updateInterval);
-    const videoObserver = new MutationObserver(() => {
-      const newVideo = document.querySelector("video");
-      if (newVideo && newVideo !== video) {
-        video.removeEventListener("timeupdate", onTimeUpdate);
-        video.removeEventListener("ratechange", onRateChange);
-        video.removeEventListener("loadedmetadata", onLoadedMetadata);
-        video = newVideo;
-        video.addEventListener("timeupdate", onTimeUpdate);
-        video.addEventListener("ratechange", onRateChange);
-        video.addEventListener("loadedmetadata", onLoadedMetadata);
-        onLoadedMetadata();
-      }
-    });
-    videoObserver.observe(document.body, { childList: true, subtree: true });
-    const destroy = () => {
-      clearInterval(intervalId);
-      videoObserver.disconnect();
-      if (video) {
-        video.removeEventListener("timeupdate", onTimeUpdate);
-        video.removeEventListener("ratechange", onRateChange);
-        video.removeEventListener("loadedmetadata", onLoadedMetadata);
-      }
-      if (panel && panel.parentNode) panel.remove();
-    };
-    const update = () => {
-      if (video) {
-        updateRemainingTime(panel, video);
-        updateTotalDuration(panel);
-        updatePlaybackRate(panel, video);
+  function throttle(func, delay) {
+    let lastCall = 0;
+    let timer = null;
+    return function(...args) {
+      const now = Date.now();
+      const remaining = delay - (now - lastCall);
+      if (remaining <= 0) {
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+        lastCall = now;
+        return func.apply(this, args);
+      } else {
+        if (!timer) {
+          timer = setTimeout(() => {
+            lastCall = Date.now();
+            timer = null;
+            return func.apply(this, args);
+          }, remaining);
+        }
       }
     };
-    return { destroy, update };
   }
-  const DEFAULT_CONFIG$1 = {
+  const DEFAULT_CONFIG = {
 step: 0.05,
-minSpeed: 0.125,
-maxSpeed: 16,
+minSpeed: 0.5,
+maxSpeed: 4,
 initialSpeed: 0,
 keys: {
       reset: "z",
@@ -314,7 +242,6 @@ tipDuration: 500,
 showTip: true,
 debug: false
   };
-  var totalSec = 0;
   function isLivePage() {
     if (location.pathname.includes("/live/")) return true;
     const liveEl = document.querySelector(".live-player, .bpx-player-live");
@@ -327,37 +254,15 @@ debug: false
   function getVideoElement() {
     return document.querySelector("video");
   }
+  let tipUI = null;
   function showSpeedTip(rate, config2) {
     if (!config2.showTip) return;
-    const container = document.querySelector(".bpx-player-video-wrap") || document.querySelector(".bpx-player-mini-wrap");
-    if (!container) return;
-    const existingTip = document.querySelector(".bili-custom-speed-tip");
-    if (existingTip) existingTip.remove();
-    const tip = document.createElement("div");
-    tip.className = "bili-custom-speed-tip";
-    tip.textContent = `${rate.toFixed(2)}x`;
-    Object.assign(tip.style, {
-      position: "absolute",
-      top: "50%",
-      left: "50%",
-      transform: "translate(-50%, -50%)",
-      backgroundColor: "rgba(0, 0, 0, 0.7)",
-      color: "#fff",
-      fontSize: "2rem",
-      fontWeight: "bold",
-      padding: "12px 24px",
-      borderRadius: "8px",
-      fontFamily: "system-ui, sans-serif",
-      zIndex: "9999",
-      pointerEvents: "none",
-      whiteSpace: "nowrap",
-      boxShadow: "0 2px 8px rgba(0,0,0,0.3)"
-    });
-    container.style.position = "relative";
-    container.appendChild(tip);
-    setTimeout(() => {
-      if (tip.parentNode) tip.remove();
-    }, config2.tipDuration);
+    if (!tipUI) {
+      tipUI = new VideoTipUI({
+        tipDuration: config2.tipDuration
+      });
+    }
+    tipUI.show(rate, config2.tipDuration);
   }
   function setPlaybackRate(rate, config2, fromUser = true) {
     const video = getVideoElement();
@@ -378,6 +283,9 @@ debug: false
   }
   function createKeydownHandler(config2) {
     const { keys, step } = config2;
+    const throttledSetPlaybackRate = throttle((rate) => {
+      setPlaybackRate(rate, config2, true);
+    }, 500);
     return function onKeyDown(e) {
       const activeEl = document.activeElement;
       const isInputActive = activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.isContentEditable);
@@ -396,32 +304,10 @@ debug: false
       } else {
         return;
       }
-      setPlaybackRate(targetRate, config2, true);
+      throttledSetPlaybackRate(targetRate);
       e.preventDefault();
       e.stopPropagation();
     };
-  }
-  function calculateTotalDuration() {
-    let totalDuration = 0;
-    if (window.__INITIAL_STATE__ && window.__INITIAL_STATE__.videoData) {
-      const pages = window.__INITIAL_STATE__.videoData.pages;
-      if (Array.isArray(pages)) {
-        pages.forEach((page) => {
-          if (page && typeof page.duration === "number") {
-            totalDuration += page.duration;
-          }
-        });
-      }
-    }
-    return totalDuration;
-  }
-  function displayMessage() {
-    const target = document.querySelector(".bui-dropdown-name");
-    if (!target) return;
-    totalSec = calculateTotalDuration();
-    if (totalSec === 0) return;
-    const formatted = formatTime(totalSec);
-    target.textContent = formatted;
   }
   function applyInitialSpeed(config2) {
     if (!config2.initialSpeed || config2.initialSpeed <= 0) return;
@@ -437,9 +323,9 @@ debug: false
     checkVideo();
   }
   function init(userConfig = {}) {
-    const config2 = { ...DEFAULT_CONFIG$1, ...userConfig };
+    const config2 = { ...DEFAULT_CONFIG, ...userConfig };
     if (userConfig.keys) {
-      config2.keys = { ...DEFAULT_CONFIG$1.keys, ...userConfig.keys };
+      config2.keys = { ...DEFAULT_CONFIG.keys, ...userConfig.keys };
     }
     if (isLivePage()) {
       if (config2.debug) logger.debug("speed", "检测到直播页面，已自动禁用");
@@ -447,15 +333,6 @@ debug: false
     }
     const keydownHandler = createKeydownHandler(config2);
     window.addEventListener("keydown", keydownHandler, true);
-    const tryDisplayDuration = () => {
-      if (document.querySelector(".bui-dropdown-name")) {
-        displayMessage();
-        init$1();
-      } else {
-        setTimeout(tryDisplayDuration, 500);
-      }
-    };
-    tryDisplayDuration();
     applyInitialSpeed(config2);
     if (config2.debug) {
       logger.debug("speed", "已启用，配置：", {
@@ -476,11 +353,15 @@ debug: false
       },
       destroy: () => {
         window.removeEventListener("keydown", keydownHandler, true);
+        if (tipUI) {
+          tipUI.destroy();
+          tipUI = null;
+        }
         if (config2.debug) logger.debug("speed", "已销毁");
       }
     };
   }
-  const speedModule = { init };
+  const videoSpeedModule = { init };
   const DEFAULT_SELECTORS = [
     ".video-card-ad-small",
     ".right-bottom-banner"
@@ -524,7 +405,6 @@ debug: false
     });
     return observer;
   }
-  const adModule = { hideAds, initAdBlocker };
   const CLOSE_SELECTOR = ".bili-mini-close-icon";
   const LIMIT_MASK_SELECTOR = "#limit-mask";
   function removeLimitMask() {
@@ -577,7 +457,6 @@ debug: false
     logger.log("login", "已启动监听，将自动关闭登录弹窗");
     return observer;
   }
-  const loginModule = { closeLoginModal, keepLoginModalClosed, removeLimitMask };
   function trimLeadingNumberAndDelimiter(str) {
     const regex = /^\d+(\s+|\-|\-\s+|\s+\-)/;
     return str.replace(regex, "");
@@ -673,11 +552,434 @@ debug: false
       modifiedCount
     };
   }
-  const DEFAULT_CONFIG = {
-speed: {
+  function formatTime(seconds) {
+    if (seconds < 0) seconds = 0;
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor(seconds % 3600 / 60);
+    const secs = Math.floor(seconds % 60);
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    } else {
+      return `${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    }
+  }
+  function calculateTotalDuration() {
+    let totalDuration = 0;
+    if (window.__INITIAL_STATE__ && window.__INITIAL_STATE__.videoData) {
+      const pages = window.__INITIAL_STATE__.videoData.pages;
+      if (Array.isArray(pages)) {
+        pages.forEach((page) => {
+          if (page && typeof page.duration === "number") {
+            totalDuration += page.duration;
+          }
+        });
+      }
+    }
+    return totalDuration;
+  }
+  function getRemainingTime() {
+    let remainingTime = 0;
+    const video = document.querySelector("video");
+    if (video) {
+      remainingTime = video.duration - video.currentTime;
+    }
+    return remainingTime;
+  }
+  class ProgressBar {
+    constructor(options = {}) {
+      this.options = {
+        height: "4px",
+        backgroundColor: "rgba(0, 0, 0, 0.1)",
+        progressColor: "#1E88E5",
+        borderRadius: "2px",
+        ...options
+      };
+      this.container = null;
+      this.progressFill = null;
+      this.progressText = null;
+    }
+    create() {
+      const container = document.createElement("div");
+      container.className = "video-progress-container";
+      container.style.cssText = `
+            width: 100%;
+            height: ${this.options.height};
+            background-color: ${this.options.backgroundColor};
+            border-radius: ${this.options.borderRadius};
+            overflow: hidden;
+            position: relative;
+        `;
+      this.progressFill = document.createElement("div");
+      this.progressFill.className = "video-progress-fill";
+      this.progressFill.style.cssText = `
+            height: 100%;
+            width: 0%;
+            background-color: ${this.options.progressColor};
+            transition: width 0.3s ease;
+        `;
+      this.progressText = document.createElement("div");
+      this.progressText.className = "video-progress-text";
+      this.progressText.style.cssText = `
+            display: none;
+        `;
+      container.appendChild(this.progressFill);
+      container.appendChild(this.progressText);
+      this.container = container;
+      return container;
+    }
+    update(percentage, text) {
+      if (this.progressFill) {
+        this.progressFill.style.width = `${Math.min(100, Math.max(0, percentage))}%`;
+      }
+      if (this.progressText) {
+        this.progressText.textContent = text || "";
+      }
+    }
+    destroy() {
+      if (this.container && this.container.parentNode) {
+        this.container.parentNode.removeChild(this.container);
+      }
+      this.container = null;
+      this.progressFill = null;
+      this.progressText = null;
+    }
+  }
+  class VideoInfoPanel {
+    constructor(options = {}) {
+      this.options = {
+        containerSelector: "#danmukuBox",
+        ...options
+      };
+      this.container = null;
+      this.panelElement = null;
+      this.headerElement = null;
+      this.bodyElement = null;
+      this.footElement = null;
+      this.progressBar = null;
+      this.videoElement = null;
+      this.updateInterval = null;
+      this.styles = {
+        width: "411px",
+        backgroundColor: "#F9F9F9",
+        fontSize: "16px",
+        fontFamily: "system-ui, sans-serif"
+      };
+    }
+    getStylesFromDanmakuBox() {
+      const danmakuBox = document.querySelector(this.options.containerSelector);
+      if (danmakuBox) {
+        const computedStyle = getComputedStyle(danmakuBox);
+        this.styles = {
+          width: computedStyle.width || "411px",
+          backgroundColor: "#F9F9F9",
+          fontSize: computedStyle.fontSize || "16px",
+          fontFamily: computedStyle.fontFamily || "system-ui, sans-serif"
+        };
+      }
+    }
+    createPanel() {
+      const panel = document.createElement("div");
+      panel.className = "video-info-display-panel";
+      panel.style.cssText = `
+            width: ${this.styles.width};
+            background-color: ${this.styles.backgroundColor};
+            border-radius: 8px;
+            padding: 12px;
+            font-family: ${this.styles.fontFamily};
+            font-size: ${this.styles.fontSize};
+            color: #000000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            z-index: ${this.styles.zIndex || "1000"};
+            position: ${this.styles.position || "relative"};
+            top: ${this.styles.top || "auto"};
+            left: ${this.styles.left || "auto"};
+        `;
+      this.panelElement = panel;
+      return panel;
+    }
+    createHeader() {
+      const header = document.createElement("div");
+      header.className = "video-info-header";
+      header.style.cssText = `
+            font-weight: bold;
+            font-size: 18px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        `;
+      header.innerHTML = `
+            <span>📊</span>
+            <span>视频信息</span>
+        `;
+      this.headerElement = header;
+      return header;
+    }
+    createBody() {
+      const body = document.createElement("div");
+      body.className = "video-info-body";
+      body.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        `;
+      body.innerHTML = `
+            <div class="info-row info-labels">
+                <span class="info-label">⏳ 剩余时长</span>
+                <span class="info-label">📅 总时长</span>
+                <span class="info-label">⚡ 倍速</span>
+            </div>
+            <div class="info-row info-values">
+                <span class="info-value" id="remainingTime">--:--</span>
+                <span class="info-value" id="totalTime">--:--</span>
+                <span class="info-value" id="playbackSpeed">1.00x</span>
+            </div>
+        `;
+      const style = document.createElement("style");
+      style.textContent = `
+            .info-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .info-labels {
+                opacity: 0.7;
+                font-size: 14px;
+            }
+            .info-values {
+                font-weight: 500;
+                font-family: monospace;
+                font-size: 16px;
+            }
+            .info-row > span {
+                flex: 1;
+                text-align: center;
+            }
+        `;
+      body.appendChild(style);
+      this.bodyElement = body;
+      return body;
+    }
+    createFoot() {
+      const foot = document.createElement("div");
+      foot.className = "video-info-foot";
+      foot.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        `;
+      const progressBar = new ProgressBar({
+        height: "6px",
+        backgroundColor: "rgba(0,0,0,0.1)",
+        progressColor: "#1E88E5"
+      });
+      this.progressBar = progressBar;
+      foot.appendChild(progressBar.create());
+      this.footElement = foot;
+      return foot;
+    }
+    getVideoElement() {
+      return document.querySelector("video");
+    }
+    getTotalDuration() {
+      return calculateTotalDuration();
+    }
+    updateRemainingTime() {
+      if (!this.bodyElement) return;
+      const remaining = getRemainingTime() || 0;
+      const remainingSpan = this.bodyElement.querySelector("#remainingTime");
+      if (remainingSpan) {
+        remainingSpan.textContent = formatTime(remaining);
+      }
+    }
+    updateTotalTime() {
+      if (!this.bodyElement) return;
+      const total = this.getTotalDuration();
+      const totalSpan = this.bodyElement.querySelector("#totalTime");
+      if (totalSpan) {
+        totalSpan.textContent = formatTime(total);
+      }
+    }
+    updatePlaybackSpeed() {
+      if (!this.videoElement || !this.bodyElement) return;
+      const speed = this.videoElement.playbackRate || 1;
+      const speedSpan = this.bodyElement.querySelector("#playbackSpeed");
+      if (speedSpan) {
+        speedSpan.textContent = `${speed.toFixed(2)}x`;
+      }
+    }
+    updateProgress() {
+      if (!this.videoElement || !this.progressBar) return;
+      const duration = this.videoElement.duration || 0;
+      const currentTime = this.videoElement.currentTime || 0;
+      if (duration > 0) {
+        const percentage = currentTime / duration * 100;
+        const remaining = getRemainingTime();
+        const text = `${Math.floor(percentage)}% (-${formatTime(remaining)})`;
+        this.progressBar.update(percentage, text);
+      }
+    }
+    updateAll() {
+      this.updateRemainingTime();
+      this.updateTotalTime();
+      this.updatePlaybackSpeed();
+      this.updateProgress();
+    }
+    bindVideoEvents() {
+      if (!this.videoElement) return;
+      const handler = {
+        timeupdate: () => {
+          this.updateRemainingTime();
+          this.updateProgress();
+        },
+        ratechange: () => {
+          this.updatePlaybackSpeed();
+        },
+        loadedmetadata: () => {
+          this.updateTotalTime();
+          this.updateAll();
+        }
+      };
+      this._eventHandlers = handler;
+      this.videoElement.addEventListener("timeupdate", handler.timeupdate);
+      this.videoElement.addEventListener("ratechange", handler.ratechange);
+      this.videoElement.addEventListener("loadedmetadata", handler.loadedmetadata);
+    }
+    unbindVideoEvents() {
+      if (!this.videoElement || !this._eventHandlers) return;
+      this.videoElement.removeEventListener("timeupdate", this._eventHandlers.timeupdate);
+      this.videoElement.removeEventListener("ratechange", this._eventHandlers.ratechange);
+      this.videoElement.removeEventListener("loadedmetadata", this._eventHandlers.loadedmetadata);
+      this._eventHandlers = null;
+    }
+    startAutoUpdate() {
+      this.stopAutoUpdate();
+      this.updateInterval = setInterval(() => {
+        const currentVideo = this.getVideoElement();
+        if (currentVideo !== this.videoElement) {
+          this.unbindVideoEvents();
+          this.videoElement = currentVideo;
+          if (this.videoElement) {
+            this.bindVideoEvents();
+          }
+        }
+        this.updateAll();
+      }, 500);
+    }
+    stopAutoUpdate() {
+      if (this.updateInterval) {
+        clearInterval(this.updateInterval);
+        this.updateInterval = null;
+      }
+    }
+    initialize(container) {
+      if (!container) {
+        console.warn("[视频信息面板] 容器元素不存在");
+        return false;
+      }
+      this.getStylesFromDanmakuBox();
+      const danmakuWrap = document.querySelector(".danmaku-wrap");
+      if (danmakuWrap) {
+        const wrapRect = danmakuWrap.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const relativeTop = wrapRect.top - containerRect.top;
+        const relativeLeft = wrapRect.left - containerRect.left;
+        this.styles.width = `${wrapRect.width}px`;
+        this.styles.position = "absolute";
+        this.styles.top = `${relativeTop}px`;
+        this.styles.left = `${relativeLeft}px`;
+        this.styles.zIndex = "1000";
+      }
+      this.container = container;
+      const panel = this.createPanel();
+      panel.appendChild(this.createHeader());
+      panel.appendChild(this.createBody());
+      panel.appendChild(this.createFoot());
+      this.videoElement = this.getVideoElement();
+      if (this.videoElement) {
+        this.bindVideoEvents();
+        this.updateAll();
+      }
+      this.startAutoUpdate();
+      container.appendChild(panel);
+      return true;
+    }
+    destroy() {
+      this.stopAutoUpdate();
+      this.unbindVideoEvents();
+      if (this.progressBar) {
+        this.progressBar.destroy();
+        this.progressBar = null;
+      }
+      if (this.panelElement && this.panelElement.parentNode) {
+        this.panelElement.parentNode.removeChild(this.panelElement);
+      }
+      this.container = null;
+      this.panelElement = null;
+      this.headerElement = null;
+      this.bodyElement = null;
+      this.footElement = null;
+      this.videoElement = null;
+    }
+  }
+  function initVideoInfoDisplay(options = {}) {
+    let panel = null;
+    let observer = null;
+    let currentContainer = null;
+    function createPanel(container) {
+      if (!container) return null;
+      if (currentContainer === container && panel) {
+        return panel;
+      }
+      if (panel) {
+        panel.destroy();
+      }
+      const newPanel = new VideoInfoPanel(options);
+      const success = newPanel.initialize(container);
+      if (success) {
+        currentContainer = container;
+        return newPanel;
+      }
+      return null;
+    }
+    function init2() {
+      const container = document.querySelector("#danmukuBox");
+      if (container) {
+        panel = createPanel(container);
+      } else {
+        if (currentContainer) {
+          if (panel) {
+            panel.destroy();
+            panel = null;
+          }
+          currentContainer = null;
+        }
+      }
+    }
+    function startObserver() {
+      if (observer) observer.disconnect();
+      observer = new MutationObserver(() => {
+        init2();
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+    init2();
+    startObserver();
+    window.addEventListener("popstate", () => {
+      setTimeout(init2, 200);
+    });
+    return panel;
+  }
+  function initSpeedModule() {
+    const speedInstance = videoSpeedModule.init({
       step: 0.05,
-      minSpeed: 0.125,
-      maxSpeed: 16,
+      minSpeed: 0.5,
+      maxSpeed: 4,
       initialSpeed: 0,
       keys: {
         reset: "z",
@@ -685,281 +987,82 @@ speed: {
         dec: "c"
       },
       tipDuration: 500,
-      showTip: true
-    },
-switches: {
-      adBlock: true,
-noLogin: true,
-simplifyTitle: false
-}
-  };
-  function saveConfig(config2) {
-    if (typeof GM_setValue !== "undefined") {
-      GM_setValue("biliHelperConfig", JSON.stringify(config2));
-    } else {
-      localStorage.setItem("biliHelperConfig", JSON.stringify(config2));
-    }
-  }
-  function loadConfig() {
-    let raw = null;
-    if (typeof GM_getValue !== "undefined") {
-      raw = GM_getValue("biliHelperConfig");
-    } else {
-      raw = localStorage.getItem("biliHelperConfig");
-    }
-    if (raw) {
-      try {
-        const saved = JSON.parse(raw);
-        return mergeDeep(DEFAULT_CONFIG, saved);
-      } catch (e) {
-      }
-    }
-    return { ...DEFAULT_CONFIG };
-  }
-  function mergeDeep(target, source) {
-    const result = { ...target };
-    for (const key in source) {
-      if (source[key] && typeof source[key] === "object" && !Array.isArray(source[key])) {
-        result[key] = mergeDeep(target[key] || {}, source[key]);
-      } else {
-        result[key] = source[key];
-      }
-    }
-    return result;
-  }
-  let panelElement = null;
-  let currentConfig = null;
-  let speedController = null;
-  let adObserver = null;
-  let loginObserver = null;
-  let modules = {};
-  function applySpeedConfig(config2) {
-    if (speedController && speedController.destroy) {
-      speedController.destroy();
-    }
-    const speedModule2 = modules.speedModule;
-    if (speedModule2 && speedModule2.init) {
-      speedController = speedModule2.init(config2);
-    }
-  }
-  function applyAdBlock(enabled) {
-    const adModule2 = modules.adModule;
-    if (!adModule2) return;
-    if (enabled) {
-      if (!adObserver) {
-        adObserver = adModule2.initAdBlocker ? adModule2.initAdBlocker() : null;
-      }
-    } else {
-      if (adObserver && adObserver.disconnect) {
-        adObserver.disconnect();
-        adObserver = null;
-      }
-    }
-  }
-  function applyNoLogin(enabled) {
-    const loginModule2 = modules.loginModule;
-    if (!loginModule2) return;
-    if (enabled) {
-      if (!loginObserver) {
-        loginObserver = loginModule2.keepLoginModalClosed ? loginModule2.keepLoginModalClosed() : null;
-      }
-    } else {
-      if (loginObserver && loginObserver.disconnect) {
-        loginObserver.disconnect();
-        loginObserver = null;
-      }
-    }
-  }
-  function applySimplifyTitle(enabled) {
-    const titleModule = modules.titleModule;
-    if (!titleModule || !titleModule.simplifyTitles) return;
-    if (enabled) {
-      titleModule.simplifyTitles({ debug: false });
-    }
-  }
-  function applyAllConfig() {
-    const speedConf = currentConfig.speed;
-    applySpeedConfig(speedConf);
-    applyAdBlock(currentConfig.switches.adBlock);
-    applyNoLogin(currentConfig.switches.noLogin);
-    applySimplifyTitle(currentConfig.switches.simplifyTitle);
-  }
-  function createPanel() {
-    if (panelElement) {
-      panelElement.style.display = "flex";
-      return;
-    }
-    const panel = document.createElement("div");
-    panel.id = "bili-helper-panel";
-    panel.innerHTML = `
-        <div class="panel-header" style="cursor: move; background:#2c3e50; padding:8px; color:white; border-radius:8px 8px 0 0;">
-            B站小助手设置
-            <button id="closePanel" style="float:right; background:none; border:none; color:white; cursor:pointer;">✕</button>
-        </div>
-        <div class="panel-body" style="padding:12px;">
-            <h4>🎬 倍速控制</h4>
-            <label>步进值: <input type="number" id="step" step="0.01" min="0.01" style="width:70px;"></label><br>
-            <label>最小倍速: <input type="number" id="minSpeed" step="0.01" min="0" style="width:70px;"></label>
-            <label>最大倍速: <input type="number" id="maxSpeed" step="0.01" min="0.125" style="width:70px;"></label><br>
-            <label>初始倍速: <input type="number" id="initialSpeed" step="0.01" min="0" style="width:70px;"> (0=不设置)</label><br>
-            <label>恢复1x按键: <input type="text" id="keyReset" maxlength="1" style="width:40px;"></label>
-            <label>加速按键: <input type="text" id="keyInc" maxlength="1" style="width:40px;"></label>
-            <label>减速按键: <input type="text" id="keyDec" maxlength="1" style="width:40px;"></label><br>
-            <label>提示时长(ms): <input type="number" id="tipDuration" step="50" min="0" style="width:70px;"></label>
-            <label><input type="checkbox" id="showTip"> 显示倍速提示</label>
-            <hr>
-            <h4>🔧 辅助功能</h4>
-            <label><input type="checkbox" id="adBlockSwitch"> 屏蔽广告</label><br>
-            <label><input type="checkbox" id="noLoginSwitch"> 自动关闭登录弹窗</label><br>
-            <label><input type="checkbox" id="titleSwitch"> 简化视频标题（需刷新页面生效）</label>
-            <hr>
-            <button id="saveConfigBtn" style="background:#3498db; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">保存设置</button>
-            <button id="resetDefaultBtn" style="margin-left:8px; background:#95a5a6; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">恢复默认</button>
-        </div>
-    `;
-    Object.assign(panel.style, {
-      position: "fixed",
-      top: "100px",
-      left: "100px",
-      width: "300px",
-      backgroundColor: "#ecf0f1",
-      borderRadius: "8px",
-      boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-      zIndex: "10000",
-      fontFamily: "system-ui, sans-serif",
-      fontSize: "14px",
-      display: "flex",
-      flexDirection: "column"
+      showTip: true,
+      debug: false
     });
-    document.body.appendChild(panel);
-    panelElement = panel;
-    function fillForm() {
-      const s = currentConfig.speed;
-      document.getElementById("step").value = s.step;
-      document.getElementById("minSpeed").value = s.minSpeed;
-      document.getElementById("maxSpeed").value = s.maxSpeed;
-      document.getElementById("initialSpeed").value = s.initialSpeed;
-      document.getElementById("keyReset").value = s.keys.reset;
-      document.getElementById("keyInc").value = s.keys.inc;
-      document.getElementById("keyDec").value = s.keys.dec;
-      document.getElementById("tipDuration").value = s.tipDuration;
-      document.getElementById("showTip").checked = s.showTip;
-      document.getElementById("adBlockSwitch").checked = currentConfig.switches.adBlock;
-      document.getElementById("noLoginSwitch").checked = currentConfig.switches.noLogin;
-      document.getElementById("titleSwitch").checked = currentConfig.switches.simplifyTitle;
+    if (speedInstance.active) {
+      logger.log("main", "[倍速模块] 已启用");
+    } else {
+      logger.log("main", "[倍速模块]", speedInstance.reason === "live_page" ? "直播页面，已禁用" : "未启用");
     }
-    function readForm() {
-      const newConfig = {
-        speed: {
-          step: parseFloat(document.getElementById("step").value),
-          minSpeed: parseFloat(document.getElementById("minSpeed").value),
-          maxSpeed: parseFloat(document.getElementById("maxSpeed").value),
-          initialSpeed: parseFloat(document.getElementById("initialSpeed").value),
-          keys: {
-            reset: document.getElementById("keyReset").value || "z",
-            inc: document.getElementById("keyInc").value || "x",
-            dec: document.getElementById("keyDec").value || "c"
-          },
-          tipDuration: parseInt(document.getElementById("tipDuration").value),
-          showTip: document.getElementById("showTip").checked
-        },
-        switches: {
-          adBlock: document.getElementById("adBlockSwitch").checked,
-          noLogin: document.getElementById("noLoginSwitch").checked,
-          simplifyTitle: document.getElementById("titleSwitch").checked
-        }
-      };
-      if (isNaN(newConfig.speed.step)) newConfig.speed.step = 0.05;
-      if (isNaN(newConfig.speed.minSpeed)) newConfig.speed.minSpeed = 0.125;
-      if (isNaN(newConfig.speed.maxSpeed)) newConfig.speed.maxSpeed = 16;
-      if (isNaN(newConfig.speed.initialSpeed)) newConfig.speed.initialSpeed = 0;
-      if (newConfig.speed.minSpeed < 0) newConfig.speed.minSpeed = 0.125;
-      if (newConfig.speed.maxSpeed < newConfig.speed.minSpeed) newConfig.speed.maxSpeed = newConfig.speed.minSpeed + 1;
-      return newConfig;
-    }
-    function saveAndApply() {
-      const newConfig = readForm();
-      currentConfig = newConfig;
-      saveConfig(currentConfig);
-      applyAllConfig();
-      if (newConfig.switches.simplifyTitle) {
-        applySimplifyTitle(true);
+  }
+  function initAdModule() {
+    initAdBlocker(
+      [
+        ".video-card-ad-small",
+        ".right-bottom-banner"
+      ],
+      {
+        immediate: true,
+        targetNode: document.body
       }
-      alert("设置已保存并应用");
-    }
-    function resetToDefault() {
-      currentConfig = mergeDeep({}, DEFAULT_CONFIG);
-      fillForm();
-      saveAndApply();
-    }
-    document.getElementById("closePanel").onclick = () => {
-      panel.style.display = "none";
-    };
-    document.getElementById("saveConfigBtn").onclick = saveAndApply;
-    document.getElementById("resetDefaultBtn").onclick = resetToDefault;
-    let drag = false;
-    let offsetX, offsetY;
-    const header = panel.querySelector(".panel-header");
-    header.onmousedown = (e) => {
-      drag = true;
-      offsetX = e.clientX - panel.offsetLeft;
-      offsetY = e.clientY - panel.offsetTop;
-      document.onmousemove = (moveEvent) => {
-        if (drag) {
-          panel.style.left = moveEvent.clientX - offsetX + "px";
-          panel.style.top = moveEvent.clientY - offsetY + "px";
-        }
-      };
-      document.onmouseup = () => {
-        drag = false;
-        document.onmousemove = null;
-      };
-    };
-    fillForm();
+    );
+    logger.log("main", "[广告屏蔽模块] 已启动");
   }
-  function showPanel() {
-    if (!panelElement) {
-      createPanel();
-    } else {
-      panelElement.style.display = "flex";
-    }
+  function initLoginModule() {
+    keepLoginModalClosed({
+      immediate: true,
+      targetNode: document.body
+    });
+    logger.log("main", "[免登录模块] 已启动");
   }
-  function initControlPanel(deps) {
-    modules = deps;
-    currentConfig = loadConfig();
-    applyAllConfig();
-    if (typeof GM_registerMenuCommand !== "undefined") {
-      GM_registerMenuCommand("⚙️ 小助手控制面板", showPanel);
+  function initTitleModule() {
+    const result = simplifyTitles({
+      selector: ".title-txt",
+      minCount: 10,
+      minAvgLength: 15,
+      sampleSize: 3,
+      debug: false
+    });
+    if (result.simplified) {
+      logger.log("main", `[标题简化模块] 已简化 ${result.modifiedCount} 个标题，公共前缀: "${result.commonPrefix}"`);
     } else {
-      window.addEventListener("keydown", (e) => {
-        if (e.ctrlKey && e.shiftKey && e.key === "P") {
-          e.preventDefault();
-          showPanel();
-        }
-      });
-      logger.log("control", "未检测到 GM_registerMenuCommand，已注册 Ctrl+Shift+P 呼出面板");
-    }
-    if (currentConfig.switches.simplifyTitle) {
-      setTimeout(() => applySimplifyTitle(true), 1e3);
+      logger.log("main", "[标题简化模块] 未执行简化", result.count < 10 ? "(视频数量不足)" : "(平均长度不足)");
     }
   }
   function initialize() {
+    logger.log("main", "=".repeat(50));
+    logger.log("main", "Bilibili 自定义播放速度小助手 - 初始化中...");
+    logger.log("main", "=".repeat(50));
     try {
-      initControlPanel({
-        speedModule,
-        adModule,
-        loginModule,
-        titleModule: simplifyTitles
-      });
-      logger.log("main", "Bilibili自定义播放速度小助手已启动");
+      initSpeedModule();
     } catch (error2) {
-      logger.error("main", "Bilibili自定义播放速度小助手初始化失败:", error2);
+      logger.error("main", "[倍速模块] 初始化失败:", error2);
     }
+    try {
+      initAdModule();
+    } catch (error2) {
+      logger.error("main", "[广告屏蔽模块] 初始化失败:", error2);
+    }
+    try {
+      initLoginModule();
+    } catch (error2) {
+      logger.error("main", "[免登录模块] 初始化失败:", error2);
+    }
+    try {
+      initTitleModule();
+    } catch (error2) {
+      logger.error("main", "[标题简化模块] 初始化失败:", error2);
+    }
+    try {
+      initVideoInfoDisplay();
+    } catch (error2) {
+      logger.error("main", "[视频信息面板模块] 初始化失败:", error2);
+    }
+    logger.log("main", "=".repeat(50));
+    logger.log("main", "Bilibili 自定义播放速度小助手 - 初始化完成");
+    logger.log("main", "=".repeat(50));
   }
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initialize);
-  } else {
-    initialize();
-  }
+  initialize();
 
 })();

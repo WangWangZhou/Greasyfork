@@ -19,7 +19,8 @@ export default defineConfig({
         author: '小明',
         license: 'MIT',
         match: ['https://www.bilibili.com/video/*'],
-        grant: 'GM_addStyle',
+        grant: ['GM_addStyle', 'GM_registerMenuCommand','GM_unregisterMenuCommand'],
+        'run-at': 'document-end'
       },
         build: {
         fileName: 'bilibiliAssistantSpeed.user.js',

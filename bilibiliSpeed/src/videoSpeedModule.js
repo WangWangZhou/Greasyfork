@@ -21,20 +21,18 @@
  *   });
  */
 
-import logger from './loggerModule.js';
-import { initProgress } from './videoSpeedProgressModule.js';
-import { init as initVideoInfoPanel } from './videoInfoDisplayPanelModule.js';
-import { formatTime } from './timeUtil.js';
+import logger from './utils/loggerModule.js';
 import { VideoTipUI } from './component/videoTipUI.js';
+import { throttle } from './utils/throttleDebounce.js';
 
 // 默认配置
 const DEFAULT_CONFIG = {
     // 步进值（每次增加/减少的倍数）
     step: 0.05,
     // 最小倍速
-    minSpeed: 0.125,
+    minSpeed: 0.5,
     // 最大倍速
-    maxSpeed: 16,
+    maxSpeed: 4,
     // 初始倍速（0 表示不自动设置，使用视频原始倍速）
     initialSpeed: 0,
     // 按键映射（使用小写字母）
@@ -50,8 +48,6 @@ const DEFAULT_CONFIG = {
     // 是否在控制台输出日志
     debug: false
 };
-
-var totalSec = 0;
 
 /**
  * 判断是否为直播页面
@@ -130,6 +126,11 @@ function setPlaybackRate(rate, config, fromUser = true) {
  */
 function createKeydownHandler(config) {
     const { keys, step, minSpeed, maxSpeed } = config;
+    
+    // 创建节流函数，限制速度调节频率（500ms内只执行一次）
+    const throttledSetPlaybackRate = throttle((rate) => {
+        setPlaybackRate(rate, config, true);
+    }, 500);
 
     return function onKeyDown(e) {
         // 如果当前焦点在可输入元素上，不处理快捷键
@@ -157,63 +158,14 @@ function createKeydownHandler(config) {
             return;
         }
 
-        // 边界裁剪（由 setPlaybackRate 完成）
-        setPlaybackRate(targetRate, config, true);
+        // 使用节流函数设置速度
+        throttledSetPlaybackRate(targetRate);
         e.preventDefault();
         e.stopPropagation();
     };
 }
 
-/**
- * 计算合集总时长（秒）
- * @returns {number}
- */
-function calculateTotalDuration() {
-    let totalDuration = 0;
-    if (window.__INITIAL_STATE__ && window.__INITIAL_STATE__.videoData) {
-        const pages = window.__INITIAL_STATE__.videoData.pages;
-        if (Array.isArray(pages)) {
-            pages.forEach(page => {
-                if (page && typeof page.duration === 'number') {
-                    totalDuration += page.duration;
-                }
-            });
-        }
-    }
-    return totalDuration;
-}
 
-/**
- * 在界面上显示消息
- * 查找 .bui-dropdown-name 元素并设置文本
- */
-function displayMessage() {
-    const target = document.querySelector('.bui-dropdown-name');
-    if (!target) return;
-    totalSec = calculateTotalDuration();
-    if (totalSec === 0) return;
-    const formatted = formatTime(totalSec);
-    target.textContent = formatted;
-}
-
-//剩余时长
-function getRemainingTime(){
-let remainingTime = 0;
-// 获取页面中的第一个 video 元素
-const video = document.querySelector('video');
-
-if (video) {
-  // 计算剩余时间（单位：秒）
-  remainingTime = video.duration - video.currentTime;
-  
-  //console.log(`剩余时长: ${remainingTime.toFixed(2)} 秒`);
-  //console.log(`格式化剩余时间: ${formatTime(remainingTime)}`);
-} else {
-  //console.log('未找到 video 元素');
-}
-
-return remainingTime;
-}
 
 /**
  * 等待视频元素出现并设置初始倍速
@@ -256,22 +208,6 @@ export function init(userConfig = {}) {
     // 注册键盘事件
     const keydownHandler = createKeydownHandler(config);
     window.addEventListener('keydown', keydownHandler, true);
-
-    // 显示合集总时长（元素可能动态加载）
-    const tryDisplayDuration = () => {
-        if (document.querySelector('.bui-dropdown-name')) {
-                displayMessage();
-                // 初始化视频进度条
-                //initProgress();
-                // 初始化视频信息面板
-                initVideoInfoPanel();
-        } else {
-            setTimeout(tryDisplayDuration, 500);
-        }
-    };
-    tryDisplayDuration();
-
-
 
     // 设置初始倍速
     applyInitialSpeed(config);

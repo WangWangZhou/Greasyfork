@@ -4,7 +4,7 @@
  * 条件：视频数量 ≥ minCount 且 原始标题平均长度 ≥ minAvgLength
  */
 
-import logger from './loggerModule.js';
+import logger from './utils/loggerModule.js';
 
 /**
  * 去除标题开头的数字及各种分隔符组合
