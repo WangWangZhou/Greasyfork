@@ -26,6 +26,7 @@
  */
 
 import logger from './loggerModule.js';
+import { ControlPanelUI } from './component/controlPanelUI.js';
 
 // ---------- 默认配置 ----------
 const DEFAULT_CONFIG = {
@@ -91,13 +92,13 @@ function mergeDeep(target, source) {
 }
 
 // ---------- 面板 UI 相关 ----------
-let panelElement = null;
+let panelUI = null;
 let currentConfig = null;
 
 // 模块实例引用（用于动态启停）
-let speedController = null;       // 倍速模块 init 返回的控制器
-let adObserver = null;            // 广告屏蔽 observer
-let loginObserver = null;         // 免登录 observer
+let speedController = null;
+let adObserver = null;
+let loginObserver = null;
 
 // 外部模块引用
 let modules = {};
@@ -170,164 +171,41 @@ function applyAllConfig() {
 
 // 创建并显示面板
 function createPanel() {
-    if (panelElement) {
-        panelElement.style.display = 'flex';
-        return;
-    }
-
-    const panel = document.createElement('div');
-    panel.id = 'bili-helper-panel';
-    panel.innerHTML = `
-        <div class="panel-header" style="cursor: move; background:#2c3e50; padding:8px; color:white; border-radius:8px 8px 0 0;">
-            B站小助手设置
-            <button id="closePanel" style="float:right; background:none; border:none; color:white; cursor:pointer;">✕</button>
-        </div>
-        <div class="panel-body" style="padding:12px;">
-            <h4>🎬 倍速控制</h4>
-            <label>步进值: <input type="number" id="step" step="0.01" min="0.01" style="width:70px;"></label><br>
-            <label>最小倍速: <input type="number" id="minSpeed" step="0.01" min="0" style="width:70px;"></label>
-            <label>最大倍速: <input type="number" id="maxSpeed" step="0.01" min="0.125" style="width:70px;"></label><br>
-            <label>初始倍速: <input type="number" id="initialSpeed" step="0.01" min="0" style="width:70px;"> (0=不设置)</label><br>
-            <label>恢复1x按键: <input type="text" id="keyReset" maxlength="1" style="width:40px;"></label>
-            <label>加速按键: <input type="text" id="keyInc" maxlength="1" style="width:40px;"></label>
-            <label>减速按键: <input type="text" id="keyDec" maxlength="1" style="width:40px;"></label><br>
-            <label>提示时长(ms): <input type="number" id="tipDuration" step="50" min="0" style="width:70px;"></label>
-            <label><input type="checkbox" id="showTip"> 显示倍速提示</label>
-            <hr>
-            <h4>🔧 辅助功能</h4>
-            <label><input type="checkbox" id="adBlockSwitch"> 屏蔽广告</label><br>
-            <label><input type="checkbox" id="noLoginSwitch"> 自动关闭登录弹窗</label><br>
-            <label><input type="checkbox" id="titleSwitch"> 简化视频标题（需刷新页面生效）</label>
-            <hr>
-            <button id="saveConfigBtn" style="background:#3498db; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">保存设置</button>
-            <button id="resetDefaultBtn" style="margin-left:8px; background:#95a5a6; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">恢复默认</button>
-        </div>
-    `;
-
-    // 样式
-    Object.assign(panel.style, {
-        position: 'fixed',
-        top: '100px',
-        left: '100px',
-        width: '300px',
-        backgroundColor: '#ecf0f1',
-        borderRadius: '8px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-        zIndex: '10000',
-        fontFamily: 'system-ui, sans-serif',
-        fontSize: '14px',
-        display: 'flex',
-        flexDirection: 'column'
-    });
-
-    document.body.appendChild(panel);
-    panelElement = panel;
-
-    // 填充当前配置到表单
-    function fillForm() {
-        const s = currentConfig.speed;
-        document.getElementById('step').value = s.step;
-        document.getElementById('minSpeed').value = s.minSpeed;
-        document.getElementById('maxSpeed').value = s.maxSpeed;
-        document.getElementById('initialSpeed').value = s.initialSpeed;
-        document.getElementById('keyReset').value = s.keys.reset;
-        document.getElementById('keyInc').value = s.keys.inc;
-        document.getElementById('keyDec').value = s.keys.dec;
-        document.getElementById('tipDuration').value = s.tipDuration;
-        document.getElementById('showTip').checked = s.showTip;
-        document.getElementById('adBlockSwitch').checked = currentConfig.switches.adBlock;
-        document.getElementById('noLoginSwitch').checked = currentConfig.switches.noLogin;
-        document.getElementById('titleSwitch').checked = currentConfig.switches.simplifyTitle;
-    }
-
-    // 从表单读取配置
-    function readForm() {
-        const newConfig = {
-            speed: {
-                step: parseFloat(document.getElementById('step').value),
-                minSpeed: parseFloat(document.getElementById('minSpeed').value),
-                maxSpeed: parseFloat(document.getElementById('maxSpeed').value),
-                initialSpeed: parseFloat(document.getElementById('initialSpeed').value),
-                keys: {
-                    reset: document.getElementById('keyReset').value || 'z',
-                    inc: document.getElementById('keyInc').value || 'x',
-                    dec: document.getElementById('keyDec').value || 'c'
-                },
-                tipDuration: parseInt(document.getElementById('tipDuration').value),
-                showTip: document.getElementById('showTip').checked
+    if (!panelUI) {
+        panelUI = new ControlPanelUI(currentConfig, {
+            onSave: (newConfig) => {
+                currentConfig = newConfig;
+                saveConfig(currentConfig);
+                applyAllConfig();
+                if (newConfig.switches.simplifyTitle) {
+                    applySimplifyTitle(true);
+                }
+                alert('设置已保存并应用');
             },
-            switches: {
-                adBlock: document.getElementById('adBlockSwitch').checked,
-                noLogin: document.getElementById('noLoginSwitch').checked,
-                simplifyTitle: document.getElementById('titleSwitch').checked
+            onReset: () => {
+                currentConfig = mergeDeep({}, DEFAULT_CONFIG);
+                panelUI.updateConfig(currentConfig);
+                const newConfig = panelUI.readForm();
+                currentConfig = newConfig;
+                saveConfig(currentConfig);
+                applyAllConfig();
+                if (newConfig.switches.simplifyTitle) {
+                    applySimplifyTitle(true);
+                }
+                alert('设置已恢复默认并应用');
             }
-        };
-        // 有效性修正
-        if (isNaN(newConfig.speed.step)) newConfig.speed.step = 0.05;
-        if (isNaN(newConfig.speed.minSpeed)) newConfig.speed.minSpeed = 0.125;
-        if (isNaN(newConfig.speed.maxSpeed)) newConfig.speed.maxSpeed = 16;
-        if (isNaN(newConfig.speed.initialSpeed)) newConfig.speed.initialSpeed = 0;
-        if (newConfig.speed.minSpeed < 0) newConfig.speed.minSpeed = 0.125;
-        if (newConfig.speed.maxSpeed < newConfig.speed.minSpeed) newConfig.speed.maxSpeed = newConfig.speed.minSpeed + 1;
-        return newConfig;
+        });
     }
-
-    // 保存并应用
-    function saveAndApply() {
-        const newConfig = readForm();
-        currentConfig = newConfig;
-        saveConfig(currentConfig);
-        applyAllConfig();
-        // 标题简化需要刷新才能看到效果，可提示
-        if (newConfig.switches.simplifyTitle) {
-            // 主动执行一次（不依赖刷新）
-            applySimplifyTitle(true);
-        }
-        alert('设置已保存并应用');
-    }
-
-    function resetToDefault() {
-        currentConfig = mergeDeep({}, DEFAULT_CONFIG);
-        fillForm();
-        saveAndApply();
-    }
-
-    // 事件绑定
-    document.getElementById('closePanel').onclick = () => {
-        panel.style.display = 'none';
-    };
-    document.getElementById('saveConfigBtn').onclick = saveAndApply;
-    document.getElementById('resetDefaultBtn').onclick = resetToDefault;
-
-    // 使面板可拖拽
-    let drag = false;
-    let offsetX, offsetY;
-    const header = panel.querySelector('.panel-header');
-    header.onmousedown = (e) => {
-        drag = true;
-        offsetX = e.clientX - panel.offsetLeft;
-        offsetY = e.clientY - panel.offsetTop;
-        document.onmousemove = (moveEvent) => {
-            if (drag) {
-                panel.style.left = (moveEvent.clientX - offsetX) + 'px';
-                panel.style.top = (moveEvent.clientY - offsetY) + 'px';
-            }
-        };
-        document.onmouseup = () => {
-            drag = false;
-            document.onmousemove = null;
-        };
-    };
-
-    fillForm();
+    
+    panelUI.show();
 }
 
 // 显示面板（如果已创建则显示，否则创建）
 function showPanel() {
-    if (!panelElement) {
+    if (!panelUI) {
         createPanel();
     } else {
-        panelElement.style.display = 'flex';
+        panelUI.show();
     }
 }
 

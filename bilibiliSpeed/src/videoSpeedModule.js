@@ -25,6 +25,7 @@ import logger from './loggerModule.js';
 import { initProgress } from './videoSpeedProgressModule.js';
 import { init as initVideoInfoPanel } from './videoInfoDisplayPanelModule.js';
 import { formatTime } from './timeUtil.js';
+import { VideoTipUI } from './component/videoTipUI.js';
 
 // 默认配置
 const DEFAULT_CONFIG = {
@@ -74,6 +75,9 @@ function getVideoElement() {
     return document.querySelector('video');
 }
 
+// 倍速提示UI实例
+let tipUI = null;
+
 /**
  * 显示倍速提示（在播放器中央浮动，自动消失）
  * @param {number} rate - 当前倍速值
@@ -82,39 +86,13 @@ function getVideoElement() {
 function showSpeedTip(rate, config) {
     if (!config.showTip) return;
 
-    const container = document.querySelector('.bpx-player-video-wrap') ||
-                      document.querySelector('.bpx-player-mini-wrap');
-    if (!container) return;
+    if (!tipUI) {
+        tipUI = new VideoTipUI({
+            tipDuration: config.tipDuration
+        });
+    }
 
-    const existingTip = document.querySelector('.bili-custom-speed-tip');
-    if (existingTip) existingTip.remove();
-
-    const tip = document.createElement('div');
-    tip.className = 'bili-custom-speed-tip';
-    tip.textContent = `${rate.toFixed(2)}x`;
-    Object.assign(tip.style, {
-        position: 'absolute',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        color: '#fff',
-        fontSize: '2rem',
-        fontWeight: 'bold',
-        padding: '12px 24px',
-        borderRadius: '8px',
-        fontFamily: 'system-ui, sans-serif',
-        zIndex: '9999',
-        pointerEvents: 'none',
-        whiteSpace: 'nowrap',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
-    });
-    container.style.position = 'relative';
-    container.appendChild(tip);
-
-    setTimeout(() => {
-        if (tip.parentNode) tip.remove();
-    }, config.tipDuration);
+    tipUI.show(rate, config.tipDuration);
 }
 
 /**
@@ -319,6 +297,10 @@ export function init(userConfig = {}) {
         },
         destroy: () => {
             window.removeEventListener('keydown', keydownHandler, true);
+            if (tipUI) {
+                tipUI.destroy();
+                tipUI = null;
+            }
             if (config.debug) logger.debug('speed', '已销毁');
         }
     };
