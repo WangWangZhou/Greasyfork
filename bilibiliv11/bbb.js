@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         B站自定义倍速油猴脚本简洁版
 // @namespace    http://tampermonkey.net/
-// @version      v0.0.1
-// @description  快捷键调整倍速，可拖拽信息卡片和设置面板，支持按键节流
+// @version      v1.0
+// @description  可以自定义bilibili 播放倍速，方便学习网课，x,c,z分别对减速、加速、恢复
 // @author       小明
 // @license MIT
 // @icon         chrome://favicon/http://www.bilibili.com/
@@ -137,8 +137,8 @@
         cardPosition: null,
         panelPosition: null,
         keyReset: 'z',
-        keyUp: 'x',
-        keyDown: 'c'
+        keyUp: 'c',
+        keyDown: 'x'
     };
 
     // 配置对象（自动持久化）
