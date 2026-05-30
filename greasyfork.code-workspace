@@ -1,0 +1,48 @@
+{
+	"folders": [
+		{
+			"path": ".",
+			"name": "root"
+		},
+		{
+			"path": "gitcode.com",
+			"name": "gitcode.com"
+		},
+		{
+			"path": "csdn.net",
+			"name": "csdn.net"
+		},{
+			"path": "rustwiki",
+			"name": "rustwiki"
+		},
+		{
+			"path": "bilibili.com",
+			"name": "bilibili.com"
+		},
+		{
+			"path":"bilibiliSpeed",
+			"name":"bilibiliSpeed"
+		},
+		{
+			"path":"bilibiliv08",
+			"name":"bilibiliv08"
+		},
+		{
+			"path":"bilibiliv09",
+			"name":"bilibiliv09"
+		},
+		{
+			"path":"bilibiliv10",
+			"name":"bilibiliv10"
+		},
+		{
+			"path":"bilibiliv11",
+			"name":"bilibiliv11"
+		},
+		{
+			"path":"bilibiliv12",
+			"name":"bilibiliv12"
+		}
+	],
+	"settings": {}
+}

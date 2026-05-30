@@ -807,10 +807,10 @@
     };
 
     // 键盘事件处理
-    const handleKeydown = e => {
-        if (isNotAllowedPage()) return;
+const handleKeydown = e => {
+    if (isNotAllowedPage() || isInputFocused()) return;
 
-        const key = e.key.toLowerCase();
+    const key = e.key.toLowerCase();
         if (key === config.keyReset) {
             e.preventDefault();
             resetRate();
