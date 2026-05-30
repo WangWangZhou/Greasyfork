@@ -1,5 +1,6 @@
 /**
- * Toast - 消息提示模块
+ * Toast - 消息提示组件
+ * UI组件模块 - 负责渲染临时消息提示
  */
 const Toast = (() => {
     let toastEl = null;

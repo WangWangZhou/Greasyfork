@@ -1,5 +1,6 @@
 /**
  * Draggable - 拖拽行为模块
+ * UI行为模块 - 负责为元素添加拖拽交互功能
  */
 const Draggable = (() => {
     return {

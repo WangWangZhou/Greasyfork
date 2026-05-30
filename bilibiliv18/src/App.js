@@ -22,7 +22,7 @@ const App = (() => {
         ScreenModeManager.init();
         KeyboardHandler.register();
 
-        GM_registerMenuCommand('切换信息卡片', () => EventBus.emit('card:toggle'));
+        GM_registerMenuCommand('打开信息卡片', () => EventBus.emit('card:toggle'));
         GM_registerMenuCommand('打开控制面板', () => EventBus.emit('panel:toggle'));
 
         EventBus.on('panel:toggle', ControlPanel.toggle);

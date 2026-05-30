@@ -2,26 +2,28 @@ const fs = require('fs');
 const path = require('path');
 
 const moduleOrder = [
-    'EventBus',
-    'Logger',
-    'Utils',
-    'Config',
-    'PageGuard',
-    'Draggable',
-    'Toast',
-    'VideoController',
-    'CardPanel',
-    'ControlPanel',
-    'KeyboardHandler',
-    'ScreenModeManager'
+    { name: 'EventBus', path: 'modules' },
+    { name: 'Logger', path: 'modules' },
+    { name: 'Utils', path: 'modules' },
+    { name: 'Config', path: 'modules' },
+    { name: 'PageGuard', path: 'modules' },
+    { name: 'Draggable', path: 'ui/behaviors' },
+    { name: 'Toast', path: 'ui/components' },
+    { name: 'Card', path: 'ui/components' },
+    { name: 'Progress', path: 'ui/components' },
+    { name: 'VideoController', path: 'modules' },
+    { name: 'CardPanel', path: 'ui/views' },
+    { name: 'ControlPanel', path: 'ui/views' },
+    { name: 'KeyboardHandler', path: 'modules' },
+    { name: 'ScreenModeManager', path: 'modules' }
 ];
 
 const template = fs.readFileSync(path.join(__dirname, 'src/index.js'), 'utf-8');
 
 const modules = [];
-moduleOrder.forEach(name => {
+moduleOrder.forEach(({ name, path: modulePath }) => {
     const content = fs.readFileSync(
-        path.join(__dirname, `src/modules/${name}.js`),
+        path.join(__dirname, `src/${modulePath}/${name}.js`),
         'utf-8'
     );
     modules.push(content);
@@ -42,3 +44,8 @@ if (!fs.existsSync(path.join(__dirname, 'dist'))) {
 fs.writeFileSync(path.join(__dirname, 'dist/bbb.js'), result);
 
 console.log('✅ 构建完成！输出文件: dist/bbb.js');
+console.log('');
+console.log('📁 模块加载顺序:');
+moduleOrder.forEach(({ name, path: modulePath }, index) => {
+    console.log(`   ${index + 1}. src/${modulePath}/${name}.js`);
+});
