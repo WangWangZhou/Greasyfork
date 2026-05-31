@@ -28,6 +28,7 @@ const Resizable = (() => {
 
             let isResizing = false;
             let startX, startY, startWidth, startHeight;
+            let rafId = null;
             let handleEl = null;
 
             // 创建拖拽手柄
@@ -77,16 +78,19 @@ const Resizable = (() => {
                 const dx = e.clientX - startX;
                 const dy = e.clientY - startY;
 
-                // 计算新尺寸并应用限制
                 const newWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + dx));
                 const newHeight = Math.max(minHeight, Math.min(maxHeight, startHeight + dy));
 
                 el.style.width = newWidth + 'px';
                 el.style.height = newHeight + 'px';
 
-                // 触发回调
-                if (onResize) {
-                    onResize(newWidth, newHeight);
+                if (onResize && !rafId) {
+                    const latestWidth = newWidth;
+                    const latestHeight = newHeight;
+                    rafId = requestAnimationFrame(() => {
+                        rafId = null;
+                        onResize(latestWidth, latestHeight);
+                    });
                 }
             };
 
@@ -96,7 +100,11 @@ const Resizable = (() => {
                     el.style.cursor = '';
                     el.style.userSelect = '';
 
-                    // 保存尺寸到 Config
+                    if (rafId) {
+                        cancelAnimationFrame(rafId);
+                        rafId = null;
+                    }
+
                     if (saveKey) {
                         const rect = el.getBoundingClientRect();
                         Config.data[saveKey] = {

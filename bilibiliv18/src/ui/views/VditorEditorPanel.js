@@ -125,6 +125,8 @@ const VditorEditorPanel = (() => {
         const vditorContent = container.querySelector('.vditor-content');
         if (vditorContent) vditorContent.style.height = contentHeight + 'px';
 
+        const wysiwyg = container.querySelector('.vditor-wysiwyg');
+        if (wysiwyg) wysiwyg.style.height = contentHeight + 'px';
         const ir = container.querySelector('.vditor-ir');
         if (ir) ir.style.height = contentHeight + 'px';
         const sv = container.querySelector('.vditor-sv');
@@ -134,6 +136,39 @@ const VditorEditorPanel = (() => {
 
         const reset = container.querySelector('.vditor-reset');
         if (reset) reset.style.height = contentHeight + 'px';
+    }
+
+    function switchMode(newMode) {
+        if (!vditorInstance) return;
+
+        const currentContent = vditorInstance.getValue();
+
+        Config.data.vditorEditorMode = newMode;
+
+        if (typeof vditorInstance.setMode === 'function') {
+            try {
+                vditorInstance.setMode(newMode);
+                setTimeout(() => adjustVditorEditorHeight(), 50);
+                setTimeout(() => updateFooterStatus(), 100);
+                return;
+            } catch (e) {
+                console.warn('[VditorEditorPanel] setMode 失败，降级为重建:', e);
+            }
+        }
+
+        try { vditorInstance.destroy(); } catch {}
+        vditorInstance = null;
+
+        const container = document.getElementById('vditor-editor-container');
+        if (container) container.innerHTML = '';
+
+        const bodyEl = panelInstance?.element?.querySelector('.bili-speed-vditor-panel-body');
+        if (bodyEl) {
+            const currentTheme = Config.data.theme || 'light';
+            initVditorEditor(bodyEl, currentContent, currentTheme,
+                panelInstance.element.getBoundingClientRect().height);
+            setTimeout(() => updateFooterStatus(), 500);
+        }
     }
 
     function renderTags(containerEl) {
@@ -328,10 +363,8 @@ const VditorEditorPanel = (() => {
                 const listBtn = document.createElement('button');
                 listBtn.className = 'bili-speed-editor-list';
                 listBtn.title = '打开笔记列表';
-                listBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; position: relative; z-index: 1001; pointer-events: auto; transition: transform 0.15s ease;';
+                listBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; position: relative; z-index: 1001; pointer-events: auto;';
                 listBtn.textContent = '📋';
-                listBtn.addEventListener('mouseenter', () => { listBtn.style.transform = 'scale(1.2)'; });
-                listBtn.addEventListener('mouseleave', () => { listBtn.style.transform = 'scale(1)'; });
                 listBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     NotesPanel.show();
@@ -340,10 +373,8 @@ const VditorEditorPanel = (() => {
                 const saveBtn = document.createElement('button');
                 saveBtn.className = 'bili-speed-editor-save';
                 saveBtn.title = '保存笔记';
-                saveBtn.style.cssText = 'background: #F0F1F2; color: #333; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; position: relative; z-index: 1001; pointer-events: auto; transition: transform 0.15s ease;';
+                saveBtn.style.cssText = 'background: #F0F1F2; color: #333; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; position: relative; z-index: 1001; pointer-events: auto;';
                 saveBtn.textContent = '💾 保存';
-                saveBtn.addEventListener('mouseenter', () => { saveBtn.style.transform = 'scale(1.1)'; });
-                saveBtn.addEventListener('mouseleave', () => { saveBtn.style.transform = 'scale(1)'; });
                 saveBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     saveNote();
@@ -351,10 +382,8 @@ const VditorEditorPanel = (() => {
 
                 const closeBtn = document.createElement('button');
                 closeBtn.className = 'bili-speed-editor-close';
-                closeBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; position: relative; z-index: 1001; pointer-events: auto; transition: transform 0.15s ease;';
+                closeBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; position: relative; z-index: 1001; pointer-events: auto;';
                 closeBtn.textContent = '×';
-                closeBtn.addEventListener('mouseenter', () => { closeBtn.style.transform = 'scale(1.2)'; });
-                closeBtn.addEventListener('mouseleave', () => { closeBtn.style.transform = 'scale(1)'; });
                 closeBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     VditorEditorPanel.close();
@@ -481,6 +510,12 @@ const VditorEditorPanel = (() => {
             }
         });
     }
+
+    EventBus.on('vditor:mode:change', (mode) => {
+        if (panelInstance && vditorInstance) {
+            switchMode(mode);
+        }
+    });
 
     return {
         create() {

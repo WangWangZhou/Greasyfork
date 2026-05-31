@@ -118,7 +118,7 @@ const QuillEditorPanel = (() => {
         }
     }
 
-    function initQuillEditor(containerEl, height) {
+    function initQuillEditor(containerEl) {
         const Quill = getQuill();
         if (!Quill) return;
 
@@ -141,7 +141,7 @@ const QuillEditorPanel = (() => {
         });
 
         requestAnimationFrame(() => {
-            adjustQuillEditorHeight(height);
+            adjustQuillEditorHeight();
 
             const qlContainer = editorContainer.querySelector('.ql-container');
             if (qlContainer) {
@@ -173,31 +173,25 @@ const QuillEditorPanel = (() => {
         });
     }
 
-    function adjustQuillEditorHeight(panelHeight) {
+    function adjustQuillEditorHeight() {
         const editorContainer = document.querySelector('#quill-editor-container');
         if (!editorContainer || !quillInstance) return;
 
-        const headerHeight = 50;
-        const bodyPadding = 24;
-        const titleInputHeight = 40;
-        const tagsHeight = 40;
-        const timestampEl = document.querySelector('.bili-speed-editor-mark-time')?.parentElement;
-        const timestampHeight = timestampEl ? timestampEl.offsetHeight || 30 : 0;
-        const footerHeight = 30;
-        const resizeHandleHeight = 16;
+        const availableHeight = editorContainer.clientHeight;
+        if (availableHeight <= 0) return;
 
-        const availableHeight = panelHeight - headerHeight - bodyPadding - titleInputHeight - tagsHeight - timestampHeight - footerHeight - resizeHandleHeight;
-        const minHeight = 150;
-        const finalHeight = Math.max(minHeight, availableHeight);
+        const qlToolbar = editorContainer.querySelector('.ql-toolbar');
+        const toolbarHeight = qlToolbar ? qlToolbar.offsetHeight || 42 : 42;
+        const contentHeight = Math.max(50, availableHeight - toolbarHeight);
 
         const qlContainer = editorContainer.querySelector('.ql-container');
         if (qlContainer) {
-            qlContainer.style.height = finalHeight + 'px';
+            qlContainer.style.height = contentHeight + 'px';
         }
 
         const qlEditor = editorContainer.querySelector('.ql-editor');
         if (qlEditor) {
-            qlEditor.style.minHeight = finalHeight + 'px';
+            qlEditor.style.minHeight = contentHeight + 'px';
         }
     }
 
@@ -352,7 +346,8 @@ const QuillEditorPanel = (() => {
             styles: {
                 width: Config.data.quillEditorWidth || '520px',
                 height: Config.data.quillEditorHeight || '500px',
-                display: 'block',
+                display: 'flex',
+                flexDirection: 'column',
                 top: '50%',
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
@@ -374,10 +369,8 @@ const QuillEditorPanel = (() => {
                 const listBtn = document.createElement('button');
                 listBtn.className = 'bili-speed-editor-list';
                 listBtn.title = '打开笔记列表';
-                listBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; position: relative; z-index: 1001; pointer-events: auto; transition: transform 0.15s ease;';
+                listBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; position: relative; z-index: 1001; pointer-events: auto;';
                 listBtn.textContent = '📋';
-                listBtn.addEventListener('mouseenter', () => { listBtn.style.transform = 'scale(1.2)'; });
-                listBtn.addEventListener('mouseleave', () => { listBtn.style.transform = 'scale(1)'; });
                 listBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     NotesPanel.show();
@@ -386,10 +379,8 @@ const QuillEditorPanel = (() => {
                 const saveBtn = document.createElement('button');
                 saveBtn.className = 'bili-speed-editor-save';
                 saveBtn.title = '保存笔记';
-                saveBtn.style.cssText = 'background: #F0F1F2; color: #333; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; position: relative; z-index: 1001; pointer-events: auto; transition: transform 0.15s ease;';
+                saveBtn.style.cssText = 'background: #F0F1F2; color: #333; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; position: relative; z-index: 1001; pointer-events: auto;';
                 saveBtn.textContent = '💾 保存';
-                saveBtn.addEventListener('mouseenter', () => { saveBtn.style.transform = 'scale(1.1)'; });
-                saveBtn.addEventListener('mouseleave', () => { saveBtn.style.transform = 'scale(1)'; });
                 saveBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     saveNote();
@@ -397,10 +388,8 @@ const QuillEditorPanel = (() => {
 
                 const closeBtn = document.createElement('button');
                 closeBtn.className = 'bili-speed-editor-close';
-                closeBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; position: relative; z-index: 1001; pointer-events: auto; transition: transform 0.15s ease;';
+                closeBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; position: relative; z-index: 1001; pointer-events: auto;';
                 closeBtn.textContent = '×';
-                closeBtn.addEventListener('mouseenter', () => { closeBtn.style.transform = 'scale(1.2)'; });
-                closeBtn.addEventListener('mouseleave', () => { closeBtn.style.transform = 'scale(1)'; });
                 closeBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     QuillEditorPanel.close();
@@ -414,7 +403,7 @@ const QuillEditorPanel = (() => {
             },
             onBodyReady: (bodyEl) => {
                 bodyEl.className = 'bili-speed-quill-panel-body';
-                bodyEl.style.cssText = 'padding: 12px;';
+                bodyEl.style.cssText = 'padding: 0 12px 8px 12px; flex: 1; min-height: 0; overflow: hidden;';
 
                 bodyEl.innerHTML = `
                     <div style="margin-bottom: 10px;">
@@ -467,15 +456,19 @@ const QuillEditorPanel = (() => {
                 }
 
                 const editorContainer = bodyEl.querySelector('#quill-editor-container');
+                if (editorContainer) {
+                    editorContainer.style.flex = '1';
+                    editorContainer.style.minHeight = '0';
+                }
                 const loadingEl = bodyEl.querySelector('.bili-speed-editor-loading');
                 const panelEl = bodyEl.parentElement;
 
                 resizeCleanup = Resizable.make(panelEl, {
                     minWidth: 400,
                     minHeight: 350,
-                    onResize: (newWidth, newHeight) => {
+                    onResize: () => {
                         if (quillInstance) {
-                            adjustQuillEditorHeight(newHeight);
+                            adjustQuillEditorHeight();
                         }
                     },
                     saveKey: 'editorPanelSize'
@@ -483,7 +476,7 @@ const QuillEditorPanel = (() => {
 
                 if (getQuill()) {
                     requestAnimationFrame(() => {
-                        initQuillEditor(bodyEl, panelEl.getBoundingClientRect().height);
+                        initQuillEditor(bodyEl);
                         if (quillInstance) {
                             quillInstance.root?.blur();
                             quillInstance.on('text-change', () => {
@@ -525,7 +518,7 @@ const QuillEditorPanel = (() => {
                         editorContainer.style.display = 'block';
                         loadingEl.style.display = 'none';
                         requestAnimationFrame(() => {
-                            initQuillEditor(bodyEl, panelEl.getBoundingClientRect().height);
+                            initQuillEditor(bodyEl);
                             if (quillInstance) {
                                 quillInstance.root?.blur();
                                 quillInstance.on('text-change', () => {

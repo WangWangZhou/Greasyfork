@@ -399,6 +399,7 @@ const Resizable = (() => {
 
             let isResizing = false;
             let startX, startY, startWidth, startHeight;
+            let rafId = null;
             let handleEl = null;
 
             // 创建拖拽手柄
@@ -448,16 +449,19 @@ const Resizable = (() => {
                 const dx = e.clientX - startX;
                 const dy = e.clientY - startY;
 
-                // 计算新尺寸并应用限制
                 const newWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + dx));
                 const newHeight = Math.max(minHeight, Math.min(maxHeight, startHeight + dy));
 
                 el.style.width = newWidth + 'px';
                 el.style.height = newHeight + 'px';
 
-                // 触发回调
-                if (onResize) {
-                    onResize(newWidth, newHeight);
+                if (onResize && !rafId) {
+                    const latestWidth = newWidth;
+                    const latestHeight = newHeight;
+                    rafId = requestAnimationFrame(() => {
+                        rafId = null;
+                        onResize(latestWidth, latestHeight);
+                    });
                 }
             };
 
@@ -467,7 +471,11 @@ const Resizable = (() => {
                     el.style.cursor = '';
                     el.style.userSelect = '';
 
-                    // 保存尺寸到 Config
+                    if (rafId) {
+                        cancelAnimationFrame(rafId);
+                        rafId = null;
+                    }
+
                     if (saveKey) {
                         const rect = el.getBoundingClientRect();
                         Config.data[saveKey] = {
@@ -2458,7 +2466,7 @@ const ControlPanel = (() => {
             </div>
         `;
 
-        const sizeOptions = ['400px', '480px', '500px', '520px', '550px', '560px', '600px', '640px'];
+        const sizeOptions = ['400px', '480px', '520px', '560px', '640px'];
 
         const quillWidthGroup = contentEl.querySelector('.quill-width-group');
         renderSizeBtnGroup(quillWidthGroup, 'quillEditorWidth', sizeOptions, currentQuillWidth);
@@ -2504,6 +2512,8 @@ const ControlPanel = (() => {
                     const modeNames = { wysiwyg: '所见即所得', ir: '即时渲染', sv: '分屏预览' };
                     sizeLabel.textContent = `📐 Vditor 面板尺寸 (${modeNames[mode] || mode}):`;
                 }
+
+                EventBus.emit('vditor:mode:change', mode);
 
                 Toast.show(`Vditor 编辑模式已切换为 ${mode === 'wysiwyg' ? '所见即所得' : mode === 'ir' ? '即时渲染' : '分屏预览'}`);
             });
@@ -3640,7 +3650,7 @@ const QuillEditorPanel = (() => {
         }
     }
 
-    function initQuillEditor(containerEl, height) {
+    function initQuillEditor(containerEl) {
         const Quill = getQuill();
         if (!Quill) return;
 
@@ -3663,7 +3673,7 @@ const QuillEditorPanel = (() => {
         });
 
         requestAnimationFrame(() => {
-            adjustQuillEditorHeight(height);
+            adjustQuillEditorHeight();
 
             const qlContainer = editorContainer.querySelector('.ql-container');
             if (qlContainer) {
@@ -3695,31 +3705,25 @@ const QuillEditorPanel = (() => {
         });
     }
 
-    function adjustQuillEditorHeight(panelHeight) {
+    function adjustQuillEditorHeight() {
         const editorContainer = document.querySelector('#quill-editor-container');
         if (!editorContainer || !quillInstance) return;
 
-        const headerHeight = 50;
-        const bodyPadding = 24;
-        const titleInputHeight = 40;
-        const tagsHeight = 40;
-        const timestampEl = document.querySelector('.bili-speed-editor-mark-time')?.parentElement;
-        const timestampHeight = timestampEl ? timestampEl.offsetHeight || 30 : 0;
-        const footerHeight = 30;
-        const resizeHandleHeight = 16;
+        const availableHeight = editorContainer.clientHeight;
+        if (availableHeight <= 0) return;
 
-        const availableHeight = panelHeight - headerHeight - bodyPadding - titleInputHeight - tagsHeight - timestampHeight - footerHeight - resizeHandleHeight;
-        const minHeight = 150;
-        const finalHeight = Math.max(minHeight, availableHeight);
+        const qlToolbar = editorContainer.querySelector('.ql-toolbar');
+        const toolbarHeight = qlToolbar ? qlToolbar.offsetHeight || 42 : 42;
+        const contentHeight = Math.max(50, availableHeight - toolbarHeight);
 
         const qlContainer = editorContainer.querySelector('.ql-container');
         if (qlContainer) {
-            qlContainer.style.height = finalHeight + 'px';
+            qlContainer.style.height = contentHeight + 'px';
         }
 
         const qlEditor = editorContainer.querySelector('.ql-editor');
         if (qlEditor) {
-            qlEditor.style.minHeight = finalHeight + 'px';
+            qlEditor.style.minHeight = contentHeight + 'px';
         }
     }
 
@@ -3874,7 +3878,8 @@ const QuillEditorPanel = (() => {
             styles: {
                 width: Config.data.quillEditorWidth || '520px',
                 height: Config.data.quillEditorHeight || '500px',
-                display: 'block',
+                display: 'flex',
+                flexDirection: 'column',
                 top: '50%',
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
@@ -3896,10 +3901,8 @@ const QuillEditorPanel = (() => {
                 const listBtn = document.createElement('button');
                 listBtn.className = 'bili-speed-editor-list';
                 listBtn.title = '打开笔记列表';
-                listBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; position: relative; z-index: 1001; pointer-events: auto; transition: transform 0.15s ease;';
+                listBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; position: relative; z-index: 1001; pointer-events: auto;';
                 listBtn.textContent = '📋';
-                listBtn.addEventListener('mouseenter', () => { listBtn.style.transform = 'scale(1.2)'; });
-                listBtn.addEventListener('mouseleave', () => { listBtn.style.transform = 'scale(1)'; });
                 listBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     NotesPanel.show();
@@ -3908,10 +3911,8 @@ const QuillEditorPanel = (() => {
                 const saveBtn = document.createElement('button');
                 saveBtn.className = 'bili-speed-editor-save';
                 saveBtn.title = '保存笔记';
-                saveBtn.style.cssText = 'background: #F0F1F2; color: #333; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; position: relative; z-index: 1001; pointer-events: auto; transition: transform 0.15s ease;';
+                saveBtn.style.cssText = 'background: #F0F1F2; color: #333; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; position: relative; z-index: 1001; pointer-events: auto;';
                 saveBtn.textContent = '💾 保存';
-                saveBtn.addEventListener('mouseenter', () => { saveBtn.style.transform = 'scale(1.1)'; });
-                saveBtn.addEventListener('mouseleave', () => { saveBtn.style.transform = 'scale(1)'; });
                 saveBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     saveNote();
@@ -3919,10 +3920,8 @@ const QuillEditorPanel = (() => {
 
                 const closeBtn = document.createElement('button');
                 closeBtn.className = 'bili-speed-editor-close';
-                closeBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; position: relative; z-index: 1001; pointer-events: auto; transition: transform 0.15s ease;';
+                closeBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; position: relative; z-index: 1001; pointer-events: auto;';
                 closeBtn.textContent = '×';
-                closeBtn.addEventListener('mouseenter', () => { closeBtn.style.transform = 'scale(1.2)'; });
-                closeBtn.addEventListener('mouseleave', () => { closeBtn.style.transform = 'scale(1)'; });
                 closeBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     QuillEditorPanel.close();
@@ -3936,7 +3935,7 @@ const QuillEditorPanel = (() => {
             },
             onBodyReady: (bodyEl) => {
                 bodyEl.className = 'bili-speed-quill-panel-body';
-                bodyEl.style.cssText = 'padding: 12px;';
+                bodyEl.style.cssText = 'padding: 0 12px 8px 12px; flex: 1; min-height: 0; overflow: hidden;';
 
                 bodyEl.innerHTML = `
                     <div style="margin-bottom: 10px;">
@@ -3989,15 +3988,19 @@ const QuillEditorPanel = (() => {
                 }
 
                 const editorContainer = bodyEl.querySelector('#quill-editor-container');
+                if (editorContainer) {
+                    editorContainer.style.flex = '1';
+                    editorContainer.style.minHeight = '0';
+                }
                 const loadingEl = bodyEl.querySelector('.bili-speed-editor-loading');
                 const panelEl = bodyEl.parentElement;
 
                 resizeCleanup = Resizable.make(panelEl, {
                     minWidth: 400,
                     minHeight: 350,
-                    onResize: (newWidth, newHeight) => {
+                    onResize: () => {
                         if (quillInstance) {
-                            adjustQuillEditorHeight(newHeight);
+                            adjustQuillEditorHeight();
                         }
                     },
                     saveKey: 'editorPanelSize'
@@ -4005,7 +4008,7 @@ const QuillEditorPanel = (() => {
 
                 if (getQuill()) {
                     requestAnimationFrame(() => {
-                        initQuillEditor(bodyEl, panelEl.getBoundingClientRect().height);
+                        initQuillEditor(bodyEl);
                         if (quillInstance) {
                             quillInstance.root?.blur();
                             quillInstance.on('text-change', () => {
@@ -4047,7 +4050,7 @@ const QuillEditorPanel = (() => {
                         editorContainer.style.display = 'block';
                         loadingEl.style.display = 'none';
                         requestAnimationFrame(() => {
-                            initQuillEditor(bodyEl, panelEl.getBoundingClientRect().height);
+                            initQuillEditor(bodyEl);
                             if (quillInstance) {
                                 quillInstance.root?.blur();
                                 quillInstance.on('text-change', () => {
@@ -4275,6 +4278,8 @@ const VditorEditorPanel = (() => {
         const vditorContent = container.querySelector('.vditor-content');
         if (vditorContent) vditorContent.style.height = contentHeight + 'px';
 
+        const wysiwyg = container.querySelector('.vditor-wysiwyg');
+        if (wysiwyg) wysiwyg.style.height = contentHeight + 'px';
         const ir = container.querySelector('.vditor-ir');
         if (ir) ir.style.height = contentHeight + 'px';
         const sv = container.querySelector('.vditor-sv');
@@ -4284,6 +4289,39 @@ const VditorEditorPanel = (() => {
 
         const reset = container.querySelector('.vditor-reset');
         if (reset) reset.style.height = contentHeight + 'px';
+    }
+
+    function switchMode(newMode) {
+        if (!vditorInstance) return;
+
+        const currentContent = vditorInstance.getValue();
+
+        Config.data.vditorEditorMode = newMode;
+
+        if (typeof vditorInstance.setMode === 'function') {
+            try {
+                vditorInstance.setMode(newMode);
+                setTimeout(() => adjustVditorEditorHeight(), 50);
+                setTimeout(() => updateFooterStatus(), 100);
+                return;
+            } catch (e) {
+                console.warn('[VditorEditorPanel] setMode 失败，降级为重建:', e);
+            }
+        }
+
+        try { vditorInstance.destroy(); } catch {}
+        vditorInstance = null;
+
+        const container = document.getElementById('vditor-editor-container');
+        if (container) container.innerHTML = '';
+
+        const bodyEl = panelInstance?.element?.querySelector('.bili-speed-vditor-panel-body');
+        if (bodyEl) {
+            const currentTheme = Config.data.theme || 'light';
+            initVditorEditor(bodyEl, currentContent, currentTheme,
+                panelInstance.element.getBoundingClientRect().height);
+            setTimeout(() => updateFooterStatus(), 500);
+        }
     }
 
     function renderTags(containerEl) {
@@ -4478,10 +4516,8 @@ const VditorEditorPanel = (() => {
                 const listBtn = document.createElement('button');
                 listBtn.className = 'bili-speed-editor-list';
                 listBtn.title = '打开笔记列表';
-                listBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; position: relative; z-index: 1001; pointer-events: auto; transition: transform 0.15s ease;';
+                listBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; position: relative; z-index: 1001; pointer-events: auto;';
                 listBtn.textContent = '📋';
-                listBtn.addEventListener('mouseenter', () => { listBtn.style.transform = 'scale(1.2)'; });
-                listBtn.addEventListener('mouseleave', () => { listBtn.style.transform = 'scale(1)'; });
                 listBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     NotesPanel.show();
@@ -4490,10 +4526,8 @@ const VditorEditorPanel = (() => {
                 const saveBtn = document.createElement('button');
                 saveBtn.className = 'bili-speed-editor-save';
                 saveBtn.title = '保存笔记';
-                saveBtn.style.cssText = 'background: #F0F1F2; color: #333; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; position: relative; z-index: 1001; pointer-events: auto; transition: transform 0.15s ease;';
+                saveBtn.style.cssText = 'background: #F0F1F2; color: #333; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; position: relative; z-index: 1001; pointer-events: auto;';
                 saveBtn.textContent = '💾 保存';
-                saveBtn.addEventListener('mouseenter', () => { saveBtn.style.transform = 'scale(1.1)'; });
-                saveBtn.addEventListener('mouseleave', () => { saveBtn.style.transform = 'scale(1)'; });
                 saveBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     saveNote();
@@ -4501,10 +4535,8 @@ const VditorEditorPanel = (() => {
 
                 const closeBtn = document.createElement('button');
                 closeBtn.className = 'bili-speed-editor-close';
-                closeBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; position: relative; z-index: 1001; pointer-events: auto; transition: transform 0.15s ease;';
+                closeBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; position: relative; z-index: 1001; pointer-events: auto;';
                 closeBtn.textContent = '×';
-                closeBtn.addEventListener('mouseenter', () => { closeBtn.style.transform = 'scale(1.2)'; });
-                closeBtn.addEventListener('mouseleave', () => { closeBtn.style.transform = 'scale(1)'; });
                 closeBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     VditorEditorPanel.close();
@@ -4632,6 +4664,12 @@ const VditorEditorPanel = (() => {
         });
     }
 
+    EventBus.on('vditor:mode:change', (mode) => {
+        if (panelInstance && vditorInstance) {
+            switchMode(mode);
+        }
+    });
+
     return {
         create() {
             if (panelInstance) panelInstance.destroy();
@@ -4702,6 +4740,8 @@ const KeyboardHandler = (() => {
         register() {
             boundHandler = (e) => {
                 if (PageGuard.isNotAllowedPage() || PageGuard.isInputFocused()) return;
+
+                if (e.ctrlKey || e.metaKey || e.altKey) return;
 
                 const key = e.key.toLowerCase();
                 if (key === Config.data.keyReset) {

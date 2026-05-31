@@ -9,6 +9,8 @@ const KeyboardHandler = (() => {
             boundHandler = (e) => {
                 if (PageGuard.isNotAllowedPage() || PageGuard.isInputFocused()) return;
 
+                if (e.ctrlKey || e.metaKey || e.altKey) return;
+
                 const key = e.key.toLowerCase();
                 if (key === Config.data.keyReset) {
                     e.preventDefault();

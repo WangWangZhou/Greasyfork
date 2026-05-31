@@ -503,6 +503,8 @@ const ControlPanel = (() => {
                     sizeLabel.textContent = `📐 Vditor 面板尺寸 (${modeNames[mode] || mode}):`;
                 }
 
+                EventBus.emit('vditor:mode:change', mode);
+
                 Toast.show(`Vditor 编辑模式已切换为 ${mode === 'wysiwyg' ? '所见即所得' : mode === 'ir' ? '即时渲染' : '分屏预览'}`);
             });
         });
