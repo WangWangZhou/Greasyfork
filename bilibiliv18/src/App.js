@@ -8,6 +8,7 @@ const App = (() => {
         }
 
         Toast.create();
+        VideoController.init();
         CardPanel.create();
         ControlPanel.create();
         FavoritesPanel.create();

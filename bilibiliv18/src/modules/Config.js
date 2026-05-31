@@ -21,16 +21,30 @@ const Config = (() => {
         notesPanelVisible: false,
         notesPanelPosition: null,
         editorPanelPosition: null,
+        quillEditorPanelSize: null,
+        vditorEditorPanelSize: null,
         defaultEditor: 'quill',
         quillEditorWidth: '520px',
         quillEditorHeight: '500px',
+        quillEditorMinWidth: '400px',
+        quillEditorMinHeight: '350px',
         vditorEditorMode: 'ir',
         vditorWidth_wysiwyg: '560px',
         vditorHeight_wysiwyg: '550px',
         vditorWidth_ir: '560px',
         vditorHeight_ir: '550px',
         vditorWidth_sv: '640px',
-        vditorHeight_sv: '600px'
+        vditorHeight_sv: '600px',
+        vditorEditorMinWidth_wysiwyg: '400px',
+        vditorEditorMinHeight_wysiwyg: '400px',
+        vditorEditorMinWidth_ir: '400px',
+        vditorEditorMinHeight_ir: '400px',
+        vditorEditorMinWidth_sv: '640px',
+        vditorEditorMinHeight_sv: '400px',
+        quillCdnJs: 'https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.min.js',
+        quillCdnCss: 'https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css',
+        vditorCdnJs: 'https://cdn.jsdelivr.net/npm/vditor/dist/index.min.js',
+        vditorCdnCss: 'https://cdn.jsdelivr.net/npm/vditor/dist/index.css'
     };
 
     const proxy = new Proxy({}, {

@@ -64,7 +64,7 @@ const QuillEditorPanel = (() => {
 
             console.log('[QuillEditorPanel] Creating new script tag');
             const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.min.js';
+            script.src = Config.data.quillCdnJs;
             script.id = 'quill-js';
             script.dataset.loading = 'true';
             script.onload = () => {
@@ -96,7 +96,7 @@ const QuillEditorPanel = (() => {
     function injectQuillCSS() {
         if (document.getElementById('quill-snow-css')) return;
 
-        const cssUrl = 'https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css';
+        const cssUrl = Config.data.quillCdnCss;
 
         if (typeof GM_addStyle !== 'undefined') {
             fetch(cssUrl)
@@ -322,6 +322,7 @@ const QuillEditorPanel = (() => {
         injectQuillCSS();
 
         let savedPosition = Config.data.editorPanelPosition;
+        const savedSize = Config.data.quillEditorPanelSize;
         const currentTheme = Config.data.theme || 'light';
 
         currentNoteId = note ? note.id : null;
@@ -344,8 +345,8 @@ const QuillEditorPanel = (() => {
             },
             footer: { visible: true },
             styles: {
-                width: Config.data.quillEditorWidth || '520px',
-                height: Config.data.quillEditorHeight || '500px',
+                width: savedSize ? savedSize.width : (Config.data.quillEditorWidth || '520px'),
+                height: savedSize ? savedSize.height : (Config.data.quillEditorHeight || '500px'),
                 display: 'flex',
                 flexDirection: 'column',
                 top: '50%',
@@ -464,14 +465,14 @@ const QuillEditorPanel = (() => {
                 const panelEl = bodyEl.parentElement;
 
                 resizeCleanup = Resizable.make(panelEl, {
-                    minWidth: 400,
-                    minHeight: 350,
+                    minWidth: parseInt(Config.data.quillEditorMinWidth) || 400,
+                    minHeight: parseInt(Config.data.quillEditorMinHeight) || 350,
                     onResize: () => {
                         if (quillInstance) {
                             adjustQuillEditorHeight();
                         }
                     },
-                    saveKey: 'editorPanelSize'
+                    saveKey: 'quillEditorPanelSize'
                 });
 
                 if (getQuill()) {

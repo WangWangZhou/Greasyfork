@@ -198,29 +198,32 @@ const CardPanel = (() => {
                 const progressBar = footerEl.querySelector('.bili-speed-progress-bar');
                 const tooltip = footerEl.querySelector('.bili-speed-progress-tooltip');
 
-                const video = VideoController.getVideo();
+                let video = VideoController.getVideo();
                 updatePlayBtn(video);
 
                 playBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    if (!video) return;
-                    if (video.paused) {
-                        video.play();
+                    const v = VideoController.getVideo();
+                    if (!v) return;
+                    if (v.paused) {
+                        v.play();
                     } else {
-                        video.pause();
+                        v.pause();
                     }
                 });
 
                 let isDraggingProgress = false;
                 const getTimeFromPosition = (clientX) => {
-                    if (!video || !video.duration) return 0;
+                    const v = VideoController.getVideo();
+                    if (!v || !v.duration) return 0;
                     const rect = progressWrapper.getBoundingClientRect();
                     const percent = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-                    return percent * video.duration;
+                    return percent * v.duration;
                 };
 
                 const updateTooltip = (clientX) => {
-                    if (!video || !video.duration) return;
+                    const v = VideoController.getVideo();
+                    if (!v || !v.duration) return;
                     const time = getTimeFromPosition(clientX);
                     const rect = progressWrapper.getBoundingClientRect();
                     const percent = (clientX - rect.left) / rect.width;
@@ -230,7 +233,8 @@ const CardPanel = (() => {
                 };
 
                 const seekVideo = Utils.throttle((time) => {
-                    if (video) video.currentTime = time;
+                    const v = VideoController.getVideo();
+                    if (v) v.currentTime = time;
                 }, 100);
 
                 const onMouseEnter = (e) => updateTooltip(e.clientX);
@@ -238,22 +242,26 @@ const CardPanel = (() => {
                 const onMouseLeave = () => { if (!isDraggingProgress) tooltip.style.display = 'none'; };
 
                 const onClick = (e) => {
-                    if (!video || !video.duration) return;
-                    video.currentTime = getTimeFromPosition(e.clientX);
+                    const v = VideoController.getVideo();
+                    if (!v || !v.duration) return;
+                    v.currentTime = getTimeFromPosition(e.clientX);
                 };
 
                 const onDragStart = (e) => {
-                    if (!video || !video.duration) return;
+                    const v = VideoController.getVideo();
+                    if (!v || !v.duration) return;
                     isDraggingProgress = true;
                     e.preventDefault();
                 };
 
                 const onDragMove = (e) => {
                     if (!isDraggingProgress) return;
+                    const v = VideoController.getVideo();
+                    if (!v || !v.duration) return;
                     updateTooltip(e.clientX);
                     const time = getTimeFromPosition(e.clientX);
                     seekVideo(time);
-                    progressBar.style.width = `${(time / video.duration) * 100}%`;
+                    progressBar.style.width = `${(time / v.duration) * 100}%`;
                 };
 
                 const onDragEnd = () => {
@@ -283,14 +291,28 @@ const CardPanel = (() => {
                 cleanupFns.add(cleanupProgress);
 
                 const updateProgress = () => {
-                    if (!video || !video.duration) return;
-                    progressBar.style.width = `${(video.currentTime / video.duration) * 100}%`;
+                    const v = VideoController.getVideo();
+                    if (!v || !v.duration) return;
+                    progressBar.style.width = `${(v.currentTime / v.duration) * 100}%`;
                 };
 
-                if (video) {
-                    video.addEventListener('timeupdate', updateProgress);
-                    cleanupFns.add(() => video.removeEventListener('timeupdate', updateProgress));
+                function attachVideoListeners() {
+                    const v = VideoController.getVideo();
+                    if (!v) return false;
+                    v.addEventListener('timeupdate', updateProgress);
+                    cleanupFns.add(() => v.removeEventListener('timeupdate', updateProgress));
                     updateProgress();
+                    return true;
+                }
+
+                if (!attachVideoListeners()) {
+                    const retryTimer = setInterval(() => {
+                        if (attachVideoListeners()) {
+                            clearInterval(retryTimer);
+                        }
+                    }, 500);
+                    cleanupFns.add(() => clearInterval(retryTimer));
+                    video = VideoController.getVideo();
                 }
             }
         });
@@ -317,6 +339,24 @@ const CardPanel = (() => {
             updateCard();
             updatePlayBtn(video);
             setTimeout(updateCard, 500);
+        } else {
+            const retryTimer = setInterval(() => {
+                const retryVideo = VideoController.getVideo();
+                if (retryVideo) {
+                    clearInterval(retryTimer);
+                    const onRateChange = () => updateCard();
+                    const onTimeUpdate = () => updateCard();
+                    retryVideo.addEventListener('timeupdate', onTimeUpdate);
+                    retryVideo.addEventListener('ratechange', onRateChange);
+                    cleanupFns.add(() => {
+                        retryVideo.removeEventListener('timeupdate', onTimeUpdate);
+                        retryVideo.removeEventListener('ratechange', onRateChange);
+                    });
+                    updateCard();
+                    updatePlayBtn(retryVideo);
+                }
+            }, 500);
+            cleanupFns.add(() => clearInterval(retryTimer));
         }
 
         EventBus.on('favorites:updated', updateFavoriteBtn);

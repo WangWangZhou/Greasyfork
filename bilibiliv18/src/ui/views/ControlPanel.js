@@ -97,11 +97,58 @@ const ControlPanel = (() => {
                 <div style="font-size: 12px; color: #999; padding: 8px; background: #f5f5f5; border-radius: 4px;">
                     💡 提示: 主题设置会应用到所有面板组件
                 </div>
+                <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #eee;">
+                    <div style="font-size: 13px; font-weight: bold; margin-bottom: 8px;">📦 编辑器 CDN 资源</div>
+                    <div style="margin-bottom: 6px;">
+                        <span style="font-size: 12px; color: #666;">Quill JS:</span>
+                        <input type="text" class="cdn-quill-js" value="${Config.data.quillCdnJs}" style="width: 100%; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; outline: none; box-sizing: border-box; margin-top: 2px;">
+                    </div>
+                    <div style="margin-bottom: 6px;">
+                        <span style="font-size: 12px; color: #666;">Quill CSS:</span>
+                        <input type="text" class="cdn-quill-css" value="${Config.data.quillCdnCss}" style="width: 100%; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; outline: none; box-sizing: border-box; margin-top: 2px;">
+                    </div>
+                    <div style="margin-bottom: 6px;">
+                        <span style="font-size: 12px; color: #666;">Vditor JS:</span>
+                        <input type="text" class="cdn-vditor-js" value="${Config.data.vditorCdnJs}" style="width: 100%; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; outline: none; box-sizing: border-box; margin-top: 2px;">
+                    </div>
+                    <div style="margin-bottom: 6px;">
+                        <span style="font-size: 12px; color: #666;">Vditor CSS:</span>
+                        <input type="text" class="cdn-vditor-css" value="${Config.data.vditorCdnCss}" style="width: 100%; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; outline: none; box-sizing: border-box; margin-top: 2px;">
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-top: 8px;">
+                        <button class="cdn-save" style="flex: 1; padding: 6px; border-radius: 4px; border: 1px solid #ccc; background: #fff; color: #000; cursor: pointer; font-size: 12px;">💾 保存 CDN 配置</button>
+                        <button class="cdn-restore" style="flex: 1; padding: 6px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer; font-size: 12px;">↩️ 恢复默认</button>
+                    </div>
+                </div>
             </div>
         `;
 
         const themeBtn = contentEl.querySelector('.theme-toggle-btn');
         themeBtn.addEventListener('click', toggleTheme);
+
+        contentEl.querySelector('.cdn-save').addEventListener('click', () => {
+            const quillJs = contentEl.querySelector('.cdn-quill-js').value.trim();
+            const quillCss = contentEl.querySelector('.cdn-quill-css').value.trim();
+            const vditorJs = contentEl.querySelector('.cdn-vditor-js').value.trim();
+            const vditorCss = contentEl.querySelector('.cdn-vditor-css').value.trim();
+            if (quillJs) Config.data.quillCdnJs = quillJs;
+            if (quillCss) Config.data.quillCdnCss = quillCss;
+            if (vditorJs) Config.data.vditorCdnJs = vditorJs;
+            if (vditorCss) Config.data.vditorCdnCss = vditorCss;
+            Toast.show('CDN 配置已保存，刷新后生效');
+        });
+
+        contentEl.querySelector('.cdn-restore').addEventListener('click', () => {
+            Config.data.quillCdnJs = Config.DEFAULTS.quillCdnJs;
+            Config.data.quillCdnCss = Config.DEFAULTS.quillCdnCss;
+            Config.data.vditorCdnJs = Config.DEFAULTS.vditorCdnJs;
+            Config.data.vditorCdnCss = Config.DEFAULTS.vditorCdnCss;
+            contentEl.querySelector('.cdn-quill-js').value = Config.DEFAULTS.quillCdnJs;
+            contentEl.querySelector('.cdn-quill-css').value = Config.DEFAULTS.quillCdnCss;
+            contentEl.querySelector('.cdn-vditor-js').value = Config.DEFAULTS.vditorCdnJs;
+            contentEl.querySelector('.cdn-vditor-css').value = Config.DEFAULTS.vditorCdnCss;
+            Toast.show('CDN 配置已恢复默认');
+        });
     }
 
     function renderSpeedMenu(contentEl) {
@@ -342,36 +389,6 @@ const ControlPanel = (() => {
         });
     }
 
-    function renderSizeBtnGroup(container, configKey, sizes, currentVal) {
-        sizes.forEach(size => {
-            const btn = document.createElement('button');
-            btn.className = 'editor-size-btn';
-            btn.dataset.value = size;
-            btn.textContent = size;
-            btn.style.cssText = 'padding: 3px 10px; border-radius: 3px; border: 1px solid #ccc; background: #fff; cursor: pointer; font-size: 12px; transition: all 0.2s;';
-            if (currentVal === size || (!currentVal && size === sizes[2])) {
-                btn.classList.add('active');
-                btn.style.background = '#00AEEC';
-                btn.style.color = '#fff';
-                btn.style.borderColor = '#00AEEC';
-            }
-            btn.addEventListener('click', () => {
-                container.querySelectorAll('.editor-size-btn').forEach(b => {
-                    b.classList.remove('active');
-                    b.style.background = '#fff';
-                    b.style.color = '#000';
-                    b.style.borderColor = '#ccc';
-                });
-                btn.classList.add('active');
-                btn.style.background = '#00AEEC';
-                btn.style.color = '#fff';
-                btn.style.borderColor = '#00AEEC';
-                Config.data[configKey] = size;
-            });
-            container.appendChild(btn);
-        });
-    }
-
     function renderNotesMenu(contentEl) {
         const currentEditor = Config.data.defaultEditor || 'quill';
         const noteCount = Notes.count();
@@ -382,10 +399,14 @@ const ControlPanel = (() => {
         const currentVditorMode = Config.data.vditorEditorMode || 'ir';
         const currentQuillWidth = Config.data.quillEditorWidth || '520px';
         const currentQuillHeight = Config.data.quillEditorHeight || '500px';
+        const currentQuillMinWidth = Config.data.quillEditorMinWidth || '400px';
+        const currentQuillMinHeight = Config.data.quillEditorMinHeight || '350px';
         const vditorWidthKey = 'vditorWidth_' + currentVditorMode;
         const vditorHeightKey = 'vditorHeight_' + currentVditorMode;
         const currentVditorWidth = Config.data[vditorWidthKey] || '560px';
         const currentVditorHeight = Config.data[vditorHeightKey] || '550px';
+        const currentVditorMinWidth = Config.data['vditorEditorMinWidth_' + currentVditorMode] || '400px';
+        const currentVditorMinHeight = Config.data['vditorEditorMinHeight_' + currentVditorMode] || '400px';
 
         contentEl.innerHTML = `
             <div style="padding: 16px; overflow-y: auto; max-height: 440px;">
@@ -404,11 +425,23 @@ const ControlPanel = (() => {
                     <div style="font-size: 13px; margin-bottom: 8px;">📐 Quill 面板尺寸:</div>
                     <div style="margin-bottom: 6px;">
                         <span style="font-size: 12px; color: #666;">宽度:</span>
-                        <div class="quill-width-group" style="display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap;"></div>
+                        <input type="text" class="quill-width-input" value="${currentQuillWidth}" style="width: 80px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; outline: none; margin-left: 8px;">
                     </div>
-                    <div>
+                    <div style="margin-bottom: 6px;">
                         <span style="font-size: 12px; color: #666;">高度:</span>
-                        <div class="quill-height-group" style="display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap;"></div>
+                        <input type="text" class="quill-height-input" value="${currentQuillHeight}" style="width: 80px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; outline: none; margin-left: 8px;">
+                    </div>
+                    <div style="margin-bottom: 6px;">
+                        <span style="font-size: 12px; color: #666;">最小宽度:</span>
+                        <input type="text" class="quill-min-width-input" value="${currentQuillMinWidth}" style="width: 80px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; outline: none; margin-left: 8px;">
+                    </div>
+                    <div style="margin-bottom: 6px;">
+                        <span style="font-size: 12px; color: #666;">最小高度:</span>
+                        <input type="text" class="quill-min-height-input" value="${currentQuillMinHeight}" style="width: 80px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; outline: none; margin-left: 8px;">
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-top: 8px;">
+                        <button class="quill-size-save" style="flex: 1; padding: 6px; border-radius: 4px; border: 1px solid #ccc; background: #fff; color: #000; cursor: pointer; font-size: 12px;">💾 保存</button>
+                        <button class="quill-size-restore" style="flex: 1; padding: 6px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer; font-size: 12px;">↩️ 恢复默认</button>
                     </div>
                 </div>
                 <div class="vditor-settings" style="margin-bottom: 16px; ${currentEditor === 'vditor' ? 'display: block;' : 'display: none;'}">
@@ -421,11 +454,23 @@ const ControlPanel = (() => {
                     <div style="font-size: 13px; margin-bottom: 8px;">📐 Vditor 面板尺寸 (${currentVditorMode === 'wysiwyg' ? '所见即所得' : currentVditorMode === 'ir' ? '即时渲染' : '分屏预览'}):</div>
                     <div style="margin-bottom: 6px;">
                         <span style="font-size: 12px; color: #666;">宽度:</span>
-                        <div class="vditor-width-group" style="display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap;"></div>
+                        <input type="text" class="vditor-width-input" value="${currentVditorWidth}" style="width: 80px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; outline: none; margin-left: 8px;">
                     </div>
-                    <div>
+                    <div style="margin-bottom: 6px;">
                         <span style="font-size: 12px; color: #666;">高度:</span>
-                        <div class="vditor-height-group" style="display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap;"></div>
+                        <input type="text" class="vditor-height-input" value="${currentVditorHeight}" style="width: 80px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; outline: none; margin-left: 8px;">
+                    </div>
+                    <div style="margin-bottom: 6px;">
+                        <span style="font-size: 12px; color: #666;">最小宽度:</span>
+                        <input type="text" class="vditor-min-width-input" value="${currentVditorMinWidth}" style="width: 80px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; outline: none; margin-left: 8px;">
+                    </div>
+                    <div style="margin-bottom: 6px;">
+                        <span style="font-size: 12px; color: #666;">最小高度:</span>
+                        <input type="text" class="vditor-min-height-input" value="${currentVditorMinHeight}" style="width: 80px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; outline: none; margin-left: 8px;">
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-top: 8px;">
+                        <button class="vditor-size-save" style="flex: 1; padding: 6px; border-radius: 4px; border: 1px solid #ccc; background: #fff; color: #000; cursor: pointer; font-size: 12px;">💾 保存</button>
+                        <button class="vditor-size-restore" style="flex: 1; padding: 6px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer; font-size: 12px;">↩️ 恢复默认</button>
                     </div>
                 </div>
                 <div style="margin-bottom: 16px; padding-top: 12px; border-top: 1px solid #eee;">
@@ -456,19 +501,29 @@ const ControlPanel = (() => {
             </div>
         `;
 
-        const sizeOptions = ['400px', '480px', '520px', '560px', '640px'];
+        contentEl.querySelector('.quill-size-save').addEventListener('click', () => {
+            const width = contentEl.querySelector('.quill-width-input').value.trim();
+            const height = contentEl.querySelector('.quill-height-input').value.trim();
+            const minWidth = contentEl.querySelector('.quill-min-width-input').value.trim();
+            const minHeight = contentEl.querySelector('.quill-min-height-input').value.trim();
+            if (width) Config.data.quillEditorWidth = width;
+            if (height) Config.data.quillEditorHeight = height;
+            if (minWidth) Config.data.quillEditorMinWidth = minWidth;
+            if (minHeight) Config.data.quillEditorMinHeight = minHeight;
+            Toast.show('Quill 面板尺寸已保存');
+        });
 
-        const quillWidthGroup = contentEl.querySelector('.quill-width-group');
-        renderSizeBtnGroup(quillWidthGroup, 'quillEditorWidth', sizeOptions, currentQuillWidth);
-
-        const quillHeightGroup = contentEl.querySelector('.quill-height-group');
-        renderSizeBtnGroup(quillHeightGroup, 'quillEditorHeight', sizeOptions, currentQuillHeight);
-
-        const vditorWidthGroup = contentEl.querySelector('.vditor-width-group');
-        renderSizeBtnGroup(vditorWidthGroup, vditorWidthKey, sizeOptions, currentVditorWidth);
-
-        const vditorHeightGroup = contentEl.querySelector('.vditor-height-group');
-        renderSizeBtnGroup(vditorHeightGroup, vditorHeightKey, sizeOptions, currentVditorHeight);
+        contentEl.querySelector('.quill-size-restore').addEventListener('click', () => {
+            Config.data.quillEditorWidth = Config.DEFAULTS.quillEditorWidth;
+            Config.data.quillEditorHeight = Config.DEFAULTS.quillEditorHeight;
+            Config.data.quillEditorMinWidth = Config.DEFAULTS.quillEditorMinWidth;
+            Config.data.quillEditorMinHeight = Config.DEFAULTS.quillEditorMinHeight;
+            contentEl.querySelector('.quill-width-input').value = Config.DEFAULTS.quillEditorWidth;
+            contentEl.querySelector('.quill-height-input').value = Config.DEFAULTS.quillEditorHeight;
+            contentEl.querySelector('.quill-min-width-input').value = Config.DEFAULTS.quillEditorMinWidth;
+            contentEl.querySelector('.quill-min-height-input').value = Config.DEFAULTS.quillEditorMinHeight;
+            Toast.show('Quill 面板尺寸已恢复默认');
+        });
 
         contentEl.querySelectorAll('.editor-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -489,13 +544,19 @@ const ControlPanel = (() => {
                 const heightKey = 'vditorHeight_' + mode;
                 const widthVal = Config.data[widthKey] || '560px';
                 const heightVal = Config.data[heightKey] || '550px';
+                const minWidthKey = 'vditorEditorMinWidth_' + mode;
+                const minHeightKey = 'vditorEditorMinHeight_' + mode;
+                const minWidthVal = Config.data[minWidthKey] || '400px';
+                const minHeightVal = Config.data[minHeightKey] || '400px';
 
-                const vWidthGroup = contentEl.querySelector('.vditor-width-group');
-                const vHeightGroup = contentEl.querySelector('.vditor-height-group');
-                vWidthGroup.innerHTML = '';
-                vHeightGroup.innerHTML = '';
-                renderSizeBtnGroup(vWidthGroup, widthKey, sizeOptions, widthVal);
-                renderSizeBtnGroup(vHeightGroup, heightKey, sizeOptions, heightVal);
+                const vWidthInput = contentEl.querySelector('.vditor-width-input');
+                const vHeightInput = contentEl.querySelector('.vditor-height-input');
+                if (vWidthInput) vWidthInput.value = widthVal;
+                if (vHeightInput) vHeightInput.value = heightVal;
+                const vMinWidthInput = contentEl.querySelector('.vditor-min-width-input');
+                const vMinHeightInput = contentEl.querySelector('.vditor-min-height-input');
+                if (vMinWidthInput) vMinWidthInput.value = minWidthVal;
+                if (vMinHeightInput) vMinHeightInput.value = minHeightVal;
 
                 const sizeLabel = contentEl.querySelector('.vditor-settings div:nth-child(3)');
                 if (sizeLabel) {
@@ -507,6 +568,40 @@ const ControlPanel = (() => {
 
                 Toast.show(`Vditor 编辑模式已切换为 ${mode === 'wysiwyg' ? '所见即所得' : mode === 'ir' ? '即时渲染' : '分屏预览'}`);
             });
+        });
+
+        contentEl.querySelector('.vditor-size-save').addEventListener('click', () => {
+            const mode = Config.data.vditorEditorMode || 'ir';
+            const widthKey = 'vditorWidth_' + mode;
+            const heightKey = 'vditorHeight_' + mode;
+            const minWidthKey = 'vditorEditorMinWidth_' + mode;
+            const minHeightKey = 'vditorEditorMinHeight_' + mode;
+            const width = contentEl.querySelector('.vditor-width-input').value.trim();
+            const height = contentEl.querySelector('.vditor-height-input').value.trim();
+            const minWidth = contentEl.querySelector('.vditor-min-width-input').value.trim();
+            const minHeight = contentEl.querySelector('.vditor-min-height-input').value.trim();
+            if (width) Config.data[widthKey] = width;
+            if (height) Config.data[heightKey] = height;
+            if (minWidth) Config.data[minWidthKey] = minWidth;
+            if (minHeight) Config.data[minHeightKey] = minHeight;
+            Toast.show('Vditor 面板尺寸已保存');
+        });
+
+        contentEl.querySelector('.vditor-size-restore').addEventListener('click', () => {
+            const mode = Config.data.vditorEditorMode || 'ir';
+            const widthKey = 'vditorWidth_' + mode;
+            const heightKey = 'vditorHeight_' + mode;
+            const minWidthKey = 'vditorEditorMinWidth_' + mode;
+            const minHeightKey = 'vditorEditorMinHeight_' + mode;
+            Config.data[widthKey] = Config.DEFAULTS[widthKey];
+            Config.data[heightKey] = Config.DEFAULTS[heightKey];
+            Config.data[minWidthKey] = Config.DEFAULTS[minWidthKey];
+            Config.data[minHeightKey] = Config.DEFAULTS[minHeightKey];
+            contentEl.querySelector('.vditor-width-input').value = Config.DEFAULTS[widthKey];
+            contentEl.querySelector('.vditor-height-input').value = Config.DEFAULTS[heightKey];
+            contentEl.querySelector('.vditor-min-width-input').value = Config.DEFAULTS[minWidthKey];
+            contentEl.querySelector('.vditor-min-height-input').value = Config.DEFAULTS[minHeightKey];
+            Toast.show('Vditor 面板尺寸已恢复默认');
         });
 
         contentEl.querySelector('#open-notes-panel-btn').addEventListener('click', () => {
@@ -681,6 +776,9 @@ const ControlPanel = (() => {
 
         const panelStyle = document.createElement('style');
         panelStyle.textContent = `
+            .bili-speed-panel button {
+                transition: all 0.2s;
+            }
             .bili-speed-panel .step-btn,
             .bili-speed-panel .default-btn,
             .bili-speed-panel .min-rate-btn,
@@ -730,6 +828,30 @@ const ControlPanel = (() => {
                 color: #fff;
                 border-color: #00AEEC;
             }
+            .bili-speed-panel #reset-btn:hover {
+                background: #888 !important;
+            }
+            .bili-speed-panel #save-btn:hover {
+                background: #0099d6 !important;
+            }
+            .bili-speed-panel #export-favorites-btn:hover,
+            .bili-speed-panel #import-favorites-btn:hover,
+            .bili-speed-panel #export-notes-btn:hover,
+            .bili-speed-panel #import-notes-btn:hover,
+            .bili-speed-panel .quill-size-save:hover,
+            .bili-speed-panel .quill-size-restore:hover,
+            .bili-speed-panel .vditor-size-save:hover,
+            .bili-speed-panel .vditor-size-restore:hover {
+                background: #e0e0e0;
+            }
+            .bili-speed-panel #open-favorites-panel-btn:hover,
+            .bili-speed-panel #open-notes-panel-btn:hover {
+                background: #0099d6 !important;
+            }
+            .bili-speed-panel #clear-favorites-btn:hover,
+            .bili-speed-panel #clear-notes-btn:hover {
+                background: #ffe0e0;
+            }
             .bili-speed-panel-menu-item.active {
                 background: #e6f7ff;
                 border-left-color: #00AEEC;
@@ -764,6 +886,29 @@ const ControlPanel = (() => {
             .bili-speed-panel.theme-dark button.active {
                 background: #00AEEC;
                 border-color: #00AEEC;
+            }
+            .bili-speed-panel.theme-dark #reset-btn:hover {
+                background: #555 !important;
+            }
+            .bili-speed-panel.theme-dark #save-btn:hover,
+            .bili-speed-panel.theme-dark #open-favorites-panel-btn:hover,
+            .bili-speed-panel.theme-dark #open-notes-panel-btn:hover {
+                background: #0088b3 !important;
+            }
+            .bili-speed-panel.theme-dark #export-favorites-btn:hover,
+            .bili-speed-panel.theme-dark #import-favorites-btn:hover,
+            .bili-speed-panel.theme-dark #export-notes-btn:hover,
+            .bili-speed-panel.theme-dark #import-notes-btn:hover,
+            .bili-speed-panel.theme-dark .quill-size-save:hover,
+            .bili-speed-panel.theme-dark .quill-size-restore:hover,
+            .bili-speed-panel.theme-dark .vditor-size-save:hover,
+            .bili-speed-panel.theme-dark .vditor-size-restore:hover {
+                background: #444 !important;
+            }
+            .bili-speed-panel.theme-dark #clear-favorites-btn:hover,
+            .bili-speed-panel.theme-dark #clear-notes-btn:hover {
+                background: #553333 !important;
+                border-color: #ff6b6b !important;
             }
             .bili-speed-panel.theme-dark input {
                 background: #333;

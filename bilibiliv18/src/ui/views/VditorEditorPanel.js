@@ -60,12 +60,12 @@ const VditorEditorPanel = (() => {
 
             const css = document.createElement('link');
             css.rel = 'stylesheet';
-            css.href = 'https://cdn.jsdelivr.net/npm/vditor/dist/index.css';
+            css.href = Config.data.vditorCdnCss;
             css.id = 'vditor-css';
             document.head.appendChild(css);
 
             const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/vditor/dist/index.min.js';
+            script.src = Config.data.vditorCdnJs;
             script.id = 'vditor-script';
             script.onload = () => {
                 isResourcesLoaded = true;
@@ -309,6 +309,7 @@ const VditorEditorPanel = (() => {
 
     function createPanel(note) {
         let savedPosition = Config.data.editorPanelPosition;
+        const savedSize = Config.data.vditorEditorPanelSize;
         const currentTheme = Config.data.theme || 'light';
 
         currentNoteId = note ? note.id : null;
@@ -326,8 +327,8 @@ const VditorEditorPanel = (() => {
 
         const vditorWidthKey = 'vditorWidth_' + vditorMode;
         const vditorHeightKey = 'vditorHeight_' + vditorMode;
-        const panelWidth = Config.data[vditorWidthKey] || '560px';
-        const panelHeight = Config.data[vditorHeightKey] || '550px';
+        const panelWidth = savedSize ? savedSize.width : (Config.data[vditorWidthKey] || '560px');
+        const panelHeight = savedSize ? savedSize.height : (Config.data[vditorHeightKey] || '550px');
 
         panelInstance = Card.create({
             className: `bili-speed-vditor-panel theme-${currentTheme}`,
@@ -378,6 +379,41 @@ const VditorEditorPanel = (() => {
                 saveBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     saveNote();
+                });
+
+                const vditorMode = Config.data.vditorEditorMode || 'ir';
+                const modeConfigs = [
+                    { mode: 'wysiwyg', label: '所见' },
+                    { mode: 'ir', label: '即显' },
+                    { mode: 'sv', label: '分屏' }
+                ];
+                const modeButtons = [];
+                modeConfigs.forEach(({ mode, label }) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'bili-speed-editor-mode';
+                    btn.title = `切换到${mode === 'wysiwyg' ? '所见即所得' : mode === 'ir' ? '即时渲染' : '分屏预览'}模式`;
+                    const isActive = mode === vditorMode;
+                    btn.style.cssText = `background: ${isActive ? '#00AEEC' : 'transparent'}; color: ${isActive ? '#fff' : '#000'}; border: ${isActive ? '1px solid #00AEEC' : '1px solid #ddd'}; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 12px; position: relative; z-index: 1001; pointer-events: auto;`;
+                    btn.textContent = label;
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (Config.data.vditorEditorMode !== mode) {
+                            modeButtons.forEach(b => {
+                                b.style.background = 'transparent';
+                                b.style.color = '#000';
+                                b.style.border = '1px solid #ddd';
+                            });
+                            btn.style.background = '#00AEEC';
+                            btn.style.color = '#fff';
+                            btn.style.border = '1px solid #00AEEC';
+                            Config.data.vditorEditorMode = mode;
+                            if (vditorInstance) {
+                                switchMode(mode);
+                            }
+                        }
+                    });
+                    modeButtons.push(btn);
+                    actionsEl.appendChild(btn);
                 });
 
                 const closeBtn = document.createElement('button');
@@ -477,15 +513,19 @@ const VditorEditorPanel = (() => {
                 const loadingEl = bodyEl.querySelector('.bili-speed-editor-loading');
                 const panelEl = bodyEl.parentElement;
 
+                const vditorMode = Config.data.vditorEditorMode || 'ir';
+                const minWidthKey = 'vditorEditorMinWidth_' + vditorMode;
+                const minHeightKey = 'vditorEditorMinHeight_' + vditorMode;
+
                 resizeCleanup = Resizable.make(panelEl, {
-                    minWidth: 400,
-                    minHeight: 400,
+                    minWidth: parseInt(Config.data[minWidthKey]) || 400,
+                    minHeight: parseInt(Config.data[minHeightKey]) || 400,
                     onResize: (newWidth, newHeight) => {
                         if (vditorInstance) {
                             adjustVditorEditorHeight();
                         }
                     },
-                    saveKey: 'editorPanelSize'
+                    saveKey: 'vditorEditorPanelSize'
                 });
 
                 if (isResourcesLoaded && getVditor()) {
