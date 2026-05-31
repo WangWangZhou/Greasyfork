@@ -1,0 +1,130 @@
+.rustwiki-tools {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.rustwiki-tool-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: #4b5563;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.rustwiki-tool-btn:hover {
+    background: #1f2937;
+    transform: translateY(-2px);
+}
+
+.rustwiki-tool-btn:active {
+    transform: translateY(0);
+}
+
+body.dark-mode {
+    background-color: #1a1a1a;
+    color: #e5e7eb;
+}
+
+body.dark-mode .book {
+    background-color: #1a1a1a;
+}
+
+body.dark-mode .book-header {
+    background-color: #2d2d2d;
+}
+
+body.dark-mode .book-body {
+    background-color: #1a1a1a;
+}
+
+body.dark-mode .page {
+    background-color: #1a1a1a;
+    color: #e5e7eb;
+}
+
+body.dark-mode a {
+    color: #93c5fd;
+}
+
+body.dark-mode code {
+    background-color: #2d2d2d;
+    color: #fbbf24;
+}
+
+.rustwiki-card {
+    background: white;
+}
+
+body.dark-mode .rustwiki-card {
+    background: #2d2d2d;
+    color: #e5e7eb;
+}
+
+body.dark-mode .rustwiki-card-header {
+    background-color: #374151;
+    border-bottom: 1px solid #4b5563;
+}
+
+body.dark-mode .rustwiki-card-body {
+    background-color: #2d2d2d;
+}
+
+body.dark-mode .rustwiki-card-footer {
+    background-color: #374151;
+    border-top: 1px solid #4b5563;
+}
+
+.rustwiki-card ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+}
+
+.rustwiki-card li {
+    margin-bottom: 5px;
+}
+
+.rustwiki-card a {
+    text-decoration: none;
+    color: #374151;
+    font-size: 14px;
+    display: block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+body.dark-mode .rustwiki-card a {
+    color: #e5e7eb;
+}
+
+.rustwiki-card a:hover {
+    background: #f3f4f6;
+}
+
+body.dark-mode .rustwiki-card a:hover {
+    background: #4b5563;
+}
+
+.rustwiki-card .toc-h3 {
+    padding-left: 20px;
+    font-size: 13px;
+}
+
+.rustwiki-card.hidden {
+    left: -300px !important;
+    opacity: 0;
+}

@@ -1,0 +1,10 @@
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vditor/dist/index.css">
+<script src="https://cdn.jsdelivr.net/npm/vditor/dist/index.min.js"></script>
+<script>
+  const vditor = new Vditor('editor', {
+    height: 480,
+    toolbar: ['headings', 'bold', 'italic', 'link', 'code', 'table', 'upload'],
+    after: () => vditor.setValue('# Hello Vditor!')
+  });
+</script>
+<div id="editor"></div>
