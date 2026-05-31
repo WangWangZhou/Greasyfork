@@ -1,0 +1,9 @@
+<link href="cherry-editor.min.css" />
+<div id="markdown-container"></div>
+<script src="cherry-editor.min.js"></script>
+<script>
+  new Cherry({
+    id: 'markdown-container',
+    value: '# welcome to cherry editor!',
+  });
+</script>
