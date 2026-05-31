@@ -88,9 +88,10 @@ const VditorEditorPanel = (() => {
         const editorContainer = containerEl.querySelector('#vditor-editor-container');
         if (!editorContainer) return;
 
+        const vditorMode = Config.data.vditorEditorMode || 'ir';
         vditorInstance = new Vditor('vditor-editor-container', {
             height: '100%',
-            mode: 'ir',
+            mode: vditorMode,
             theme: theme === 'dark' ? 'dark' : 'classic',
             toolbar: ['headings', 'bold', 'italic', 'strike', 'link', 'code', 'table'],
             placeholder: '开始记录笔记（Markdown格式）...',
@@ -283,9 +284,15 @@ const VditorEditorPanel = (() => {
         const noteTitle = note ? note.title : '';
         const isEdit = !!note;
         const videoInfo = getCurrentVideoInfo();
+        const vditorMode = Config.data.vditorEditorMode || 'ir';
         const headerTitle = videoInfo.hasVideo
             ? `✏️ ${isEdit ? '编辑笔记' : '新建笔记'} - Vditor`
             : `✏️ ${isEdit ? '编辑笔记' : '新建普通笔记'} - Vditor`;
+
+        const vditorWidthKey = 'vditorWidth_' + vditorMode;
+        const vditorHeightKey = 'vditorHeight_' + vditorMode;
+        const panelWidth = Config.data[vditorWidthKey] || '560px';
+        const panelHeight = Config.data[vditorHeightKey] || '550px';
 
         panelInstance = Card.create({
             className: `bili-speed-vditor-panel theme-${currentTheme}`,
@@ -296,8 +303,8 @@ const VditorEditorPanel = (() => {
             },
             footer: { visible: true },
             styles: {
-                width: '560px',
-                height: '550px',
+                width: panelWidth,
+                height: panelHeight,
                 display: 'flex',
                 flexDirection: 'column',
                 top: '50%',

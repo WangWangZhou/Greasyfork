@@ -228,7 +228,16 @@ const Config = (() => {
         notesPanelVisible: false,
         notesPanelPosition: null,
         editorPanelPosition: null,
-        defaultEditor: 'quill'
+        defaultEditor: 'quill',
+        quillEditorWidth: '520px',
+        quillEditorHeight: '500px',
+        vditorEditorMode: 'ir',
+        vditorWidth_wysiwyg: '560px',
+        vditorHeight_wysiwyg: '550px',
+        vditorWidth_ir: '560px',
+        vditorHeight_ir: '550px',
+        vditorWidth_sv: '640px',
+        vditorHeight_sv: '600px'
     };
 
     const proxy = new Proxy({}, {
@@ -2319,6 +2328,52 @@ const ControlPanel = (() => {
         }
     }
 
+    function updateEditorBtnState(contentEl, editor) {
+        contentEl.querySelectorAll('.editor-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.editor === editor);
+        });
+        const quillSettings = contentEl.querySelector('.quill-settings');
+        const vditorSettings = contentEl.querySelector('.vditor-settings');
+        if (quillSettings) quillSettings.style.display = editor === 'quill' ? 'block' : 'none';
+        if (vditorSettings) vditorSettings.style.display = editor === 'vditor' ? 'block' : 'none';
+    }
+
+    function updateVditorModeState(contentEl, mode) {
+        contentEl.querySelectorAll('.vditor-mode-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === mode);
+        });
+    }
+
+    function renderSizeBtnGroup(container, configKey, sizes, currentVal) {
+        sizes.forEach(size => {
+            const btn = document.createElement('button');
+            btn.className = 'editor-size-btn';
+            btn.dataset.value = size;
+            btn.textContent = size;
+            btn.style.cssText = 'padding: 3px 10px; border-radius: 3px; border: 1px solid #ccc; background: #fff; cursor: pointer; font-size: 12px; transition: all 0.2s;';
+            if (currentVal === size || (!currentVal && size === sizes[2])) {
+                btn.classList.add('active');
+                btn.style.background = '#00AEEC';
+                btn.style.color = '#fff';
+                btn.style.borderColor = '#00AEEC';
+            }
+            btn.addEventListener('click', () => {
+                container.querySelectorAll('.editor-size-btn').forEach(b => {
+                    b.classList.remove('active');
+                    b.style.background = '#fff';
+                    b.style.color = '#000';
+                    b.style.borderColor = '#ccc';
+                });
+                btn.classList.add('active');
+                btn.style.background = '#00AEEC';
+                btn.style.color = '#fff';
+                btn.style.borderColor = '#00AEEC';
+                Config.data[configKey] = size;
+            });
+            container.appendChild(btn);
+        });
+    }
+
     function renderNotesMenu(contentEl) {
         const currentEditor = Config.data.defaultEditor || 'quill';
         const noteCount = Notes.count();
@@ -2326,45 +2381,75 @@ const ControlPanel = (() => {
         const match = url.match(/BV[\w]+/);
         const currentNoteCount = match ? Notes.countByBvid(match[0]) : 0;
 
+        const currentVditorMode = Config.data.vditorEditorMode || 'ir';
+        const currentQuillWidth = Config.data.quillEditorWidth || '520px';
+        const currentQuillHeight = Config.data.quillEditorHeight || '500px';
+        const vditorWidthKey = 'vditorWidth_' + currentVditorMode;
+        const vditorHeightKey = 'vditorHeight_' + currentVditorMode;
+        const currentVditorWidth = Config.data[vditorWidthKey] || '560px';
+        const currentVditorHeight = Config.data[vditorHeightKey] || '550px';
+
         contentEl.innerHTML = `
-            <div style="padding: 16px;">
+            <div style="padding: 16px; overflow-y: auto; max-height: 440px;">
                 <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
                     <div style="font-size: 14px; font-weight: bold;">📝 笔记管理</div>
                     <div style="font-size: 12px; color: #999;">共 ${noteCount} 条笔记</div>
                 </div>
                 <div style="margin-bottom: 16px;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <span style="font-size: 13px;">默认编辑器:</span>
-                        <select id="default-editor-select" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; background: #fff; color: #000; cursor: pointer;">
-                            <option value="quill" ${currentEditor === 'quill' ? 'selected' : ''}>Quill 富文本</option>
-                            <option value="vditor" ${currentEditor === 'vditor' ? 'selected' : ''}>Vditor Markdown</option>
-                        </select>
+                    <div style="font-size: 13px; margin-bottom: 8px;">默认编辑器:</div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="editor-btn ${currentEditor === 'quill' ? 'active' : ''}" data-editor="quill">Quill 富文本</button>
+                        <button class="editor-btn ${currentEditor === 'vditor' ? 'active' : ''}" data-editor="vditor">Vditor Markdown</button>
                     </div>
                 </div>
-                <div style="margin-bottom: 16px;">
-                    <div style="font-size: 12px; color: #999; margin-bottom: 8px;">当前视频笔记: ${currentNoteCount} 条</div>
+                <div class="quill-settings" style="margin-bottom: 16px; ${currentEditor === 'quill' ? 'display: block;' : 'display: none;'}">
+                    <div style="font-size: 13px; margin-bottom: 8px;">📐 Quill 面板尺寸:</div>
+                    <div style="margin-bottom: 6px;">
+                        <span style="font-size: 12px; color: #666;">宽度:</span>
+                        <div class="quill-width-group" style="display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap;"></div>
+                    </div>
+                    <div>
+                        <span style="font-size: 12px; color: #666;">高度:</span>
+                        <div class="quill-height-group" style="display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap;"></div>
+                    </div>
                 </div>
-                <div style="margin-bottom: 16px;">
+                <div class="vditor-settings" style="margin-bottom: 16px; ${currentEditor === 'vditor' ? 'display: block;' : 'display: none;'}">
+                    <div style="font-size: 13px; margin-bottom: 8px;">Vditor 编辑模式:</div>
+                    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                        <button class="vditor-mode-btn ${currentVditorMode === 'wysiwyg' ? 'active' : ''}" data-mode="wysiwyg">所见即所得</button>
+                        <button class="vditor-mode-btn ${currentVditorMode === 'ir' ? 'active' : ''}" data-mode="ir">即时渲染</button>
+                        <button class="vditor-mode-btn ${currentVditorMode === 'sv' ? 'active' : ''}" data-mode="sv">分屏预览</button>
+                    </div>
+                    <div style="font-size: 13px; margin-bottom: 8px;">📐 Vditor 面板尺寸 (${currentVditorMode === 'wysiwyg' ? '所见即所得' : currentVditorMode === 'ir' ? '即时渲染' : '分屏预览'}):</div>
+                    <div style="margin-bottom: 6px;">
+                        <span style="font-size: 12px; color: #666;">宽度:</span>
+                        <div class="vditor-width-group" style="display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap;"></div>
+                    </div>
+                    <div>
+                        <span style="font-size: 12px; color: #666;">高度:</span>
+                        <div class="vditor-height-group" style="display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap;"></div>
+                    </div>
+                </div>
+                <div style="margin-bottom: 16px; padding-top: 12px; border-top: 1px solid #eee;">
+                    <div style="font-size: 12px; color: #999; margin-bottom: 8px;">当前视频笔记: ${currentNoteCount} 条</div>
                     <button id="open-notes-panel-btn" style="width: 100%; padding: 10px; border-radius: 4px; border: none; background: #00AEEC; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
                         <span>📝</span>
                         <span>打开笔记面板</span>
                     </button>
                 </div>
-                <div style="margin-bottom: 16px;">
-                    <button id="export-notes-btn" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <div style="margin-bottom: 16px; display: flex; gap: 8px;">
+                    <button id="export-notes-btn" style="flex: 1; padding: 10px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
                         <span>📤</span>
-                        <span>导出笔记数据</span>
+                        <span>导出</span>
                     </button>
-                </div>
-                <div style="margin-bottom: 16px;">
-                    <button id="import-notes-btn" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <button id="import-notes-btn" style="flex: 1; padding: 10px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
                         <span>📥</span>
-                        <span>导入笔记数据</span>
+                        <span>导入</span>
                     </button>
                     <input type="file" id="import-notes-file" accept=".json" style="display: none;">
                 </div>
                 ${noteCount > 0 ? `
-                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee;">
+                <div style="padding-top: 12px; border-top: 1px solid #eee;">
                     <button id="clear-notes-btn" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ff6b6b; background: #fff; color: #ff6b6b; cursor: pointer;">
                         🗑️ 清空所有笔记
                     </button>
@@ -2373,9 +2458,55 @@ const ControlPanel = (() => {
             </div>
         `;
 
-        contentEl.querySelector('#default-editor-select').addEventListener('change', (e) => {
-            Config.data.defaultEditor = e.target.value;
-            Toast.show(`默认编辑器已切换为 ${e.target.value === 'quill' ? 'Quill 富文本' : 'Vditor Markdown'}`);
+        const sizeOptions = ['400px', '480px', '500px', '520px', '550px', '560px', '600px', '640px'];
+
+        const quillWidthGroup = contentEl.querySelector('.quill-width-group');
+        renderSizeBtnGroup(quillWidthGroup, 'quillEditorWidth', sizeOptions, currentQuillWidth);
+
+        const quillHeightGroup = contentEl.querySelector('.quill-height-group');
+        renderSizeBtnGroup(quillHeightGroup, 'quillEditorHeight', sizeOptions, currentQuillHeight);
+
+        const vditorWidthGroup = contentEl.querySelector('.vditor-width-group');
+        renderSizeBtnGroup(vditorWidthGroup, vditorWidthKey, sizeOptions, currentVditorWidth);
+
+        const vditorHeightGroup = contentEl.querySelector('.vditor-height-group');
+        renderSizeBtnGroup(vditorHeightGroup, vditorHeightKey, sizeOptions, currentVditorHeight);
+
+        contentEl.querySelectorAll('.editor-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const editor = btn.dataset.editor;
+                Config.data.defaultEditor = editor;
+                updateEditorBtnState(contentEl, editor);
+                Toast.show(`默认编辑器已切换为 ${editor === 'quill' ? 'Quill 富文本' : 'Vditor Markdown'}`);
+            });
+        });
+
+        contentEl.querySelectorAll('.vditor-mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mode = btn.dataset.mode;
+                Config.data.vditorEditorMode = mode;
+                updateVditorModeState(contentEl, mode);
+
+                const widthKey = 'vditorWidth_' + mode;
+                const heightKey = 'vditorHeight_' + mode;
+                const widthVal = Config.data[widthKey] || '560px';
+                const heightVal = Config.data[heightKey] || '550px';
+
+                const vWidthGroup = contentEl.querySelector('.vditor-width-group');
+                const vHeightGroup = contentEl.querySelector('.vditor-height-group');
+                vWidthGroup.innerHTML = '';
+                vHeightGroup.innerHTML = '';
+                renderSizeBtnGroup(vWidthGroup, widthKey, sizeOptions, widthVal);
+                renderSizeBtnGroup(vHeightGroup, heightKey, sizeOptions, heightVal);
+
+                const sizeLabel = contentEl.querySelector('.vditor-settings div:nth-child(3)');
+                if (sizeLabel) {
+                    const modeNames = { wysiwyg: '所见即所得', ir: '即时渲染', sv: '分屏预览' };
+                    sizeLabel.textContent = `📐 Vditor 面板尺寸 (${modeNames[mode] || mode}):`;
+                }
+
+                Toast.show(`Vditor 编辑模式已切换为 ${mode === 'wysiwyg' ? '所见即所得' : mode === 'ir' ? '即时渲染' : '分屏预览'}`);
+            });
         });
 
         contentEl.querySelector('#open-notes-panel-btn').addEventListener('click', () => {
@@ -2572,6 +2703,29 @@ const ControlPanel = (() => {
             .bili-speed-panel .default-btn.active,
             .bili-speed-panel .min-rate-btn.active,
             .bili-speed-panel .max-rate-btn.active {
+                background: #00AEEC;
+                color: #fff;
+                border-color: #00AEEC;
+            }
+            .bili-speed-panel .editor-btn,
+            .bili-speed-panel .vditor-mode-btn,
+            .bili-speed-panel .editor-size-btn {
+                padding: 4px 12px;
+                border-radius: 4px;
+                border: 1px solid #ccc;
+                background: #fff;
+                color: #000;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            .bili-speed-panel .editor-btn:hover,
+            .bili-speed-panel .vditor-mode-btn:hover,
+            .bili-speed-panel .editor-size-btn:hover {
+                background: #e0e0e0;
+            }
+            .bili-speed-panel .editor-btn.active,
+            .bili-speed-panel .vditor-mode-btn.active,
+            .bili-speed-panel .editor-size-btn.active {
                 background: #00AEEC;
                 color: #fff;
                 border-color: #00AEEC;
@@ -3432,7 +3586,7 @@ const QuillEditorPanel = (() => {
 
             console.log('[QuillEditorPanel] Creating new script tag');
             const script = document.createElement('script');
-            script.src = 'https://unpkg.com/quill@1.3.7/dist/quill.min.js';
+            script.src = 'https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.min.js';
             script.id = 'quill-js';
             script.dataset.loading = 'true';
             script.onload = () => {
@@ -3464,7 +3618,7 @@ const QuillEditorPanel = (() => {
     function injectQuillCSS() {
         if (document.getElementById('quill-snow-css')) return;
 
-        const cssUrl = 'https://unpkg.com/quill@1.3.7/dist/quill.snow.css';
+        const cssUrl = 'https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css';
 
         if (typeof GM_addStyle !== 'undefined') {
             fetch(cssUrl)
@@ -3567,8 +3721,6 @@ const QuillEditorPanel = (() => {
         if (qlEditor) {
             qlEditor.style.minHeight = finalHeight + 'px';
         }
-
-        quillInstance.update();
     }
 
     function renderTags(containerEl) {
@@ -3615,7 +3767,7 @@ const QuillEditorPanel = (() => {
 
         const charCount = quillInstance ? quillInstance.getLength() - 1 : 0;
         const selection = quillInstance ? quillInstance.getSelection() : null;
-        const selectedCount = selection ? quillInstance.getText(selection).length : 0;
+        const selectedCount = selection ? selection.length : 0;
 
         footerEl.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #666;">
@@ -3720,8 +3872,8 @@ const QuillEditorPanel = (() => {
             },
             footer: { visible: true },
             styles: {
-                width: '520px',
-                height: '500px',
+                width: Config.data.quillEditorWidth || '520px',
+                height: Config.data.quillEditorHeight || '500px',
                 display: 'block',
                 top: '50%',
                 left: '50%',
@@ -3855,7 +4007,7 @@ const QuillEditorPanel = (() => {
                     requestAnimationFrame(() => {
                         initQuillEditor(bodyEl, panelEl.getBoundingClientRect().height);
                         if (quillInstance) {
-                            quillInstance.blur();
+                            quillInstance.root?.blur();
                             quillInstance.on('text-change', () => {
                                 updateFooterStatus();
                             });
@@ -3878,12 +4030,12 @@ const QuillEditorPanel = (() => {
 
                         if (titleInput) {
                             titleInput.addEventListener('focus', () => {
-                                if (quillInstance) quillInstance.blur();
+                                if (quillInstance) quillInstance.root?.blur();
                             });
                         }
                         if (tagInput) {
                             tagInput.addEventListener('focus', () => {
-                                if (quillInstance) quillInstance.blur();
+                                if (quillInstance) quillInstance.root?.blur();
                             });
                         }
                     });
@@ -3897,7 +4049,7 @@ const QuillEditorPanel = (() => {
                         requestAnimationFrame(() => {
                             initQuillEditor(bodyEl, panelEl.getBoundingClientRect().height);
                             if (quillInstance) {
-                                quillInstance.blur();
+                                quillInstance.root?.blur();
                                 quillInstance.on('text-change', () => {
                                     updateFooterStatus();
                                 });
@@ -3920,12 +4072,12 @@ const QuillEditorPanel = (() => {
 
                             if (titleInput) {
                                 titleInput.addEventListener('focus', () => {
-                                    if (quillInstance) quillInstance.blur();
+                                    if (quillInstance) quillInstance.root?.blur();
                                 });
                             }
                             if (tagInput) {
                                 tagInput.addEventListener('focus', () => {
-                                    if (quillInstance) quillInstance.blur();
+                                    if (quillInstance) quillInstance.root?.blur();
                                 });
                             }
                         });
@@ -4086,9 +4238,10 @@ const VditorEditorPanel = (() => {
         const editorContainer = containerEl.querySelector('#vditor-editor-container');
         if (!editorContainer) return;
 
+        const vditorMode = Config.data.vditorEditorMode || 'ir';
         vditorInstance = new Vditor('vditor-editor-container', {
             height: '100%',
-            mode: 'ir',
+            mode: vditorMode,
             theme: theme === 'dark' ? 'dark' : 'classic',
             toolbar: ['headings', 'bold', 'italic', 'strike', 'link', 'code', 'table'],
             placeholder: '开始记录笔记（Markdown格式）...',
@@ -4281,9 +4434,15 @@ const VditorEditorPanel = (() => {
         const noteTitle = note ? note.title : '';
         const isEdit = !!note;
         const videoInfo = getCurrentVideoInfo();
+        const vditorMode = Config.data.vditorEditorMode || 'ir';
         const headerTitle = videoInfo.hasVideo
             ? `✏️ ${isEdit ? '编辑笔记' : '新建笔记'} - Vditor`
             : `✏️ ${isEdit ? '编辑笔记' : '新建普通笔记'} - Vditor`;
+
+        const vditorWidthKey = 'vditorWidth_' + vditorMode;
+        const vditorHeightKey = 'vditorHeight_' + vditorMode;
+        const panelWidth = Config.data[vditorWidthKey] || '560px';
+        const panelHeight = Config.data[vditorHeightKey] || '550px';
 
         panelInstance = Card.create({
             className: `bili-speed-vditor-panel theme-${currentTheme}`,
@@ -4294,8 +4453,8 @@ const VditorEditorPanel = (() => {
             },
             footer: { visible: true },
             styles: {
-                width: '560px',
-                height: '550px',
+                width: panelWidth,
+                height: panelHeight,
                 display: 'flex',
                 flexDirection: 'column',
                 top: '50%',

@@ -64,7 +64,7 @@ const QuillEditorPanel = (() => {
 
             console.log('[QuillEditorPanel] Creating new script tag');
             const script = document.createElement('script');
-            script.src = 'https://unpkg.com/quill@1.3.7/dist/quill.min.js';
+            script.src = 'https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.min.js';
             script.id = 'quill-js';
             script.dataset.loading = 'true';
             script.onload = () => {
@@ -96,7 +96,7 @@ const QuillEditorPanel = (() => {
     function injectQuillCSS() {
         if (document.getElementById('quill-snow-css')) return;
 
-        const cssUrl = 'https://unpkg.com/quill@1.3.7/dist/quill.snow.css';
+        const cssUrl = 'https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css';
 
         if (typeof GM_addStyle !== 'undefined') {
             fetch(cssUrl)
@@ -199,8 +199,6 @@ const QuillEditorPanel = (() => {
         if (qlEditor) {
             qlEditor.style.minHeight = finalHeight + 'px';
         }
-
-        quillInstance.update();
     }
 
     function renderTags(containerEl) {
@@ -247,7 +245,7 @@ const QuillEditorPanel = (() => {
 
         const charCount = quillInstance ? quillInstance.getLength() - 1 : 0;
         const selection = quillInstance ? quillInstance.getSelection() : null;
-        const selectedCount = selection ? quillInstance.getText(selection).length : 0;
+        const selectedCount = selection ? selection.length : 0;
 
         footerEl.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #666;">
@@ -352,8 +350,8 @@ const QuillEditorPanel = (() => {
             },
             footer: { visible: true },
             styles: {
-                width: '520px',
-                height: '500px',
+                width: Config.data.quillEditorWidth || '520px',
+                height: Config.data.quillEditorHeight || '500px',
                 display: 'block',
                 top: '50%',
                 left: '50%',
@@ -487,7 +485,7 @@ const QuillEditorPanel = (() => {
                     requestAnimationFrame(() => {
                         initQuillEditor(bodyEl, panelEl.getBoundingClientRect().height);
                         if (quillInstance) {
-                            quillInstance.blur();
+                            quillInstance.root?.blur();
                             quillInstance.on('text-change', () => {
                                 updateFooterStatus();
                             });
@@ -510,12 +508,12 @@ const QuillEditorPanel = (() => {
 
                         if (titleInput) {
                             titleInput.addEventListener('focus', () => {
-                                if (quillInstance) quillInstance.blur();
+                                if (quillInstance) quillInstance.root?.blur();
                             });
                         }
                         if (tagInput) {
                             tagInput.addEventListener('focus', () => {
-                                if (quillInstance) quillInstance.blur();
+                                if (quillInstance) quillInstance.root?.blur();
                             });
                         }
                     });
@@ -529,7 +527,7 @@ const QuillEditorPanel = (() => {
                         requestAnimationFrame(() => {
                             initQuillEditor(bodyEl, panelEl.getBoundingClientRect().height);
                             if (quillInstance) {
-                                quillInstance.blur();
+                                quillInstance.root?.blur();
                                 quillInstance.on('text-change', () => {
                                     updateFooterStatus();
                                 });
@@ -552,12 +550,12 @@ const QuillEditorPanel = (() => {
 
                             if (titleInput) {
                                 titleInput.addEventListener('focus', () => {
-                                    if (quillInstance) quillInstance.blur();
+                                    if (quillInstance) quillInstance.root?.blur();
                                 });
                             }
                             if (tagInput) {
                                 tagInput.addEventListener('focus', () => {
-                                    if (quillInstance) quillInstance.blur();
+                                    if (quillInstance) quillInstance.root?.blur();
                                 });
                             }
                         });

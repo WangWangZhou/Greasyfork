@@ -21,7 +21,16 @@ const Config = (() => {
         notesPanelVisible: false,
         notesPanelPosition: null,
         editorPanelPosition: null,
-        defaultEditor: 'quill'
+        defaultEditor: 'quill',
+        quillEditorWidth: '520px',
+        quillEditorHeight: '500px',
+        vditorEditorMode: 'ir',
+        vditorWidth_wysiwyg: '560px',
+        vditorHeight_wysiwyg: '550px',
+        vditorWidth_ir: '560px',
+        vditorHeight_ir: '550px',
+        vditorWidth_sv: '640px',
+        vditorHeight_sv: '600px'
     };
 
     const proxy = new Proxy({}, {
