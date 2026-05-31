@@ -6,14 +6,20 @@
 /* 通用UI组件样式 - 信息卡片和控制面板的共同样式 */
 .bili-speed-card,
 .bili-speed-panel,
-.bili-speed-favorites-panel {
+.bili-speed-favorites-panel,
+.bili-speed-notes-panel,
+.bili-speed-quill-panel,
+.bili-speed-vditor-panel {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
 /* 按钮基础样式 */
 .bili-speed-card button,
 .bili-speed-panel button,
-.bili-speed-favorites-panel button {
+.bili-speed-favorites-panel button,
+.bili-speed-notes-panel button,
+.bili-speed-quill-panel button,
+.bili-speed-vditor-panel button {
     font-family: inherit;
 }
 
@@ -337,4 +343,418 @@
     background: #333;
     border-left-color: #00AEEC;
     color: #00AEEC;
+}
+
+.bili-speed-note-btn {
+    background: transparent;
+    color: #000;
+    border: none;
+    padding: 2px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.bili-speed-note-btn:hover {
+    background: rgba(0, 174, 236, 0.1);
+}
+
+.bili-speed-notes-panel {
+    position: fixed;
+    background: #F0F1F2;
+    color: #000;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.bili-speed-notes-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 12px 8px 12px;
+    cursor: move;
+}
+
+.bili-speed-notes-panel-body {
+    padding: 8px;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.bili-speed-notes-filter {
+    margin-bottom: 8px;
+}
+
+.bili-speed-notes-search {
+    margin-bottom: 8px;
+}
+
+.bili-speed-notes-search-input {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 13px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.bili-speed-notes-search-input:focus {
+    border-color: #00AEEC;
+}
+
+.bili-speed-notes-filter-tabs {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.bili-speed-notes-filter-btn {
+    padding: 4px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+    color: #000;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.bili-speed-notes-filter-btn:hover {
+    background: #e0e0e0;
+}
+
+.bili-speed-notes-filter-btn.active {
+    background: #00AEEC;
+    color: #fff;
+    border-color: #00AEEC;
+}
+
+.bili-speed-notes-tag-select {
+    padding: 4px 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    background: #fff;
+    color: #000;
+}
+
+.bili-speed-note-item {
+    padding: 10px;
+    border-radius: 4px;
+    cursor: default;
+    transition: background 0.2s;
+    position: relative;
+    margin-bottom: 4px;
+    border-bottom: 1px solid #eee;
+}
+
+.bili-speed-note-item-title {
+    font-size: 14px;
+    font-weight: bold;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-bottom: 4px;
+}
+
+.bili-speed-note-item-meta {
+    font-size: 12px;
+    color: #999;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.bili-speed-note-bvid {
+    color: #00AEEC;
+    cursor: pointer;
+}
+
+.bili-speed-note-bvid:hover {
+    text-decoration: underline;
+}
+
+.bili-speed-note-timestamp {
+    color: #00AEEC;
+    cursor: pointer;
+}
+
+.bili-speed-note-timestamp:hover {
+    text-decoration: underline;
+}
+
+.bili-speed-note-editor-type {
+    font-size: 11px;
+    padding: 1px 4px;
+    border-radius: 2px;
+    background: #e8e8e8;
+    color: #666;
+}
+
+.bili-speed-note-item-tags {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
+
+.bili-speed-note-tag {
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: #e6f7ff;
+    color: #00AEEC;
+}
+
+.bili-speed-note-item-actions {
+    position: absolute;
+    right: 8px;
+    top: 8px;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.bili-speed-note-edit-btn,
+.bili-speed-note-delete-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.bili-speed-note-edit-btn:hover {
+    background: rgba(0, 174, 236, 0.1);
+}
+
+.bili-speed-note-delete-btn:hover {
+    background: rgba(255, 0, 0, 0.1);
+}
+
+.bili-speed-quill-panel,
+.bili-speed-vditor-panel {
+    position: fixed;
+    background: #F0F1F2;
+    color: #000;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.bili-speed-quill-panel-header,
+.bili-speed-vditor-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 12px 8px 12px;
+    cursor: move;
+}
+
+.bili-speed-quill-panel-body,
+.bili-speed-vditor-panel-body {
+    padding: 12px;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.bili-speed-editor-title-input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    box-sizing: border-box;
+    outline: none;
+}
+
+.bili-speed-editor-title-input:focus {
+    border-color: #00AEEC;
+}
+
+.bili-speed-editor-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: #e6f7ff;
+    color: #00AEEC;
+    font-size: 12px;
+}
+
+.bili-speed-editor-tag-remove {
+    cursor: pointer;
+    font-size: 12px;
+    margin-left: 2px;
+    color: #999;
+}
+
+.bili-speed-editor-tag-remove:hover {
+    color: #ff6b6b;
+}
+
+.bili-speed-editor-tag-input {
+    padding: 4px 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 12px;
+    width: 100px;
+    outline: none;
+}
+
+.bili-speed-editor-tag-input:focus {
+    border-color: #00AEEC;
+}
+
+.bili-speed-editor-mark-time {
+    padding: 2px 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.2s;
+}
+
+.bili-speed-editor-mark-time:hover {
+    background: #e0e0e0;
+}
+
+.bili-speed-editor-fallback {
+    width: 100%;
+    min-height: 200px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    resize: vertical;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.bili-speed-editor-fallback:focus {
+    border-color: #00AEEC;
+}
+
+.bili-speed-notes-panel.theme-dark,
+.bili-speed-quill-panel.theme-dark,
+.bili-speed-vditor-panel.theme-dark {
+    background: #1f1f1f;
+    color: #fff;
+}
+
+.bili-speed-card.theme-dark .bili-speed-note-btn {
+    color: #fff;
+}
+
+.bili-speed-notes-panel.theme-dark .bili-speed-note-item:hover {
+    background: #333;
+}
+
+.bili-speed-notes-panel.theme-dark .bili-speed-note-item-title {
+    color: #fff;
+}
+
+.bili-speed-notes-panel.theme-dark .bili-speed-notes-search-input,
+.bili-speed-quill-panel.theme-dark .bili-speed-editor-title-input,
+.bili-speed-vditor-panel.theme-dark .bili-speed-editor-title-input,
+.bili-speed-notes-panel.theme-dark .bili-speed-notes-tag-select {
+    background: #333;
+    color: #fff;
+    border-color: #444;
+}
+
+.bili-speed-notes-panel.theme-dark .bili-speed-note-tag {
+    background: #333;
+    color: #00AEEC;
+}
+
+.bili-speed-notes-panel.theme-dark .bili-speed-notes-filter-btn {
+    background: #333;
+    color: #ccc;
+    border-color: #444;
+}
+
+.bili-speed-notes-panel.theme-dark .bili-speed-notes-filter-btn.active {
+    background: #00AEEC;
+    color: #fff;
+    border-color: #00AEEC;
+}
+
+.bili-speed-notes-panel.theme-dark .bili-speed-note-editor-type {
+    background: #444;
+    color: #ccc;
+}
+
+.bili-speed-quill-panel.theme-dark .ql-toolbar {
+    border-color: #444;
+    background: #2a2a2a;
+}
+
+.bili-speed-quill-panel.theme-dark .ql-container {
+    border-color: #444;
+    background: #1f1f1f;
+    color: #fff;
+}
+
+.bili-speed-quill-panel.theme-dark .ql-editor {
+    color: #fff;
+}
+
+.bili-speed-quill-panel.theme-dark .ql-snow .ql-stroke {
+    stroke: #ccc;
+}
+
+.bili-speed-quill-panel.theme-dark .ql-snow .ql-fill {
+    fill: #ccc;
+}
+
+.bili-speed-quill-panel.theme-dark .ql-snow .ql-picker-label {
+    color: #ccc;
+}
+
+.bili-speed-quill-panel.theme-dark .bili-speed-editor-tag,
+.bili-speed-vditor-panel.theme-dark .bili-speed-editor-tag {
+    background: #333;
+    color: #00AEEC;
+}
+
+.bili-speed-quill-panel.theme-dark .bili-speed-editor-tag-input,
+.bili-speed-vditor-panel.theme-dark .bili-speed-editor-tag-input,
+.bili-speed-quill-panel.theme-dark .bili-speed-editor-mark-time,
+.bili-speed-vditor-panel.theme-dark .bili-speed-editor-mark-time,
+.bili-speed-quill-panel.theme-dark .bili-speed-editor-fallback,
+.bili-speed-vditor-panel.theme-dark .bili-speed-editor-fallback {
+    background: #333;
+    color: #fff;
+    border-color: #444;
+}
+
+.bili-speed-notes-panel.theme-dark .bili-speed-notes-close,
+.bili-speed-notes-panel.theme-dark .bili-speed-notes-export,
+.bili-speed-notes-panel.theme-dark .bili-speed-notes-add,
+.bili-speed-quill-panel.theme-dark .bili-speed-editor-close,
+.bili-speed-vditor-panel.theme-dark .bili-speed-editor-close {
+    color: #fff;
+}
+
+.bili-speed-editor-list,
+.bili-speed-editor-save {
+    pointer-events: auto;
+    z-index: 1001;
+}
+
+.bili-speed-quill-panel.theme-dark .bili-speed-editor-list,
+.bili-speed-quill-panel.theme-dark .bili-speed-editor-save,
+.bili-speed-vditor-panel.theme-dark .bili-speed-editor-list,
+.bili-speed-vditor-panel.theme-dark .bili-speed-editor-save {
+    color: #fff;
 }

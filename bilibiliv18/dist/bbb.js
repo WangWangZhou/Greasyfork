@@ -10,7 +10,10 @@
 // @grant        GM_registerMenuCommand
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @grant        GM_addStyle
+// @grant        unsafeWindow
 // @run-at       document-end
+// @require      https://cdn.jsdelivr.net/npm/quill@2.0.0/dist/quill.min.js
 // ==/UserScript==
 
 (function () {
@@ -221,7 +224,11 @@ const Config = (() => {
         keyDown: 'x',
         theme: 'light',
         favoritesPanelVisible: false,
-        favoritesPanelPosition: null
+        favoritesPanelPosition: null,
+        notesPanelVisible: false,
+        notesPanelPosition: null,
+        editorPanelPosition: null,
+        defaultEditor: 'quill'
     };
 
     const proxy = new Proxy({}, {
@@ -298,13 +305,16 @@ const Draggable = (() => {
             if (!header) return () => {};
 
             const onMouseDown = (e) => {
-                if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || e.target.classList.contains('bili-speed-drag-text')) return;
+                if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+                if (e.target.classList.contains('bili-speed-drag-text')) return;
+                if (e.target.closest('[class*="-actions"]')) return;
                 isDragging = true;
                 startX = e.clientX;
                 startY = e.clientY;
                 const rect = el.getBoundingClientRect();
                 startLeft = rect.left;
                 startTop = rect.top;
+                el.style.transform = 'none';
                 el.style.cursor = 'grabbing';
                 e.preventDefault();
             };
@@ -349,6 +359,134 @@ const Draggable = (() => {
         }
     };
 })();
+
+/**
+ * Resizable - 拖拽调整大小行为模块
+ * UI行为模块 - 负责为面板元素提供拖拽调整大小的功能
+ */
+const Resizable = (() => {
+    return {
+        /**
+         * 为元素添加拖拽调整大小功能
+         * @param {HTMLElement} el - 目标元素
+         * @param {Object} options - 配置选项
+         * @param {number} [options.minWidth=400] - 最小宽度
+         * @param {number} [options.minHeight=300] - 最小高度
+         * @param {number} [options.maxWidth] - 最大宽度（可选）
+         * @param {number} [options.maxHeight] - 最大高度（可选）
+         * @param {Function} [options.onResize] - 调整大小时的回调函数
+         * @param {string} [options.saveKey] - 保存到 Config 的键名（可选）
+         * @returns {Function} 清理函数
+         */
+        make(el, options = {}) {
+            const {
+                minWidth = 400,
+                minHeight = 300,
+                maxWidth = window.innerWidth - 50,
+                maxHeight = window.innerHeight - 50,
+                onResize,
+                saveKey
+            } = options;
+
+            let isResizing = false;
+            let startX, startY, startWidth, startHeight;
+            let handleEl = null;
+
+            // 创建拖拽手柄
+            handleEl = document.createElement('div');
+            handleEl.className = 'bili-speed-resize-handle';
+            handleEl.style.cssText = `
+                position: absolute;
+                right: 0;
+                bottom: 0;
+                width: 16px;
+                height: 16px;
+                cursor: nwse-resize;
+                z-index: 10001;
+                pointer-events: auto;
+            `;
+
+            // 添加视觉指示器（小三角）
+            handleEl.innerHTML = `
+                <svg width="12" height="12" viewBox="0 0 12 12" style="position: absolute; right: 2px; bottom: 2px; pointer-events: none;">
+                    <path d="M10 2 L10 10 L2 10" stroke="#999" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+                </svg>
+            `;
+
+            // 确保父元素有相对定位
+            if (getComputedStyle(el).position === 'static') {
+                el.style.position = 'relative';
+            }
+
+            el.appendChild(handleEl);
+
+            const onMouseDown = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                isResizing = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                const rect = el.getBoundingClientRect();
+                startWidth = rect.width;
+                startHeight = rect.height;
+                el.style.cursor = 'nwse-resize';
+                el.style.userSelect = 'none';
+            };
+
+            const onMouseMove = (e) => {
+                if (!isResizing) return;
+
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+
+                // 计算新尺寸并应用限制
+                const newWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + dx));
+                const newHeight = Math.max(minHeight, Math.min(maxHeight, startHeight + dy));
+
+                el.style.width = newWidth + 'px';
+                el.style.height = newHeight + 'px';
+
+                // 触发回调
+                if (onResize) {
+                    onResize(newWidth, newHeight);
+                }
+            };
+
+            const onMouseUp = () => {
+                if (isResizing) {
+                    isResizing = false;
+                    el.style.cursor = '';
+                    el.style.userSelect = '';
+
+                    // 保存尺寸到 Config
+                    if (saveKey) {
+                        const rect = el.getBoundingClientRect();
+                        Config.data[saveKey] = {
+                            width: rect.width + 'px',
+                            height: rect.height + 'px'
+                        };
+                    }
+                }
+            };
+
+            handleEl.addEventListener('mousedown', onMouseDown);
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+
+            // 返回清理函数
+            return () => {
+                handleEl.removeEventListener('mousedown', onMouseDown);
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+                if (handleEl && handleEl.parentNode) {
+                    handleEl.remove();
+                }
+                handleEl = null;
+            };
+        }
+    };
+})();
+
 
 /**
  * Toast - 消息提示组件
@@ -497,12 +635,12 @@ const Card = (() => {
                     `;
 
                     const titleEl = document.createElement('div');
-                    titleEl.className = `${className}-drag-text`;
+                    const baseClassName = className.split(' ')[0];
+                    titleEl.className = `${baseClassName}-drag-text`;
                     titleEl.style.cssText = 'font-weight: bold; cursor: default;';
                     titleEl.innerHTML = header.title;
 
                     const actionsEl = document.createElement('div');
-                    const baseClassName = className.split(' ')[0];
                     actionsEl.className = `${baseClassName}-actions`;
                     actionsEl.style.cssText = 'visibility: visible; gap: 4px; display: flex;';
 
@@ -1137,6 +1275,330 @@ const Favorites = (() => {
 })();
 
 
+const Notes = (() => {
+    const STORAGE_KEY = 'notes';
+    const MAX_NOTES = 500;
+    const MAX_CONTENT_SIZE = 51200;
+
+    function getNotes() {
+        try {
+            const data = GM_getValue(STORAGE_KEY);
+            return Array.isArray(data) ? data : [];
+        } catch (err) {
+            Logger.error('读取笔记数据失败:', err);
+            return [];
+        }
+    }
+
+    function saveNotes(notes) {
+        try {
+            GM_setValue(STORAGE_KEY, notes);
+            EventBus.emit('notes:updated');
+            return true;
+        } catch (err) {
+            Logger.error('保存笔记数据失败:', err);
+            return false;
+        }
+    }
+
+    function escapeHtml(str) {
+        if (typeof str !== 'string') return '';
+        const escapeMap = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        };
+        return str.replace(/[&<>"']/g, char => escapeMap[char]);
+    }
+
+    function generateId() {
+        return 'note_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+    }
+
+    function validateNote(note) {
+        if (!note || typeof note !== 'object') return false;
+        if (!note.id || typeof note.id !== 'string') return false;
+        if (!note.noteType || !['videoNote', 'normalNote'].includes(note.noteType)) return false;
+        if (note.noteType === 'videoNote' && !note.bvid) return false;
+        if (!note.editorType || !['quill', 'vditor'].includes(note.editorType)) return false;
+        if (typeof note.title !== 'string') return false;
+        if (typeof note.content !== 'string') return false;
+        return true;
+    }
+
+    function sanitizeNote(note) {
+        return {
+            id: escapeHtml(String(note.id)),
+            noteType: note.noteType === 'normalNote' ? 'normalNote' : 'videoNote',
+            bvid: escapeHtml(String(note.bvid || '')),
+            videoTitle: escapeHtml(String(note.videoTitle || '未知视频')),
+            videoUrl: escapeHtml(String(note.videoUrl || '')),
+            editorType: note.editorType === 'vditor' ? 'vditor' : 'quill',
+            title: String(note.title || '').substring(0, 200),
+            content: String(note.content || ''),
+            contentDelta: String(note.contentDelta || ''),
+            tags: Array.isArray(note.tags)
+                ? note.tags.filter(t => typeof t === 'string').map(t => escapeHtml(t.substring(0, 20))).slice(0, 10)
+                : [],
+            videoTimestamp: Math.max(0, parseFloat(note.videoTimestamp) || 0),
+            createdAt: parseInt(note.createdAt) || Date.now(),
+            updatedAt: parseInt(note.updatedAt) || Date.now()
+        };
+    }
+
+    function checkContentSize(content) {
+        try {
+            return new Blob([content]).size <= MAX_CONTENT_SIZE;
+        } catch {
+            return content.length <= MAX_CONTENT_SIZE;
+        }
+    }
+
+    return {
+        add(note) {
+            if (!validateNote(note)) {
+                Logger.warn('无效的笔记数据');
+                return false;
+            }
+
+            if (!checkContentSize(note.content)) {
+                Toast.show('笔记内容超出大小限制');
+                return false;
+            }
+
+            const notes = getNotes();
+
+            if (notes.length >= MAX_NOTES) {
+                Toast.show(`笔记数量已达上限 (${MAX_NOTES})`);
+                return false;
+            }
+
+            const existingIndex = notes.findIndex(n => n.id === note.id);
+            if (existingIndex !== -1) {
+                Logger.info('笔记ID已存在');
+                return false;
+            }
+
+            const sanitizedNote = sanitizeNote(note);
+            notes.push(sanitizedNote);
+
+            if (saveNotes(notes)) {
+                EventBus.emit('notes:add', sanitizedNote);
+                Toast.show('笔记已保存');
+                return true;
+            }
+            return false;
+        },
+
+        update(id, updates) {
+            if (!id) return false;
+
+            const notes = getNotes();
+            const index = notes.findIndex(n => n.id === id);
+
+            if (index === -1) {
+                Logger.warn('未找到要更新的笔记');
+                return false;
+            }
+
+            if (updates.content && !checkContentSize(updates.content)) {
+                Toast.show('笔记内容超出大小限制');
+                return false;
+            }
+
+            const updatedNote = { ...notes[index] };
+
+            if (updates.title !== undefined) updatedNote.title = String(updates.title).substring(0, 200);
+            if (updates.content !== undefined) updatedNote.content = String(updates.content);
+            if (updates.contentDelta !== undefined) updatedNote.contentDelta = String(updates.contentDelta);
+            if (updates.tags !== undefined) {
+                updatedNote.tags = Array.isArray(updates.tags)
+                    ? updates.tags.filter(t => typeof t === 'string').map(t => escapeHtml(t.substring(0, 20))).slice(0, 10)
+                    : [];
+            }
+            if (updates.videoTimestamp !== undefined) updatedNote.videoTimestamp = Math.max(0, parseFloat(updates.videoTimestamp) || 0);
+            if (updates.videoTitle !== undefined) updatedNote.videoTitle = escapeHtml(String(updates.videoTitle));
+            if (updates.videoUrl !== undefined) updatedNote.videoUrl = escapeHtml(String(updates.videoUrl));
+
+            updatedNote.updatedAt = Date.now();
+
+            const sanitizedNote = sanitizeNote(updatedNote);
+            notes[index] = sanitizedNote;
+
+            if (saveNotes(notes)) {
+                EventBus.emit('notes:update', sanitizedNote);
+                Toast.show('笔记已更新');
+                return true;
+            }
+            return false;
+        },
+
+        remove(id) {
+            if (!id) return false;
+
+            const notes = getNotes();
+            const index = notes.findIndex(n => n.id === id);
+
+            if (index === -1) {
+                Logger.warn('未找到要删除的笔记');
+                return false;
+            }
+
+            const removed = notes.splice(index, 1)[0];
+
+            if (saveNotes(notes)) {
+                EventBus.emit('notes:remove', removed);
+                Toast.show('笔记已删除');
+                return true;
+            }
+            return false;
+        },
+
+        get(id) {
+            if (!id) return null;
+            const notes = getNotes();
+            return notes.find(n => n.id === id) || null;
+        },
+
+        getAll() {
+            return getNotes();
+        },
+
+        getByBvid(bvid) {
+            if (!bvid) return [];
+            const notes = getNotes();
+            return notes.filter(n => n.bvid === bvid);
+        },
+
+        search(keyword) {
+            if (!keyword || typeof keyword !== 'string') return getNotes();
+            const lowerKeyword = keyword.toLowerCase();
+            const notes = getNotes();
+            return notes.filter(n =>
+                n.title.toLowerCase().includes(lowerKeyword) ||
+                n.content.toLowerCase().includes(lowerKeyword) ||
+                n.videoTitle.toLowerCase().includes(lowerKeyword) ||
+                n.tags.some(t => t.toLowerCase().includes(lowerKeyword))
+            );
+        },
+
+        getByTag(tag) {
+            if (!tag) return [];
+            const notes = getNotes();
+            return notes.filter(n => n.tags.includes(tag));
+        },
+
+        getAllTags() {
+            const notes = getNotes();
+            const tagSet = new Set();
+            notes.forEach(n => {
+                if (Array.isArray(n.tags)) {
+                    n.tags.forEach(t => tagSet.add(t));
+                }
+            });
+            return Array.from(tagSet).sort();
+        },
+
+        count() {
+            return getNotes().length;
+        },
+
+        countByBvid(bvid) {
+            if (!bvid) return 0;
+            const notes = getNotes();
+            return notes.filter(n => n.bvid === bvid).length;
+        },
+
+        countByType(type) {
+            if (!type) return 0;
+            const notes = getNotes();
+            return notes.filter(n => n.noteType === type).length;
+        },
+
+        getByType(type) {
+            if (!type) return [];
+            const notes = getNotes();
+            return notes.filter(n => n.noteType === type);
+        },
+
+        clear() {
+            saveNotes([]);
+            EventBus.emit('notes:clear');
+            Toast.show('所有笔记已清空');
+        },
+
+        exportData() {
+            const data = {
+                version: "1.0",
+                exportedAt: Date.now(),
+                count: this.count(),
+                data: this.getAll()
+            };
+            return JSON.stringify(data, null, 2);
+        },
+
+        downloadExport() {
+            const json = this.exportData();
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `bili-notes-${new Date().toISOString().slice(0, 10)}.json`;
+            const target = document.body || document.documentElement;
+            target.appendChild(a);
+            a.click();
+            target.removeChild(a);
+            URL.revokeObjectURL(url);
+            Toast.show('笔记数据已导出');
+        },
+
+        importData(jsonString) {
+            try {
+                const data = JSON.parse(jsonString);
+
+                if (!data.data || !Array.isArray(data.data)) {
+                    throw new Error('无效的数据格式');
+                }
+
+                const validItems = data.data.filter(item => validateNote(item))
+                    .map(item => sanitizeNote(item));
+
+                if (validItems.length === 0) {
+                    Toast.show('没有有效的笔记数据');
+                    return false;
+                }
+
+                const notes = getNotes();
+                let addedCount = 0;
+
+                validItems.forEach(item => {
+                    if (notes.length >= MAX_NOTES) return;
+                    if (!notes.some(n => n.id === item.id)) {
+                        notes.push(item);
+                        addedCount++;
+                    }
+                });
+
+                if (addedCount > 0) {
+                    saveNotes(notes);
+                    Toast.show(`成功导入 ${addedCount} 条笔记`);
+                    return true;
+                } else {
+                    Toast.show('没有新的笔记数据可导入');
+                    return false;
+                }
+            } catch (err) {
+                Logger.error('导入笔记数据失败:', err);
+                Toast.show('导入失败：数据格式错误');
+                return false;
+            }
+        }
+    };
+})();
+
+
 /**
  * CardPanel - 信息卡片视图
  * 视图层 - 使用Card和Progress组件渲染悬浮信息卡片
@@ -1150,7 +1612,9 @@ const CardPanel = (() => {
     let collectionEl = null;
     let dragCleanup = null;
     let favoriteBtn = null;
+    let noteBtn = null;
     const cleanupFns = new Set();
+    let createTimer = null;
 
     function updateCard() {
         const video = VideoController.getVideo();
@@ -1180,6 +1644,7 @@ const CardPanel = (() => {
         }
 
         updateFavoriteBtn();
+        updateNoteBtn();
     }
 
     function updatePlayBtn(video) {
@@ -1193,6 +1658,17 @@ const CardPanel = (() => {
         favoriteBtn.textContent = isFavorited ? '★' : '☆';
         favoriteBtn.classList.toggle('favorited', isFavorited);
         favoriteBtn.title = isFavorited ? '取消收藏' : '添加收藏';
+    }
+
+    function updateNoteBtn() {
+        if (!noteBtn) return;
+        const url = location.href;
+        const match = url.match(/BV[\w]+/);
+        if (match) {
+            const count = Notes.countByBvid(match[0]);
+            noteBtn.textContent = count > 0 ? '📝' : '🗒️';
+            noteBtn.title = count > 0 ? `当前视频有 ${count} 条笔记` : '打开笔记';
+        }
     }
 
     function createCard() {
@@ -1245,6 +1721,16 @@ const CardPanel = (() => {
                 actionsEl.style.pointerEvents = 'auto';
                 actionsEl.style.visibility = 'visible';
 
+                noteBtn = document.createElement('button');
+                noteBtn.className = 'bili-speed-note-btn';
+                noteBtn.title = '打开笔记';
+                noteBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; position: relative; z-index: 1000; pointer-events: auto; transition: all 0.2s;';
+                noteBtn.textContent = '🗒️';
+                noteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    EventBus.emit('notes:new');
+                });
+
                 favoriteBtn = document.createElement('button');
                 favoriteBtn.className = 'bili-speed-favorite-btn';
                 favoriteBtn.title = '添加收藏';
@@ -1279,11 +1765,12 @@ const CardPanel = (() => {
                     }
                 });
 
+                actionsEl.appendChild(noteBtn);
                 actionsEl.appendChild(favoriteBtn);
                 actionsEl.appendChild(settingsBtn);
                 actionsEl.appendChild(closeBtn);
 
-                dragCleanup = Draggable.make(headerEl.parentElement, 'cardPosition', `.bili-speed-card-header`);
+                dragCleanup = Draggable.make(headerEl.parentElement, 'cardPosition', `[class*="-header"]`);
 
                 updateFavoriteBtn();
             },
@@ -1434,10 +1921,16 @@ const CardPanel = (() => {
         }
 
         EventBus.on('favorites:updated', updateFavoriteBtn);
+        EventBus.on('notes:updated', updateNoteBtn);
     }
 
     return {
         create() {
+            if (createTimer) {
+                clearTimeout(createTimer);
+                createTimer = null;
+            }
+
             if (cardInstance) cardInstance.destroy();
             cleanupFns.forEach(fn => fn());
             cleanupFns.clear();
@@ -1475,6 +1968,10 @@ const CardPanel = (() => {
         },
 
         destroy() {
+            if (createTimer) {
+                clearTimeout(createTimer);
+                createTimer = null;
+            }
             cleanupFns.forEach(fn => fn());
             cleanupFns.clear();
             if (dragCleanup) dragCleanup();
@@ -1488,6 +1985,7 @@ const CardPanel = (() => {
             collectionEl = null;
             playBtn = null;
             favoriteBtn = null;
+            noteBtn = null;
         }
     };
 })();
@@ -1821,6 +2319,103 @@ const ControlPanel = (() => {
         }
     }
 
+    function renderNotesMenu(contentEl) {
+        const currentEditor = Config.data.defaultEditor || 'quill';
+        const noteCount = Notes.count();
+        const url = location.href;
+        const match = url.match(/BV[\w]+/);
+        const currentNoteCount = match ? Notes.countByBvid(match[0]) : 0;
+
+        contentEl.innerHTML = `
+            <div style="padding: 16px;">
+                <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="font-size: 14px; font-weight: bold;">📝 笔记管理</div>
+                    <div style="font-size: 12px; color: #999;">共 ${noteCount} 条笔记</div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <span style="font-size: 13px;">默认编辑器:</span>
+                        <select id="default-editor-select" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; background: #fff; color: #000; cursor: pointer;">
+                            <option value="quill" ${currentEditor === 'quill' ? 'selected' : ''}>Quill 富文本</option>
+                            <option value="vditor" ${currentEditor === 'vditor' ? 'selected' : ''}>Vditor Markdown</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <div style="font-size: 12px; color: #999; margin-bottom: 8px;">当前视频笔记: ${currentNoteCount} 条</div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <button id="open-notes-panel-btn" style="width: 100%; padding: 10px; border-radius: 4px; border: none; background: #00AEEC; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <span>📝</span>
+                        <span>打开笔记面板</span>
+                    </button>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <button id="export-notes-btn" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <span>📤</span>
+                        <span>导出笔记数据</span>
+                    </button>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <button id="import-notes-btn" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <span>📥</span>
+                        <span>导入笔记数据</span>
+                    </button>
+                    <input type="file" id="import-notes-file" accept=".json" style="display: none;">
+                </div>
+                ${noteCount > 0 ? `
+                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee;">
+                    <button id="clear-notes-btn" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ff6b6b; background: #fff; color: #ff6b6b; cursor: pointer;">
+                        🗑️ 清空所有笔记
+                    </button>
+                </div>
+                ` : ''}
+            </div>
+        `;
+
+        contentEl.querySelector('#default-editor-select').addEventListener('change', (e) => {
+            Config.data.defaultEditor = e.target.value;
+            Toast.show(`默认编辑器已切换为 ${e.target.value === 'quill' ? 'Quill 富文本' : 'Vditor Markdown'}`);
+        });
+
+        contentEl.querySelector('#open-notes-panel-btn').addEventListener('click', () => {
+            EventBus.emit('notes:toggle');
+        });
+
+        contentEl.querySelector('#export-notes-btn').addEventListener('click', () => {
+            Notes.downloadExport();
+        });
+
+        const importBtn = contentEl.querySelector('#import-notes-btn');
+        const importFile = contentEl.querySelector('#import-notes-file');
+
+        importBtn.addEventListener('click', () => {
+            importFile.click();
+        });
+
+        importFile.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                Notes.importData(event.target.result);
+                renderNotesMenu(contentEl);
+            };
+            reader.readAsText(file);
+        });
+
+        const clearBtn = contentEl.querySelector('#clear-notes-btn');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                if (confirm('确定要清空所有笔记吗？此操作不可恢复。')) {
+                    Notes.clear();
+                    renderNotesMenu(contentEl);
+                }
+            });
+        }
+    }
+
     function switchMenu(menuName) {
         if (!panelInstance) return;
         
@@ -1843,6 +2438,9 @@ const ControlPanel = (() => {
                 break;
             case 'favorites':
                 renderFavoritesMenu(contentEl);
+                break;
+            case 'notes':
+                renderNotesMenu(contentEl);
                 break;
         }
     }
@@ -1890,7 +2488,7 @@ const ControlPanel = (() => {
                 const actionsEl = headerEl.querySelector('.bili-speed-panel-actions');
                 actionsEl.appendChild(closeBtn);
 
-                dragCleanup = Draggable.make(headerEl.parentElement, 'panelPosition', `.bili-speed-panel-header`);
+                dragCleanup = Draggable.make(headerEl.parentElement, 'panelPosition', `[class*="-header"]`);
 
                 let advancedVisible = false;
                 multiClickCleanup = Utils.multiClick(titleEl, 5, () => {
@@ -1918,6 +2516,9 @@ const ControlPanel = (() => {
                         </div>
                         <div class="bili-speed-panel-menu-item ${currentMenu === 'favorites' ? 'active' : ''}" data-menu="favorites" style="padding: 10px 12px; cursor: pointer; font-size: 13px; border-left: 3px solid transparent; transition: all 0.2s;">
                             ⭐ 收藏夹
+                        </div>
+                        <div class="bili-speed-panel-menu-item ${currentMenu === 'notes' ? 'active' : ''}" data-menu="notes" style="padding: 10px 12px; cursor: pointer; font-size: 13px; border-left: 3px solid transparent; transition: all 0.2s;">
+                            📝 笔记
                         </div>
                     </div>
                     <div class="bili-speed-panel-content" style="flex: 1; min-height: 300px;"></div>
@@ -2284,7 +2885,7 @@ const FavoritesPanel = (() => {
                 actionsEl.appendChild(exportBtn);
                 actionsEl.appendChild(closeBtn);
 
-                dragCleanup = Draggable.make(headerEl.parentElement, 'favoritesPanelPosition', `.bili-speed-favorites-panel-header`);
+                dragCleanup = Draggable.make(headerEl.parentElement, 'favoritesPanelPosition', `[class*="-header"]`);
             },
             onBodyReady: (bodyEl) => {
                 bodyEl.className = 'bili-speed-favorites-panel-body';
@@ -2374,6 +2975,1559 @@ const FavoritesPanel = (() => {
             dragCleanup = null;
             if (panelInstance) panelInstance.destroy();
             panelInstance = null;
+        }
+    };
+})();
+
+
+const NotesPanel = (() => {
+    let panelInstance = null;
+    let dragCleanup = null;
+    let currentFilter = 'all';
+    let currentSearchKeyword = '';
+    let currentTagFilter = '';
+    let currentTypeFilter = 'all';
+
+    function getCurrentBvid() {
+        const match = location.href.match(/BV[\w]+/);
+        return match ? match[0] : '';
+    }
+
+    function formatDate(timestamp) {
+        if (!timestamp) return '';
+        const d = new Date(timestamp);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const h = String(d.getHours()).padStart(2, '0');
+        const min = String(d.getMinutes()).padStart(2, '0');
+        return `${y}-${m}-${day} ${h}:${min}`;
+    }
+
+    function getFilteredNotes() {
+        let notes = Notes.getAll();
+
+        if (currentTypeFilter === 'videoNote') {
+            notes = notes.filter(n => n.noteType === 'videoNote');
+        } else if (currentTypeFilter === 'normalNote') {
+            notes = notes.filter(n => n.noteType === 'normalNote');
+        }
+
+        if (currentFilter === 'current') {
+            const bvid = getCurrentBvid();
+            if (bvid) {
+                notes = notes.filter(n => n.bvid === bvid);
+            }
+        }
+
+        if (currentTagFilter) {
+            notes = notes.filter(n => n.tags && n.tags.includes(currentTagFilter));
+        }
+
+        if (currentSearchKeyword) {
+            const kw = currentSearchKeyword.toLowerCase();
+            notes = notes.filter(n =>
+                n.title.toLowerCase().includes(kw) ||
+                n.content.toLowerCase().includes(kw) ||
+                n.videoTitle.toLowerCase().includes(kw)
+            );
+        }
+
+        notes.sort((a, b) => b.updatedAt - a.updatedAt);
+
+        return notes;
+    }
+
+    function renderNoteItem(note, containerEl) {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'bili-speed-note-item';
+        itemEl.dataset.id = note.id;
+
+        const tagsHtml = (note.tags && note.tags.length > 0)
+            ? note.tags.map(t => `<span class="bili-speed-note-tag">${t}</span>`).join('')
+            : '';
+
+        const timestampHtml = note.videoTimestamp > 0
+            ? `<span class="bili-speed-note-timestamp" data-timestamp="${note.videoTimestamp}">📍 ${Utils.formatTime(note.videoTimestamp)}</span>`
+            : '';
+
+        const editorLabel = note.editorType === 'vditor' ? 'Md' : '富文本';
+        const typeLabel = note.noteType === 'normalNote' ? '📄 普通' : '🎬 视频';
+
+        itemEl.innerHTML = `
+            <div class="bili-speed-note-item-title">${note.title || '无标题'}</div>
+            <div class="bili-speed-note-item-meta">
+                <span class="bili-speed-note-type-badge">${typeLabel}</span>
+                ${note.noteType === 'videoNote' ? `
+                <span class="bili-speed-note-bvid" data-url="${note.videoUrl}" title="${note.videoTitle}">${note.bvid}</span>
+                <span>${formatDate(note.updatedAt)}</span>
+                ${timestampHtml}
+                ` : `
+                <span>${formatDate(note.updatedAt)}</span>
+                `}
+                <span class="bili-speed-note-editor-type">${editorLabel}</span>
+            </div>
+            <div class="bili-speed-note-item-tags">${tagsHtml}</div>
+            <div class="bili-speed-note-item-actions">
+                <button class="bili-speed-note-edit-btn" title="编辑笔记">✏️</button>
+                <button class="bili-speed-note-delete-btn" title="删除笔记">🗑️</button>
+            </div>
+        `;
+
+        if (note.noteType === 'videoNote') {
+            const bvidEl = itemEl.querySelector('.bili-speed-note-bvid');
+            if (bvidEl) {
+                bvidEl.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (note.videoUrl) {
+                        window.open(note.videoUrl, '_blank');
+                    }
+                });
+            }
+
+            const timestampEl = itemEl.querySelector('.bili-speed-note-timestamp');
+            if (timestampEl) {
+                timestampEl.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const video = VideoController.getVideo();
+                    if (video) {
+                        video.currentTime = note.videoTimestamp;
+                        Toast.show(`跳转到 ${Utils.formatTime(note.videoTimestamp)}`);
+                    }
+                });
+            }
+        }
+
+        const editBtn = itemEl.querySelector('.bili-speed-note-edit-btn');
+        editBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            EventBus.emit('notes:edit', note);
+        });
+
+        const deleteBtn = itemEl.querySelector('.bili-speed-note-delete-btn');
+        deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (confirm('确定要删除这条笔记吗？')) {
+                Notes.remove(note.id);
+                renderNotesList(containerEl);
+            }
+        });
+
+        itemEl.addEventListener('mouseenter', () => {
+            const actions = itemEl.querySelector('.bili-speed-note-item-actions');
+            if (actions) actions.style.opacity = '1';
+            itemEl.style.background = '#f5f5f5';
+        });
+
+        itemEl.addEventListener('mouseleave', () => {
+            const actions = itemEl.querySelector('.bili-speed-note-item-actions');
+            if (actions) actions.style.opacity = '0';
+            itemEl.style.background = '';
+        });
+
+        return itemEl;
+    }
+
+    function renderNotesList(containerEl) {
+        containerEl.innerHTML = '';
+
+        const notes = getFilteredNotes();
+
+        if (notes.length === 0) {
+            containerEl.innerHTML = `
+                <div style="text-align: center; padding: 40px 0; color: #999;">
+                    <div style="font-size: 48px; margin-bottom: 8px;">📭</div>
+                    <div>${currentSearchKeyword || currentTagFilter || currentFilter === 'current' ? '没有匹配的笔记' : '暂无笔记'}</div>
+                </div>
+            `;
+            return;
+        }
+
+        notes.forEach(note => {
+            containerEl.appendChild(renderNoteItem(note, containerEl));
+        });
+    }
+
+    function renderFilterBar(bodyEl) {
+        const bvid = getCurrentBvid();
+        const allTags = Notes.getAllTags();
+        const currentNoteCount = bvid ? Notes.countByBvid(bvid) : 0;
+        const videoNoteCount = Notes.countByType('videoNote');
+        const normalNoteCount = Notes.countByType('normalNote');
+
+        const filterBar = document.createElement('div');
+        filterBar.className = 'bili-speed-notes-filter';
+        filterBar.innerHTML = `
+            <div class="bili-speed-notes-search">
+                <input type="text" class="bili-speed-notes-search-input" placeholder="搜索笔记..." value="${currentSearchKeyword}">
+            </div>
+            <div class="bili-speed-notes-filter-tabs">
+                <button class="bili-speed-notes-filter-btn ${currentTypeFilter === 'all' ? 'active' : ''}" data-type="all">全部</button>
+                <button class="bili-speed-notes-filter-btn ${currentTypeFilter === 'videoNote' ? 'active' : ''}" data-type="videoNote">🎬 视频笔记${videoNoteCount > 0 ? `(${videoNoteCount})` : ''}</button>
+                <button class="bili-speed-notes-filter-btn ${currentTypeFilter === 'normalNote' ? 'active' : ''}" data-type="normalNote">📄 普通笔记${normalNoteCount > 0 ? `(${normalNoteCount})` : ''}</button>
+            </div>
+            <div class="bili-speed-notes-filter-tabs">
+                <button class="bili-speed-notes-filter-btn ${currentFilter === 'all' ? 'active' : ''}" data-filter="all">全部视频</button>
+                <button class="bili-speed-notes-filter-btn ${currentFilter === 'current' ? 'active' : ''}" data-filter="current">当前视频${currentNoteCount > 0 ? `(${currentNoteCount})` : ''}</button>
+                ${allTags.length > 0 ? `
+                <select class="bili-speed-notes-tag-select">
+                    <option value="">全部标签</option>
+                    ${allTags.map(t => `<option value="${t}" ${currentTagFilter === t ? 'selected' : ''}>${t}</option>`).join('')}
+                </select>
+                ` : ''}
+            </div>
+        `;
+
+        const searchInput = filterBar.querySelector('.bili-speed-notes-search-input');
+        let searchTimer = null;
+        searchInput.addEventListener('input', (e) => {
+            if (searchTimer) clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
+                currentSearchKeyword = e.target.value.trim();
+                const listEl = bodyEl.querySelector('.bili-speed-notes-list');
+                if (listEl) renderNotesList(listEl);
+            }, 300);
+        });
+
+        filterBar.querySelectorAll('[data-type]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                currentTypeFilter = btn.dataset.type;
+                filterBar.querySelectorAll('[data-type]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const listEl = bodyEl.querySelector('.bili-speed-notes-list');
+                if (listEl) renderNotesList(listEl);
+            });
+        });
+
+        filterBar.querySelectorAll('[data-filter]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                currentFilter = btn.dataset.filter;
+                filterBar.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const listEl = bodyEl.querySelector('.bili-speed-notes-list');
+                if (listEl) renderNotesList(listEl);
+            });
+        });
+
+        const tagSelect = filterBar.querySelector('.bili-speed-notes-tag-select');
+        if (tagSelect) {
+            tagSelect.addEventListener('change', (e) => {
+                currentTagFilter = e.target.value;
+                const listEl = bodyEl.querySelector('.bili-speed-notes-list');
+                if (listEl) renderNotesList(listEl);
+            });
+        }
+
+        bodyEl.appendChild(filterBar);
+    }
+
+    function createPanel() {
+        let savedPosition = Config.data.notesPanelPosition;
+        const currentTheme = Config.data.theme || 'light';
+
+        panelInstance = Card.create({
+            className: `bili-speed-notes-panel theme-${currentTheme}`,
+            header: {
+                visible: true,
+                draggable: true,
+                title: '📝 视频笔记'
+            },
+            footer: { visible: false },
+            styles: {
+                width: '380px',
+                display: Config.data.notesPanelVisible ? 'block' : 'none',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                zIndex: 9999,
+                ...(savedPosition ? {
+                    left: savedPosition.left,
+                    top: savedPosition.top,
+                    transform: 'none'
+                } : {})
+            },
+            onHeaderReady: (headerEl) => {
+                const actionsEl = headerEl.querySelector('.bili-speed-notes-panel-actions');
+
+                const exportBtn = document.createElement('button');
+                exportBtn.className = 'bili-speed-notes-export';
+                exportBtn.title = '导出笔记数据';
+                exportBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px;';
+                exportBtn.textContent = '📤';
+                exportBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    Notes.downloadExport();
+                });
+
+                const addBtn = document.createElement('button');
+                addBtn.className = 'bili-speed-notes-add';
+                addBtn.title = '新建笔记';
+                addBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px;';
+                addBtn.textContent = '➕';
+                addBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    EventBus.emit('notes:new');
+                });
+
+                const closeBtn = document.createElement('button');
+                closeBtn.className = 'bili-speed-notes-close';
+                closeBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;';
+                closeBtn.textContent = '×';
+                closeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    EventBus.emit('notes:toggle');
+                });
+
+                actionsEl.appendChild(exportBtn);
+                actionsEl.appendChild(addBtn);
+                actionsEl.appendChild(closeBtn);
+
+                dragCleanup = Draggable.make(headerEl.parentElement, 'notesPanelPosition', `[class*="-header"]`);
+            },
+            onBodyReady: (bodyEl) => {
+                bodyEl.className = 'bili-speed-notes-panel-body';
+                bodyEl.style.cssText = 'padding: 8px; max-height: 500px; overflow-y: auto;';
+
+                renderFilterBar(bodyEl);
+
+                const listEl = document.createElement('div');
+                listEl.className = 'bili-speed-notes-list';
+                bodyEl.appendChild(listEl);
+
+                renderNotesList(listEl);
+
+                const countEl = document.createElement('div');
+                countEl.className = 'bili-speed-notes-count';
+                countEl.style.cssText = 'text-align: center; padding: 8px 0; font-size: 12px; color: #999;';
+                countEl.textContent = `共 ${Notes.count()} 条笔记`;
+                bodyEl.appendChild(countEl);
+
+                EventBus.on('notes:updated', () => {
+                    if (panelInstance && bodyEl) {
+                        const list = bodyEl.querySelector('.bili-speed-notes-list');
+                        const count = bodyEl.querySelector('.bili-speed-notes-count');
+                        if (list) renderNotesList(list);
+                        if (count) count.textContent = `共 ${Notes.count()} 条笔记`;
+                    }
+                });
+            }
+        });
+    }
+
+    return {
+        create() {
+            if (panelInstance) panelInstance.destroy();
+            if (dragCleanup) dragCleanup();
+            dragCleanup = null;
+
+            currentFilter = 'all';
+            currentSearchKeyword = '';
+            currentTagFilter = '';
+            currentTypeFilter = 'all';
+
+            createPanel();
+        },
+
+        toggle() {
+            Config.data.notesPanelVisible = !Config.data.notesPanelVisible;
+            if (panelInstance) {
+                panelInstance.element.style.display = Config.data.notesPanelVisible ? 'block' : 'none';
+            }
+        },
+
+        show() {
+            Config.data.notesPanelVisible = true;
+            if (panelInstance) {
+                panelInstance.element.style.display = 'block';
+            }
+        },
+
+        hide() {
+            Config.data.notesPanelVisible = false;
+            if (panelInstance) {
+                panelInstance.element.style.display = 'none';
+            }
+        },
+
+        applyTheme(theme) {
+            if (!panelInstance) return;
+            const el = panelInstance.element;
+            el.classList.remove('theme-light', 'theme-dark');
+            el.classList.add(`theme-${theme}`);
+        },
+
+        destroy() {
+            if (dragCleanup) dragCleanup();
+            dragCleanup = null;
+            if (panelInstance) panelInstance.destroy();
+            panelInstance = null;
+        }
+    };
+})();
+
+
+const QuillEditorPanel = (() => {
+    let panelInstance = null;
+    let dragCleanup = null;
+    let resizeCleanup = null;
+    let quillInstance = null;
+    let currentNoteId = null;
+    let tags = [];
+    let videoTimestamp = 0;
+
+    function getCurrentVideoInfo() {
+        const url = location.href;
+        const match = url.match(/BV[\w]+/);
+        const video = VideoController.getVideo();
+        const title = document.querySelector('h1.video-title, .video-title-href, h1[class*="title"]')?.textContent?.trim() || '未知标题';
+
+        return {
+            bvid: match ? match[0] : '',
+            videoTitle: title,
+            videoUrl: url,
+            currentTime: video ? video.currentTime : 0,
+            hasVideo: !!video
+        };
+    }
+
+    function getQuill() {
+        return (typeof unsafeWindow !== 'undefined' && unsafeWindow.Quill) ? unsafeWindow.Quill : window.Quill;
+    }
+
+    function loadQuillResources() {
+        return new Promise((resolve, reject) => {
+            const Quill = getQuill();
+            console.log('[QuillEditorPanel] loadQuillResources called, Quill:', !!Quill);
+            if (Quill) {
+                console.log('[QuillEditorPanel] Quill already loaded');
+                resolve();
+                return;
+            }
+
+            const existingScript = document.getElementById('quill-js');
+            if (existingScript) {
+                console.log('[QuillEditorPanel] Script exists, loading:', existingScript.dataset.loading);
+                if (existingScript.dataset.loading === 'true') {
+                    const checkInterval = setInterval(() => {
+                        const Q = getQuill();
+                        console.log('[QuillEditorPanel] Checking Quill...', !!Q);
+                        if (Q) {
+                            clearInterval(checkInterval);
+                            console.log('[QuillEditorPanel] Quill loaded via interval');
+                            resolve();
+                        }
+                    }, 100);
+
+                    setTimeout(() => {
+                        clearInterval(checkInterval);
+                        console.log('[QuillEditorPanel] Quill load timeout');
+                        reject(new Error('Quill 资源加载超时'));
+                    }, 30000);
+                    return;
+                } else {
+                    console.log('[QuillEditorPanel] Removing existing script');
+                    existingScript.remove();
+                }
+            }
+
+            console.log('[QuillEditorPanel] Creating new script tag');
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/quill@1.3.7/dist/quill.min.js';
+            script.id = 'quill-js';
+            script.dataset.loading = 'true';
+            script.onload = () => {
+                console.log('[QuillEditorPanel] Script onload fired, Quill:', !!getQuill());
+                const waitForQuill = (retries = 0) => {
+                    const Q = getQuill();
+                    if (Q) {
+                        console.log('[QuillEditorPanel] Quill loaded after', retries, 'retries');
+                        resolve();
+                    } else if (retries < 50) {
+                        setTimeout(() => waitForQuill(retries + 1), 100);
+                    } else {
+                        console.log('[QuillEditorPanel] Quill load timeout after onload');
+                        reject(new Error('Quill 加载超时'));
+                    }
+                };
+                waitForQuill();
+            };
+            script.onerror = (e) => {
+                console.log('[QuillEditorPanel] Script onerror', e);
+                script.dataset.loading = 'false';
+                reject(new Error('Quill 资源加载失败'));
+            };
+            document.head.appendChild(script);
+            console.log('[QuillEditorPanel] Script appended to head');
+        });
+    }
+
+    function injectQuillCSS() {
+        if (document.getElementById('quill-snow-css')) return;
+
+        const cssUrl = 'https://unpkg.com/quill@1.3.7/dist/quill.snow.css';
+
+        if (typeof GM_addStyle !== 'undefined') {
+            fetch(cssUrl)
+                .then(res => res.text())
+                .then(css => GM_addStyle(css))
+                .catch(() => {
+                    const link = document.createElement('link');
+                    link.rel = 'stylesheet';
+                    link.href = cssUrl;
+                    link.id = 'quill-snow-css';
+                    document.head.appendChild(link);
+                });
+        } else {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = cssUrl;
+            link.id = 'quill-snow-css';
+            document.head.appendChild(link);
+        }
+    }
+
+    function initQuillEditor(containerEl, height) {
+        const Quill = getQuill();
+        if (!Quill) return;
+
+        const editorContainer = containerEl.querySelector('#quill-editor-container');
+        if (!editorContainer) return;
+
+        quillInstance = new Quill(editorContainer, {
+            theme: 'snow',
+            placeholder: '开始记录笔记...',
+            modules: {
+                toolbar: [
+                    ['bold', 'italic', 'strike', 'underline'],
+                    [{ header: 2 }],
+                    ['blockquote'],
+                    [{ list: 'ordered' }, { list: 'bullet' }],
+                    ['link'],
+                    ['clean']
+                ]
+            }
+        });
+
+        requestAnimationFrame(() => {
+            adjustQuillEditorHeight(height);
+
+            const qlContainer = editorContainer.querySelector('.ql-container');
+            if (qlContainer) {
+                qlContainer.style.borderRadius = '0 0 4px 4px';
+                qlContainer.style.borderLeft = '1px solid #ddd';
+                qlContainer.style.borderRight = '1px solid #ddd';
+                qlContainer.style.borderBottom = '1px solid #ddd';
+                qlContainer.style.borderTop = 'none';
+                qlContainer.style.background = '#FFFFFF';
+            }
+
+            const qlToolbar = editorContainer.previousElementSibling?.classList.contains('ql-toolbar')
+                ? editorContainer.previousElementSibling
+                : editorContainer.parentElement?.querySelector('.ql-toolbar');
+            if (qlToolbar) {
+                qlToolbar.style.borderRadius = '4px 4px 0 0';
+                qlToolbar.style.borderLeft = '1px solid #ddd';
+                qlToolbar.style.borderRight = '1px solid #ddd';
+                qlToolbar.style.borderTop = '1px solid #ddd';
+                qlToolbar.style.borderBottom = 'none';
+                qlToolbar.style.marginBottom = '0';
+                qlToolbar.style.background = '#FFFFFF';
+            }
+
+            const qlEditor = editorContainer.querySelector('.ql-editor');
+            if (qlEditor) {
+                qlEditor.style.background = '#FFFFFF';
+            }
+        });
+    }
+
+    function adjustQuillEditorHeight(panelHeight) {
+        const editorContainer = document.querySelector('#quill-editor-container');
+        if (!editorContainer || !quillInstance) return;
+
+        const headerHeight = 50;
+        const bodyPadding = 24;
+        const titleInputHeight = 40;
+        const tagsHeight = 40;
+        const timestampEl = document.querySelector('.bili-speed-editor-mark-time')?.parentElement;
+        const timestampHeight = timestampEl ? timestampEl.offsetHeight || 30 : 0;
+        const footerHeight = 30;
+        const resizeHandleHeight = 16;
+
+        const availableHeight = panelHeight - headerHeight - bodyPadding - titleInputHeight - tagsHeight - timestampHeight - footerHeight - resizeHandleHeight;
+        const minHeight = 150;
+        const finalHeight = Math.max(minHeight, availableHeight);
+
+        const qlContainer = editorContainer.querySelector('.ql-container');
+        if (qlContainer) {
+            qlContainer.style.height = finalHeight + 'px';
+        }
+
+        const qlEditor = editorContainer.querySelector('.ql-editor');
+        if (qlEditor) {
+            qlEditor.style.minHeight = finalHeight + 'px';
+        }
+
+        quillInstance.update();
+    }
+
+    function renderTags(containerEl) {
+        const tagsContainer = containerEl.querySelector('.bili-speed-editor-tags');
+        if (!tagsContainer) return;
+
+        tagsContainer.innerHTML = '';
+        tags.forEach((tag, index) => {
+            const tagEl = document.createElement('span');
+            tagEl.className = 'bili-speed-editor-tag';
+            tagEl.innerHTML = `${tag} <span class="bili-speed-editor-tag-remove" data-index="${index}">×</span>`;
+            tagsContainer.appendChild(tagEl);
+        });
+
+        tagsContainer.querySelectorAll('.bili-speed-editor-tag-remove').forEach(removeBtn => {
+            removeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const idx = parseInt(removeBtn.dataset.index);
+                tags.splice(idx, 1);
+                renderTags(containerEl);
+            });
+        });
+    }
+
+    function addTag(containerEl, tagInput) {
+        const tag = tagInput.value.trim();
+        if (!tag) return;
+        if (tags.length >= 10) {
+            Toast.show('标签数量已达上限');
+            return;
+        }
+        if (tags.includes(tag)) {
+            Toast.show('标签已存在');
+            return;
+        }
+        tags.push(tag);
+        tagInput.value = '';
+        renderTags(containerEl);
+    }
+
+    function updateFooterStatus() {
+        const footerEl = panelInstance?.getFooter();
+        if (!footerEl) return;
+
+        const charCount = quillInstance ? quillInstance.getLength() - 1 : 0;
+        const selection = quillInstance ? quillInstance.getSelection() : null;
+        const selectedCount = selection ? quillInstance.getText(selection).length : 0;
+
+        footerEl.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #666;">
+                <span class="bili-speed-quill-footer-status"></span>
+                <span>字数: ${charCount} | 已选中: ${selectedCount}</span>
+            </div>
+        `;
+    }
+
+    function showSaveStatus(message, isError = false) {
+        const footerEl = panelInstance?.getFooter();
+        if (!footerEl) return;
+
+        const statusEl = footerEl.querySelector('.bili-speed-quill-footer-status');
+        if (statusEl) {
+            statusEl.textContent = message;
+            statusEl.style.color = isError ? '#ff4d4f' : '#52c41a';
+            statusEl.style.fontWeight = 'bold';
+        }
+
+        setTimeout(() => {
+            if (statusEl) {
+                statusEl.textContent = '';
+                updateFooterStatus();
+            }
+        }, 3000);
+    }
+
+    function saveNote() {
+        const panelEl = panelInstance?.element;
+        if (!panelEl) return;
+
+        const titleInput = panelEl.querySelector('.bili-speed-editor-title-input');
+        const title = titleInput ? titleInput.value.trim() : '';
+        if (!title) {
+            Toast.show('请输入笔记标题');
+            return;
+        }
+
+        const content = quillInstance ? quillInstance.root.innerHTML : '';
+        const contentDelta = quillInstance ? JSON.stringify(quillInstance.getContents()) : '';
+
+        const videoInfo = getCurrentVideoInfo();
+        const noteType = videoInfo.hasVideo ? 'videoNote' : 'normalNote';
+
+        if (currentNoteId) {
+            Notes.update(currentNoteId, {
+                title: title,
+                content: content,
+                contentDelta: contentDelta,
+                tags: [...tags],
+                videoTimestamp: videoTimestamp,
+                videoTitle: videoInfo.videoTitle,
+                videoUrl: videoInfo.videoUrl
+            });
+            showSaveStatus('✓ 笔记已更新');
+        } else {
+            const note = {
+                id: 'note_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8),
+                noteType: noteType,
+                bvid: videoInfo.bvid,
+                videoTitle: videoInfo.videoTitle,
+                videoUrl: videoInfo.videoUrl,
+                editorType: 'quill',
+                title: title,
+                content: content,
+                contentDelta: contentDelta,
+                tags: [...tags],
+                videoTimestamp: videoTimestamp,
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+            };
+            Notes.add(note);
+            currentNoteId = note.id;
+            showSaveStatus('✓ 笔记已保存');
+        }
+    }
+
+    function createPanel(note) {
+        injectQuillCSS();
+
+        let savedPosition = Config.data.editorPanelPosition;
+        const currentTheme = Config.data.theme || 'light';
+
+        currentNoteId = note ? note.id : null;
+        tags = note ? [...(note.tags || [])] : [];
+        videoTimestamp = note ? (note.videoTimestamp || 0) : 0;
+
+        const videoInfo = getCurrentVideoInfo();
+        const noteTitle = note ? note.title : '';
+        const isEdit = !!note;
+        const headerTitle = videoInfo.hasVideo
+            ? `✏️ ${isEdit ? '编辑笔记' : '新建笔记'} - Quill`
+            : `✏️ ${isEdit ? '编辑笔记' : '新建普通笔记'} - Quill`;
+
+        panelInstance = Card.create({
+            className: `bili-speed-quill-panel theme-${currentTheme}`,
+            header: {
+                visible: true,
+                draggable: true,
+                title: headerTitle
+            },
+            footer: { visible: true },
+            styles: {
+                width: '520px',
+                height: '500px',
+                display: 'block',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                zIndex: 10000,
+                ...(savedPosition ? {
+                    left: savedPosition.left,
+                    top: savedPosition.top,
+                    transform: 'none'
+                } : {})
+            },
+            onHeaderReady: (headerEl) => {
+                const actionsEl = headerEl.querySelector('.bili-speed-quill-panel-actions');
+                if (actionsEl) {
+                    actionsEl.style.pointerEvents = 'auto';
+                    actionsEl.style.position = 'relative';
+                    actionsEl.style.zIndex = '1001';
+                }
+
+                const listBtn = document.createElement('button');
+                listBtn.className = 'bili-speed-editor-list';
+                listBtn.title = '打开笔记列表';
+                listBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; position: relative; z-index: 1001; pointer-events: auto; transition: transform 0.15s ease;';
+                listBtn.textContent = '📋';
+                listBtn.addEventListener('mouseenter', () => { listBtn.style.transform = 'scale(1.2)'; });
+                listBtn.addEventListener('mouseleave', () => { listBtn.style.transform = 'scale(1)'; });
+                listBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    NotesPanel.show();
+                });
+
+                const saveBtn = document.createElement('button');
+                saveBtn.className = 'bili-speed-editor-save';
+                saveBtn.title = '保存笔记';
+                saveBtn.style.cssText = 'background: #F0F1F2; color: #333; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; position: relative; z-index: 1001; pointer-events: auto; transition: transform 0.15s ease;';
+                saveBtn.textContent = '💾 保存';
+                saveBtn.addEventListener('mouseenter', () => { saveBtn.style.transform = 'scale(1.1)'; });
+                saveBtn.addEventListener('mouseleave', () => { saveBtn.style.transform = 'scale(1)'; });
+                saveBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    saveNote();
+                });
+
+                const closeBtn = document.createElement('button');
+                closeBtn.className = 'bili-speed-editor-close';
+                closeBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; position: relative; z-index: 1001; pointer-events: auto; transition: transform 0.15s ease;';
+                closeBtn.textContent = '×';
+                closeBtn.addEventListener('mouseenter', () => { closeBtn.style.transform = 'scale(1.2)'; });
+                closeBtn.addEventListener('mouseleave', () => { closeBtn.style.transform = 'scale(1)'; });
+                closeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    QuillEditorPanel.close();
+                });
+
+                actionsEl.appendChild(listBtn);
+                actionsEl.appendChild(saveBtn);
+                actionsEl.appendChild(closeBtn);
+
+                dragCleanup = Draggable.make(headerEl.parentElement, 'editorPanelPosition', `[class*="-header"]`);
+            },
+            onBodyReady: (bodyEl) => {
+                bodyEl.className = 'bili-speed-quill-panel-body';
+                bodyEl.style.cssText = 'padding: 12px;';
+
+                bodyEl.innerHTML = `
+                    <div style="margin-bottom: 10px;">
+                        <input type="text" class="bili-speed-editor-title-input" placeholder="输入笔记标题..." value="${noteTitle}" style="width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box; outline: none;">
+                    </div>
+                    <div style="margin-bottom: 10px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        <div class="bili-speed-editor-tags" style="display: flex; gap: 4px; flex-wrap: wrap;"></div>
+                        <input type="text" class="bili-speed-editor-tag-input" placeholder="添加标签..." style="padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; width: 100px; outline: none;">
+                        <button class="bili-speed-editor-tag-add" style="padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 12px;">+</button>
+                    </div>
+                    ${videoInfo.hasVideo ? `
+                    <div style="margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 12px; color: #999;">时间点:</span>
+                        <span class="bili-speed-editor-timestamp" style="font-size: 12px; color: #00AEEC;">${videoTimestamp > 0 ? Utils.formatTime(videoTimestamp) : '未标记'}</span>
+                        <button class="bili-speed-editor-mark-time" style="padding: 2px 8px; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 11px;">📍标记当前时间</button>
+                    </div>
+                    ` : ''}
+                    <div id="quill-editor-container"></div>
+                    <div class="bili-speed-editor-loading" style="text-align: center; padding: 40px 0; color: #999; display: none;">
+                        <div>正在加载编辑器资源...</div>
+                    </div>
+                `;
+
+                renderTags(bodyEl);
+
+                const titleInput = bodyEl.querySelector('.bili-speed-editor-title-input');
+                const tagInput = bodyEl.querySelector('.bili-speed-editor-tag-input');
+                const tagAddBtn = bodyEl.querySelector('.bili-speed-editor-tag-add');
+                tagAddBtn.addEventListener('click', () => addTag(bodyEl, tagInput));
+                tagInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addTag(bodyEl, tagInput);
+                    }
+                });
+
+                const markTimeBtn = bodyEl.querySelector('.bili-speed-editor-mark-time');
+                if (markTimeBtn) {
+                    markTimeBtn.addEventListener('click', () => {
+                        const video = VideoController.getVideo();
+                        if (video) {
+                            videoTimestamp = video.currentTime;
+                            const tsEl = bodyEl.querySelector('.bili-speed-editor-timestamp');
+                            if (tsEl) tsEl.textContent = Utils.formatTime(videoTimestamp);
+                            Toast.show(`已标记时间点: ${Utils.formatTime(videoTimestamp)}`);
+                        } else {
+                            Toast.show('未找到视频元素');
+                        }
+                    });
+                }
+
+                const editorContainer = bodyEl.querySelector('#quill-editor-container');
+                const loadingEl = bodyEl.querySelector('.bili-speed-editor-loading');
+                const panelEl = bodyEl.parentElement;
+
+                resizeCleanup = Resizable.make(panelEl, {
+                    minWidth: 400,
+                    minHeight: 350,
+                    onResize: (newWidth, newHeight) => {
+                        if (quillInstance) {
+                            adjustQuillEditorHeight(newHeight);
+                        }
+                    },
+                    saveKey: 'editorPanelSize'
+                });
+
+                if (getQuill()) {
+                    requestAnimationFrame(() => {
+                        initQuillEditor(bodyEl, panelEl.getBoundingClientRect().height);
+                        if (quillInstance) {
+                            quillInstance.blur();
+                            quillInstance.on('text-change', () => {
+                                updateFooterStatus();
+                            });
+                            quillInstance.on('selection-change', () => {
+                                updateFooterStatus();
+                            });
+                        }
+                        if (note && note.content) {
+                            if (note.contentDelta) {
+                                try {
+                                    quillInstance.setContents(JSON.parse(note.contentDelta));
+                                } catch {
+                                    quillInstance.clipboard.dangerouslyPasteHTML(note.content);
+                                }
+                            } else {
+                                quillInstance.clipboard.dangerouslyPasteHTML(note.content);
+                            }
+                        }
+                        updateFooterStatus();
+
+                        if (titleInput) {
+                            titleInput.addEventListener('focus', () => {
+                                if (quillInstance) quillInstance.blur();
+                            });
+                        }
+                        if (tagInput) {
+                            tagInput.addEventListener('focus', () => {
+                                if (quillInstance) quillInstance.blur();
+                            });
+                        }
+                    });
+                } else {
+                    editorContainer.style.display = 'none';
+                    loadingEl.style.display = 'block';
+
+                    loadQuillResources().then(() => {
+                        editorContainer.style.display = 'block';
+                        loadingEl.style.display = 'none';
+                        requestAnimationFrame(() => {
+                            initQuillEditor(bodyEl, panelEl.getBoundingClientRect().height);
+                            if (quillInstance) {
+                                quillInstance.blur();
+                                quillInstance.on('text-change', () => {
+                                    updateFooterStatus();
+                                });
+                                quillInstance.on('selection-change', () => {
+                                    updateFooterStatus();
+                                });
+                            }
+                            if (note && note.content) {
+                                if (note.contentDelta) {
+                                    try {
+                                        quillInstance.setContents(JSON.parse(note.contentDelta));
+                                    } catch {
+                                        quillInstance.clipboard.dangerouslyPasteHTML(note.content);
+                                    }
+                                } else {
+                                    quillInstance.clipboard.dangerouslyPasteHTML(note.content);
+                                }
+                            }
+                            updateFooterStatus();
+
+                            if (titleInput) {
+                                titleInput.addEventListener('focus', () => {
+                                    if (quillInstance) quillInstance.blur();
+                                });
+                            }
+                            if (tagInput) {
+                                tagInput.addEventListener('focus', () => {
+                                    if (quillInstance) quillInstance.blur();
+                                });
+                            }
+                        });
+                    }).catch(() => {
+                        loadingEl.innerHTML = '<div style="color: #ff6b6b;">编辑器加载失败，使用简易编辑模式</div>';
+                        loadingEl.style.display = 'none';
+                        editorContainer.innerHTML = `<textarea class="bili-speed-editor-fallback" style="width: 100%; min-height: 200px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; resize: vertical; outline: none; box-sizing: border-box;">${note ? note.content : ''}</textarea>`;
+                    });
+                }
+            }
+        });
+    }
+
+    return {
+        create() {
+            if (panelInstance) panelInstance.destroy();
+            if (dragCleanup) dragCleanup();
+            if (resizeCleanup) resizeCleanup();
+            dragCleanup = null;
+            resizeCleanup = null;
+            if (quillInstance) {
+                quillInstance = null;
+            }
+        },
+
+        open(note) {
+            if (panelInstance) {
+                QuillEditorPanel.close();
+            }
+
+            if (VditorEditorPanel && typeof VditorEditorPanel.close === 'function') {
+                VditorEditorPanel.close();
+            }
+
+            createPanel(note || null);
+        },
+
+        close() {
+            if (quillInstance) {
+                try {
+                    quillInstance = null;
+                } catch {}
+            }
+            if (dragCleanup) dragCleanup();
+            dragCleanup = null;
+            if (panelInstance) panelInstance.destroy();
+            panelInstance = null;
+            currentNoteId = null;
+            tags = [];
+            videoTimestamp = 0;
+        },
+
+        applyTheme(theme) {
+            if (!panelInstance) return;
+            const el = panelInstance.element;
+            el.classList.remove('theme-light', 'theme-dark');
+            el.classList.add(`theme-${theme}`);
+        },
+
+        isOpen() {
+            return panelInstance !== null;
+        },
+
+        destroy() {
+            QuillEditorPanel.close();
+        }
+    };
+})();
+
+
+const VditorEditorPanel = (() => {
+    let panelInstance = null;
+    let dragCleanup = null;
+    let resizeCleanup = null;
+    let vditorInstance = null;
+    let currentNoteId = null;
+    let isResourcesLoaded = false;
+    let isLoadingResources = false;
+    let tags = [];
+    let videoTimestamp = 0;
+    let pendingContent = '';
+
+    function getCurrentVideoInfo() {
+        const url = location.href;
+        const match = url.match(/BV[\w]+/);
+        const video = VideoController.getVideo();
+        const title = document.querySelector('h1.video-title, .video-title-href, h1[class*="title"]')?.textContent?.trim() || '未知标题';
+
+        return {
+            bvid: match ? match[0] : '',
+            videoTitle: title,
+            videoUrl: url,
+            currentTime: video ? video.currentTime : 0,
+            hasVideo: !!video
+        };
+    }
+
+    // 获取 Vditor 构造函数（兼容沙箱环境）
+    function getVditor() {
+        return (typeof unsafeWindow !== 'undefined' && unsafeWindow.Vditor)
+            ? unsafeWindow.Vditor
+            : window.Vditor;
+    }
+
+    function loadVditorResources() {
+        return new Promise((resolve, reject) => {
+            if (getVditor()) {
+                isResourcesLoaded = true;
+                resolve();
+                return;
+            }
+
+            if (isLoadingResources) {
+                const checkInterval = setInterval(() => {
+                    if (getVditor()) {
+                        clearInterval(checkInterval);
+                        isResourcesLoaded = true;
+                        resolve();
+                    }
+                }, 100);
+
+                setTimeout(() => {
+                    clearInterval(checkInterval);
+                    reject(new Error('Vditor 资源加载超时'));
+                }, 15000);
+                return;
+            }
+
+            isLoadingResources = true;
+
+            const css = document.createElement('link');
+            css.rel = 'stylesheet';
+            css.href = 'https://cdn.jsdelivr.net/npm/vditor/dist/index.css';
+            css.id = 'vditor-css';
+            document.head.appendChild(css);
+
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/vditor/dist/index.min.js';
+            script.id = 'vditor-script';
+            script.onload = () => {
+                isResourcesLoaded = true;
+                isLoadingResources = false;
+                EventBus.emit('editor:vditor:loaded');
+                resolve();
+            };
+            script.onerror = () => {
+                isLoadingResources = false;
+                reject(new Error('Vditor 资源加载失败'));
+            };
+            document.head.appendChild(script);
+        });
+    }
+
+    function initVditorEditor(containerEl, content, theme, height) {
+        const Vditor = getVditor();
+        if (!Vditor) return;
+
+        const editorContainer = containerEl.querySelector('#vditor-editor-container');
+        if (!editorContainer) return;
+
+        vditorInstance = new Vditor('vditor-editor-container', {
+            height: '100%',
+            mode: 'ir',
+            theme: theme === 'dark' ? 'dark' : 'classic',
+            toolbar: ['headings', 'bold', 'italic', 'strike', 'link', 'code', 'table'],
+            placeholder: '开始记录笔记（Markdown格式）...',
+            cache: { enable: false },
+            after: () => {
+                if (content) {
+                    vditorInstance.setValue(content);
+                }
+                setTimeout(() => adjustVditorEditorHeight(), 100);
+            }
+        });
+    }
+
+    function adjustVditorEditorHeight() {
+        if (!vditorInstance) return;
+        const container = document.getElementById('vditor-editor-container');
+        if (!container) return;
+
+        const containerHeight = container.clientHeight;
+        if (containerHeight <= 0) return;
+
+        const vditorRoot = container.querySelector('.vditor');
+        if (vditorRoot) {
+            vditorRoot.style.height = containerHeight + 'px';
+        }
+
+        const toolbar = container.querySelector('.vditor-toolbar');
+        const toolbarHeight = toolbar ? toolbar.offsetHeight : 40;
+        const contentHeight = Math.max(50, containerHeight - toolbarHeight);
+
+        const vditorContent = container.querySelector('.vditor-content');
+        if (vditorContent) vditorContent.style.height = contentHeight + 'px';
+
+        const ir = container.querySelector('.vditor-ir');
+        if (ir) ir.style.height = contentHeight + 'px';
+        const sv = container.querySelector('.vditor-sv');
+        if (sv) sv.style.height = contentHeight + 'px';
+        const preview = container.querySelector('.vditor-preview');
+        if (preview) preview.style.height = contentHeight + 'px';
+
+        const reset = container.querySelector('.vditor-reset');
+        if (reset) reset.style.height = contentHeight + 'px';
+    }
+
+    function renderTags(containerEl) {
+        const tagsContainer = containerEl.querySelector('.bili-speed-editor-tags');
+        if (!tagsContainer) return;
+
+        tagsContainer.innerHTML = '';
+        tags.forEach((tag, index) => {
+            const tagEl = document.createElement('span');
+            tagEl.className = 'bili-speed-editor-tag';
+            tagEl.innerHTML = `${tag} <span class="bili-speed-editor-tag-remove" data-index="${index}">×</span>`;
+            tagsContainer.appendChild(tagEl);
+        });
+
+        tagsContainer.querySelectorAll('.bili-speed-editor-tag-remove').forEach(removeBtn => {
+            removeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const idx = parseInt(removeBtn.dataset.index);
+                tags.splice(idx, 1);
+                renderTags(containerEl);
+            });
+        });
+    }
+
+    function addTag(containerEl, tagInput) {
+        const tag = tagInput.value.trim();
+        if (!tag) return;
+        if (tags.length >= 10) {
+            Toast.show('标签数量已达上限');
+            return;
+        }
+        if (tags.includes(tag)) {
+            Toast.show('标签已存在');
+            return;
+        }
+        tags.push(tag);
+        tagInput.value = '';
+        renderTags(containerEl);
+    }
+
+    function updateFooterStatus() {
+        const footerEl = panelInstance?.getFooter();
+        if (!footerEl) return;
+
+        let charCount = 0;
+        let selectedCount = 0;
+
+        if (vditorInstance) {
+            const content = vditorInstance.getValue();
+            charCount = content.length;
+            const textarea = vditorInstance.element?.querySelector('textarea');
+            if (textarea) {
+                selectedCount = textarea.selectionEnd - textarea.selectionStart;
+            }
+        }
+
+        footerEl.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #666;">
+                <span class="bili-speed-vditor-footer-status"></span>
+                <span>字数: ${charCount} | 已选中: ${selectedCount}</span>
+            </div>
+        `;
+    }
+
+    function showSaveStatus(message, isError = false) {
+        const footerEl = panelInstance?.getFooter();
+        if (!footerEl) return;
+
+        const statusEl = footerEl.querySelector('.bili-speed-vditor-footer-status');
+        if (statusEl) {
+            statusEl.textContent = message;
+            statusEl.style.color = isError ? '#ff4d4f' : '#52c41a';
+            statusEl.style.fontWeight = 'bold';
+        }
+
+        setTimeout(() => {
+            if (statusEl) {
+                statusEl.textContent = '';
+                updateFooterStatus();
+            }
+        }, 3000);
+    }
+
+    function saveNote() {
+        const panelEl = panelInstance?.element;
+        if (!panelEl) return;
+
+        const titleInput = panelEl.querySelector('.bili-speed-editor-title-input');
+        const title = titleInput ? titleInput.value.trim() : '';
+        if (!title) {
+            Toast.show('请输入笔记标题');
+            return;
+        }
+
+        let content = '';
+        if (vditorInstance) {
+            content = vditorInstance.getValue();
+        } else {
+            const fallback = panelEl.querySelector('.bili-speed-editor-fallback');
+            if (fallback) content = fallback.value;
+        }
+
+        const videoInfo = getCurrentVideoInfo();
+        const noteType = videoInfo.hasVideo ? 'videoNote' : 'normalNote';
+
+        if (currentNoteId) {
+            Notes.update(currentNoteId, {
+                title: title,
+                content: content,
+                contentDelta: '',
+                tags: [...tags],
+                videoTimestamp: videoTimestamp,
+                videoTitle: videoInfo.videoTitle,
+                videoUrl: videoInfo.videoUrl
+            });
+            showSaveStatus('✓ 笔记已更新');
+        } else {
+            const note = {
+                id: 'note_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8),
+                noteType: noteType,
+                bvid: videoInfo.bvid,
+                videoTitle: videoInfo.videoTitle,
+                videoUrl: videoInfo.videoUrl,
+                editorType: 'vditor',
+                title: title,
+                content: content,
+                contentDelta: '',
+                tags: [...tags],
+                videoTimestamp: videoTimestamp,
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+            };
+            Notes.add(note);
+            currentNoteId = note.id;
+            showSaveStatus('✓ 笔记已保存');
+        }
+    }
+
+    function createPanel(note) {
+        let savedPosition = Config.data.editorPanelPosition;
+        const currentTheme = Config.data.theme || 'light';
+
+        currentNoteId = note ? note.id : null;
+        tags = note ? [...(note.tags || [])] : [];
+        videoTimestamp = note ? (note.videoTimestamp || 0) : 0;
+        pendingContent = note ? (note.content || '') : '';
+
+        const noteTitle = note ? note.title : '';
+        const isEdit = !!note;
+        const videoInfo = getCurrentVideoInfo();
+        const headerTitle = videoInfo.hasVideo
+            ? `✏️ ${isEdit ? '编辑笔记' : '新建笔记'} - Vditor`
+            : `✏️ ${isEdit ? '编辑笔记' : '新建普通笔记'} - Vditor`;
+
+        panelInstance = Card.create({
+            className: `bili-speed-vditor-panel theme-${currentTheme}`,
+            header: {
+                visible: true,
+                draggable: true,
+                title: headerTitle
+            },
+            footer: { visible: true },
+            styles: {
+                width: '560px',
+                height: '550px',
+                display: 'flex',
+                flexDirection: 'column',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                zIndex: 10000,
+                ...(savedPosition ? {
+                    left: savedPosition.left,
+                    top: savedPosition.top,
+                    transform: 'none'
+                } : {})
+            },
+            onHeaderReady: (headerEl) => {
+                const actionsEl = headerEl.querySelector('.bili-speed-vditor-panel-actions');
+                if (actionsEl) {
+                    actionsEl.style.pointerEvents = 'auto';
+                    actionsEl.style.position = 'relative';
+                    actionsEl.style.zIndex = '1001';
+                }
+
+                const listBtn = document.createElement('button');
+                listBtn.className = 'bili-speed-editor-list';
+                listBtn.title = '打开笔记列表';
+                listBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; position: relative; z-index: 1001; pointer-events: auto; transition: transform 0.15s ease;';
+                listBtn.textContent = '📋';
+                listBtn.addEventListener('mouseenter', () => { listBtn.style.transform = 'scale(1.2)'; });
+                listBtn.addEventListener('mouseleave', () => { listBtn.style.transform = 'scale(1)'; });
+                listBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    NotesPanel.show();
+                });
+
+                const saveBtn = document.createElement('button');
+                saveBtn.className = 'bili-speed-editor-save';
+                saveBtn.title = '保存笔记';
+                saveBtn.style.cssText = 'background: #F0F1F2; color: #333; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; position: relative; z-index: 1001; pointer-events: auto; transition: transform 0.15s ease;';
+                saveBtn.textContent = '💾 保存';
+                saveBtn.addEventListener('mouseenter', () => { saveBtn.style.transform = 'scale(1.1)'; });
+                saveBtn.addEventListener('mouseleave', () => { saveBtn.style.transform = 'scale(1)'; });
+                saveBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    saveNote();
+                });
+
+                const closeBtn = document.createElement('button');
+                closeBtn.className = 'bili-speed-editor-close';
+                closeBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; position: relative; z-index: 1001; pointer-events: auto; transition: transform 0.15s ease;';
+                closeBtn.textContent = '×';
+                closeBtn.addEventListener('mouseenter', () => { closeBtn.style.transform = 'scale(1.2)'; });
+                closeBtn.addEventListener('mouseleave', () => { closeBtn.style.transform = 'scale(1)'; });
+                closeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    VditorEditorPanel.close();
+                });
+
+                actionsEl.appendChild(listBtn);
+                actionsEl.appendChild(saveBtn);
+                actionsEl.appendChild(closeBtn);
+
+                dragCleanup = Draggable.make(headerEl.parentElement, 'editorPanelPosition', `[class*="-header"]`);
+            },
+            onBodyReady: (bodyEl) => {
+                bodyEl.className = 'bili-speed-vditor-panel-body';
+                bodyEl.style.cssText = 'padding: 12px; flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden;';
+
+                bodyEl.innerHTML = `
+                    <div style="margin-bottom: 10px;">
+                        <input type="text" class="bili-speed-editor-title-input" placeholder="输入笔记标题..." value="${noteTitle}" style="width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box; outline: none;">
+                    </div>
+                    <div style="margin-bottom: 10px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        <div class="bili-speed-editor-tags" style="display: flex; gap: 4px; flex-wrap: wrap;"></div>
+                        <input type="text" class="bili-speed-editor-tag-input" placeholder="添加标签..." style="padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; width: 100px; outline: none;">
+                        <button class="bili-speed-editor-tag-add" style="padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 12px;">+</button>
+                    </div>
+                    ${videoInfo.hasVideo ? `
+                    <div style="margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 12px; color: #999;">时间点:</span>
+                        <span class="bili-speed-editor-timestamp" style="font-size: 12px; color: #00AEEC;">${videoTimestamp > 0 ? Utils.formatTime(videoTimestamp) : '未标记'}</span>
+                        <button class="bili-speed-editor-mark-time" style="padding: 2px 8px; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 11px;">📍标记当前时间</button>
+                    </div>
+                    ` : ''}
+                    <div id="vditor-editor-container"></div>
+                    <div class="bili-speed-editor-loading" style="text-align: center; padding: 40px 0; color: #999; display: none;">
+                        <div>正在加载编辑器资源...</div>
+                    </div>
+                `;
+
+                const editorContainer = document.getElementById('vditor-editor-container');
+                if (editorContainer) {
+                    editorContainer.style.flex = '1';
+                    editorContainer.style.minHeight = '0';
+                    editorContainer.style.height = '100%';
+                }
+
+                const style = document.createElement('style');
+                style.textContent = `
+                    #vditor-editor-container {
+                        display: flex;
+                        flex-direction: column;
+                    }
+                    #vditor-editor-container .vditor {
+                        height: 100% !important;
+                        overflow: hidden;
+                        display: flex;
+                        flex-direction: column;
+                    }
+                    #vditor-editor-container .vditor-content {
+                        flex: 1;
+                        min-height: 0;
+                    }
+                `;
+                document.head.appendChild(style);
+
+                renderTags(bodyEl);
+
+                const tagInput = bodyEl.querySelector('.bili-speed-editor-tag-input');
+                const tagAddBtn = bodyEl.querySelector('.bili-speed-editor-tag-add');
+                tagAddBtn.addEventListener('click', () => addTag(bodyEl, tagInput));
+                tagInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addTag(bodyEl, tagInput);
+                    }
+                });
+
+                const markTimeBtn = bodyEl.querySelector('.bili-speed-editor-mark-time');
+                if (markTimeBtn) {
+                    markTimeBtn.addEventListener('click', () => {
+                        const video = VideoController.getVideo();
+                        if (video) {
+                            videoTimestamp = video.currentTime;
+                            const tsEl = bodyEl.querySelector('.bili-speed-editor-timestamp');
+                            if (tsEl) tsEl.textContent = Utils.formatTime(videoTimestamp);
+                            Toast.show(`已标记时间点: ${Utils.formatTime(videoTimestamp)}`);
+                        } else {
+                            Toast.show('未找到视频元素');
+                        }
+                    });
+                }
+
+                const loadingEl = bodyEl.querySelector('.bili-speed-editor-loading');
+                const panelEl = bodyEl.parentElement;
+
+                resizeCleanup = Resizable.make(panelEl, {
+                    minWidth: 400,
+                    minHeight: 400,
+                    onResize: (newWidth, newHeight) => {
+                        if (vditorInstance) {
+                            adjustVditorEditorHeight();
+                        }
+                    },
+                    saveKey: 'editorPanelSize'
+                });
+
+                if (isResourcesLoaded && getVditor()) {
+                    initVditorEditor(bodyEl, pendingContent, currentTheme, panelEl.getBoundingClientRect().height);
+                    setTimeout(() => updateFooterStatus(), 500);
+                } else {
+                    loadingEl.style.display = 'block';
+
+                    loadVditorResources().then(() => {
+                        loadingEl.style.display = 'none';
+                        initVditorEditor(bodyEl, pendingContent, currentTheme, panelEl.getBoundingClientRect().height);
+                        setTimeout(() => updateFooterStatus(), 500);
+                    }).catch(() => {
+                        loadingEl.innerHTML = '<div style="color: #ff6b6b;">编辑器加载失败，使用简易编辑模式</div>';
+                        setTimeout(() => { loadingEl.style.display = 'none'; }, 2000);
+                        const editorContainer = bodyEl.querySelector('#vditor-editor-container');
+                        if (editorContainer) {
+                            editorContainer.innerHTML = `<textarea class="bili-speed-editor-fallback" style="width: 100%; min-height: 200px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; resize: vertical; outline: none; box-sizing: border-box;">${pendingContent}</textarea>`;
+                        }
+                    });
+                }
+            }
+        });
+    }
+
+    return {
+        create() {
+            if (panelInstance) panelInstance.destroy();
+            if (dragCleanup) dragCleanup();
+            if (resizeCleanup) resizeCleanup();
+            dragCleanup = null;
+            resizeCleanup = null;
+            if (vditorInstance) {
+                try { vditorInstance.destroy(); } catch {}
+                vditorInstance = null;
+            }
+        },
+
+        open(note) {
+            if (panelInstance) {
+                VditorEditorPanel.close();
+            }
+
+            if (QuillEditorPanel && typeof QuillEditorPanel.close === 'function') {
+                QuillEditorPanel.close();
+            }
+
+            createPanel(note || null);
+        },
+
+        close() {
+            if (vditorInstance) {
+                try { vditorInstance.destroy(); } catch {}
+                vditorInstance = null;
+            }
+            if (dragCleanup) dragCleanup();
+            if (resizeCleanup) resizeCleanup();
+            dragCleanup = null;
+            resizeCleanup = null;
+            if (panelInstance) panelInstance.destroy();
+            panelInstance = null;
+            currentNoteId = null;
+            tags = [];
+            videoTimestamp = 0;
+            pendingContent = '';
+        },
+
+        applyTheme(theme) {
+            if (!panelInstance) return;
+            const el = panelInstance.element;
+            el.classList.remove('theme-light', 'theme-dark');
+            el.classList.add(`theme-${theme}`);
+        },
+
+        isOpen() {
+            return panelInstance !== null;
+        },
+
+        destroy() {
+            VditorEditorPanel.close();
         }
     };
 })();
@@ -2471,10 +4625,6 @@ const ScreenModeManager = (() => {
 })();
 
 
-/**
- * App - 主控模块
- * 负责初始化、生命周期管理、模块编排与URL变化检测
- */
 const App = (() => {
     let lastUrl = location.href;
 
@@ -2484,29 +4634,49 @@ const App = (() => {
             return;
         }
 
-        if (!VideoController.init()) {
-            setTimeout(init, 1000);
-            return;
-        }
-
         Toast.create();
         CardPanel.create();
         ControlPanel.create();
         FavoritesPanel.create();
+        NotesPanel.create();
+        QuillEditorPanel.create();
+        VditorEditorPanel.create();
         ScreenModeManager.init();
         KeyboardHandler.register();
 
         GM_registerMenuCommand('打开信息卡片', () => EventBus.emit('card:toggle'));
         GM_registerMenuCommand('打开控制面板', () => EventBus.emit('panel:toggle'));
         GM_registerMenuCommand('打开收藏面板', () => EventBus.emit('favorites:toggle'));
+        GM_registerMenuCommand('打开笔记面板', () => EventBus.emit('notes:toggle'));
 
         EventBus.on('panel:toggle', ControlPanel.toggle);
         EventBus.on('card:toggle', CardPanel.toggle);
         EventBus.on('favorites:toggle', FavoritesPanel.toggle);
+        EventBus.on('notes:toggle', NotesPanel.toggle);
+
+        EventBus.on('notes:edit', (note) => {
+            if (note.editorType === 'vditor') {
+                VditorEditorPanel.open(note);
+            } else {
+                QuillEditorPanel.open(note);
+            }
+        });
+
+        EventBus.on('notes:new', () => {
+            const editorType = Config.data.defaultEditor || 'quill';
+            if (editorType === 'vditor') {
+                VditorEditorPanel.open(null);
+            } else {
+                QuillEditorPanel.open(null);
+            }
+        });
 
         EventBus.on('theme:changed', (theme) => {
             CardPanel.applyTheme(theme);
             ControlPanel.applyTheme(theme);
+            NotesPanel.applyTheme(theme);
+            QuillEditorPanel.applyTheme(theme);
+            VditorEditorPanel.applyTheme(theme);
         });
 
         Logger.info('脚本初始化完成');
@@ -2517,6 +4687,9 @@ const App = (() => {
         CardPanel.destroy();
         ControlPanel.destroy();
         FavoritesPanel.destroy();
+        NotesPanel.destroy();
+        QuillEditorPanel.destroy();
+        VditorEditorPanel.destroy();
         ScreenModeManager.destroy();
         KeyboardHandler.unregister();
         EventBus.clear();

@@ -17,7 +17,11 @@ const Config = (() => {
         keyDown: 'x',
         theme: 'light',
         favoritesPanelVisible: false,
-        favoritesPanelPosition: null
+        favoritesPanelPosition: null,
+        notesPanelVisible: false,
+        notesPanelPosition: null,
+        editorPanelPosition: null,
+        defaultEditor: 'quill'
     };
 
     const proxy = new Proxy({}, {

@@ -10,7 +10,10 @@
 // @grant        GM_registerMenuCommand
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @grant        GM_addStyle
+// @grant        unsafeWindow
 // @run-at       document-end
+// @require      https://cdn.jsdelivr.net/npm/quill@2.0.0/dist/quill.min.js
 // ==/UserScript==
 
 (function () {

@@ -11,7 +11,9 @@ const CardPanel = (() => {
     let collectionEl = null;
     let dragCleanup = null;
     let favoriteBtn = null;
+    let noteBtn = null;
     const cleanupFns = new Set();
+    let createTimer = null;
 
     function updateCard() {
         const video = VideoController.getVideo();
@@ -41,6 +43,7 @@ const CardPanel = (() => {
         }
 
         updateFavoriteBtn();
+        updateNoteBtn();
     }
 
     function updatePlayBtn(video) {
@@ -54,6 +57,17 @@ const CardPanel = (() => {
         favoriteBtn.textContent = isFavorited ? '★' : '☆';
         favoriteBtn.classList.toggle('favorited', isFavorited);
         favoriteBtn.title = isFavorited ? '取消收藏' : '添加收藏';
+    }
+
+    function updateNoteBtn() {
+        if (!noteBtn) return;
+        const url = location.href;
+        const match = url.match(/BV[\w]+/);
+        if (match) {
+            const count = Notes.countByBvid(match[0]);
+            noteBtn.textContent = count > 0 ? '📝' : '🗒️';
+            noteBtn.title = count > 0 ? `当前视频有 ${count} 条笔记` : '打开笔记';
+        }
     }
 
     function createCard() {
@@ -106,6 +120,16 @@ const CardPanel = (() => {
                 actionsEl.style.pointerEvents = 'auto';
                 actionsEl.style.visibility = 'visible';
 
+                noteBtn = document.createElement('button');
+                noteBtn.className = 'bili-speed-note-btn';
+                noteBtn.title = '打开笔记';
+                noteBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; position: relative; z-index: 1000; pointer-events: auto; transition: all 0.2s;';
+                noteBtn.textContent = '🗒️';
+                noteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    EventBus.emit('notes:new');
+                });
+
                 favoriteBtn = document.createElement('button');
                 favoriteBtn.className = 'bili-speed-favorite-btn';
                 favoriteBtn.title = '添加收藏';
@@ -140,11 +164,12 @@ const CardPanel = (() => {
                     }
                 });
 
+                actionsEl.appendChild(noteBtn);
                 actionsEl.appendChild(favoriteBtn);
                 actionsEl.appendChild(settingsBtn);
                 actionsEl.appendChild(closeBtn);
 
-                dragCleanup = Draggable.make(headerEl.parentElement, 'cardPosition', `.bili-speed-card-header`);
+                dragCleanup = Draggable.make(headerEl.parentElement, 'cardPosition', `[class*="-header"]`);
 
                 updateFavoriteBtn();
             },
@@ -295,10 +320,16 @@ const CardPanel = (() => {
         }
 
         EventBus.on('favorites:updated', updateFavoriteBtn);
+        EventBus.on('notes:updated', updateNoteBtn);
     }
 
     return {
         create() {
+            if (createTimer) {
+                clearTimeout(createTimer);
+                createTimer = null;
+            }
+
             if (cardInstance) cardInstance.destroy();
             cleanupFns.forEach(fn => fn());
             cleanupFns.clear();
@@ -336,6 +367,10 @@ const CardPanel = (() => {
         },
 
         destroy() {
+            if (createTimer) {
+                clearTimeout(createTimer);
+                createTimer = null;
+            }
             cleanupFns.forEach(fn => fn());
             cleanupFns.clear();
             if (dragCleanup) dragCleanup();
@@ -349,6 +384,7 @@ const CardPanel = (() => {
             collectionEl = null;
             playBtn = null;
             favoriteBtn = null;
+            noteBtn = null;
         }
     };
 })();

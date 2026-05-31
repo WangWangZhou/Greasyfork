@@ -1,0 +1,535 @@
+const VditorEditorPanel = (() => {
+    let panelInstance = null;
+    let dragCleanup = null;
+    let resizeCleanup = null;
+    let vditorInstance = null;
+    let currentNoteId = null;
+    let isResourcesLoaded = false;
+    let isLoadingResources = false;
+    let tags = [];
+    let videoTimestamp = 0;
+    let pendingContent = '';
+
+    function getCurrentVideoInfo() {
+        const url = location.href;
+        const match = url.match(/BV[\w]+/);
+        const video = VideoController.getVideo();
+        const title = document.querySelector('h1.video-title, .video-title-href, h1[class*="title"]')?.textContent?.trim() || '未知标题';
+
+        return {
+            bvid: match ? match[0] : '',
+            videoTitle: title,
+            videoUrl: url,
+            currentTime: video ? video.currentTime : 0,
+            hasVideo: !!video
+        };
+    }
+
+    // 获取 Vditor 构造函数（兼容沙箱环境）
+    function getVditor() {
+        return (typeof unsafeWindow !== 'undefined' && unsafeWindow.Vditor)
+            ? unsafeWindow.Vditor
+            : window.Vditor;
+    }
+
+    function loadVditorResources() {
+        return new Promise((resolve, reject) => {
+            if (getVditor()) {
+                isResourcesLoaded = true;
+                resolve();
+                return;
+            }
+
+            if (isLoadingResources) {
+                const checkInterval = setInterval(() => {
+                    if (getVditor()) {
+                        clearInterval(checkInterval);
+                        isResourcesLoaded = true;
+                        resolve();
+                    }
+                }, 100);
+
+                setTimeout(() => {
+                    clearInterval(checkInterval);
+                    reject(new Error('Vditor 资源加载超时'));
+                }, 15000);
+                return;
+            }
+
+            isLoadingResources = true;
+
+            const css = document.createElement('link');
+            css.rel = 'stylesheet';
+            css.href = 'https://cdn.jsdelivr.net/npm/vditor/dist/index.css';
+            css.id = 'vditor-css';
+            document.head.appendChild(css);
+
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/vditor/dist/index.min.js';
+            script.id = 'vditor-script';
+            script.onload = () => {
+                isResourcesLoaded = true;
+                isLoadingResources = false;
+                EventBus.emit('editor:vditor:loaded');
+                resolve();
+            };
+            script.onerror = () => {
+                isLoadingResources = false;
+                reject(new Error('Vditor 资源加载失败'));
+            };
+            document.head.appendChild(script);
+        });
+    }
+
+    function initVditorEditor(containerEl, content, theme, height) {
+        const Vditor = getVditor();
+        if (!Vditor) return;
+
+        const editorContainer = containerEl.querySelector('#vditor-editor-container');
+        if (!editorContainer) return;
+
+        vditorInstance = new Vditor('vditor-editor-container', {
+            height: '100%',
+            mode: 'ir',
+            theme: theme === 'dark' ? 'dark' : 'classic',
+            toolbar: ['headings', 'bold', 'italic', 'strike', 'link', 'code', 'table'],
+            placeholder: '开始记录笔记（Markdown格式）...',
+            cache: { enable: false },
+            after: () => {
+                if (content) {
+                    vditorInstance.setValue(content);
+                }
+                setTimeout(() => adjustVditorEditorHeight(), 100);
+            }
+        });
+    }
+
+    function adjustVditorEditorHeight() {
+        if (!vditorInstance) return;
+        const container = document.getElementById('vditor-editor-container');
+        if (!container) return;
+
+        const containerHeight = container.clientHeight;
+        if (containerHeight <= 0) return;
+
+        const vditorRoot = container.querySelector('.vditor');
+        if (vditorRoot) {
+            vditorRoot.style.height = containerHeight + 'px';
+        }
+
+        const toolbar = container.querySelector('.vditor-toolbar');
+        const toolbarHeight = toolbar ? toolbar.offsetHeight : 40;
+        const contentHeight = Math.max(50, containerHeight - toolbarHeight);
+
+        const vditorContent = container.querySelector('.vditor-content');
+        if (vditorContent) vditorContent.style.height = contentHeight + 'px';
+
+        const ir = container.querySelector('.vditor-ir');
+        if (ir) ir.style.height = contentHeight + 'px';
+        const sv = container.querySelector('.vditor-sv');
+        if (sv) sv.style.height = contentHeight + 'px';
+        const preview = container.querySelector('.vditor-preview');
+        if (preview) preview.style.height = contentHeight + 'px';
+
+        const reset = container.querySelector('.vditor-reset');
+        if (reset) reset.style.height = contentHeight + 'px';
+    }
+
+    function renderTags(containerEl) {
+        const tagsContainer = containerEl.querySelector('.bili-speed-editor-tags');
+        if (!tagsContainer) return;
+
+        tagsContainer.innerHTML = '';
+        tags.forEach((tag, index) => {
+            const tagEl = document.createElement('span');
+            tagEl.className = 'bili-speed-editor-tag';
+            tagEl.innerHTML = `${tag} <span class="bili-speed-editor-tag-remove" data-index="${index}">×</span>`;
+            tagsContainer.appendChild(tagEl);
+        });
+
+        tagsContainer.querySelectorAll('.bili-speed-editor-tag-remove').forEach(removeBtn => {
+            removeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const idx = parseInt(removeBtn.dataset.index);
+                tags.splice(idx, 1);
+                renderTags(containerEl);
+            });
+        });
+    }
+
+    function addTag(containerEl, tagInput) {
+        const tag = tagInput.value.trim();
+        if (!tag) return;
+        if (tags.length >= 10) {
+            Toast.show('标签数量已达上限');
+            return;
+        }
+        if (tags.includes(tag)) {
+            Toast.show('标签已存在');
+            return;
+        }
+        tags.push(tag);
+        tagInput.value = '';
+        renderTags(containerEl);
+    }
+
+    function updateFooterStatus() {
+        const footerEl = panelInstance?.getFooter();
+        if (!footerEl) return;
+
+        let charCount = 0;
+        let selectedCount = 0;
+
+        if (vditorInstance) {
+            const content = vditorInstance.getValue();
+            charCount = content.length;
+            const textarea = vditorInstance.element?.querySelector('textarea');
+            if (textarea) {
+                selectedCount = textarea.selectionEnd - textarea.selectionStart;
+            }
+        }
+
+        footerEl.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #666;">
+                <span class="bili-speed-vditor-footer-status"></span>
+                <span>字数: ${charCount} | 已选中: ${selectedCount}</span>
+            </div>
+        `;
+    }
+
+    function showSaveStatus(message, isError = false) {
+        const footerEl = panelInstance?.getFooter();
+        if (!footerEl) return;
+
+        const statusEl = footerEl.querySelector('.bili-speed-vditor-footer-status');
+        if (statusEl) {
+            statusEl.textContent = message;
+            statusEl.style.color = isError ? '#ff4d4f' : '#52c41a';
+            statusEl.style.fontWeight = 'bold';
+        }
+
+        setTimeout(() => {
+            if (statusEl) {
+                statusEl.textContent = '';
+                updateFooterStatus();
+            }
+        }, 3000);
+    }
+
+    function saveNote() {
+        const panelEl = panelInstance?.element;
+        if (!panelEl) return;
+
+        const titleInput = panelEl.querySelector('.bili-speed-editor-title-input');
+        const title = titleInput ? titleInput.value.trim() : '';
+        if (!title) {
+            Toast.show('请输入笔记标题');
+            return;
+        }
+
+        let content = '';
+        if (vditorInstance) {
+            content = vditorInstance.getValue();
+        } else {
+            const fallback = panelEl.querySelector('.bili-speed-editor-fallback');
+            if (fallback) content = fallback.value;
+        }
+
+        const videoInfo = getCurrentVideoInfo();
+        const noteType = videoInfo.hasVideo ? 'videoNote' : 'normalNote';
+
+        if (currentNoteId) {
+            Notes.update(currentNoteId, {
+                title: title,
+                content: content,
+                contentDelta: '',
+                tags: [...tags],
+                videoTimestamp: videoTimestamp,
+                videoTitle: videoInfo.videoTitle,
+                videoUrl: videoInfo.videoUrl
+            });
+            showSaveStatus('✓ 笔记已更新');
+        } else {
+            const note = {
+                id: 'note_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8),
+                noteType: noteType,
+                bvid: videoInfo.bvid,
+                videoTitle: videoInfo.videoTitle,
+                videoUrl: videoInfo.videoUrl,
+                editorType: 'vditor',
+                title: title,
+                content: content,
+                contentDelta: '',
+                tags: [...tags],
+                videoTimestamp: videoTimestamp,
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+            };
+            Notes.add(note);
+            currentNoteId = note.id;
+            showSaveStatus('✓ 笔记已保存');
+        }
+    }
+
+    function createPanel(note) {
+        let savedPosition = Config.data.editorPanelPosition;
+        const currentTheme = Config.data.theme || 'light';
+
+        currentNoteId = note ? note.id : null;
+        tags = note ? [...(note.tags || [])] : [];
+        videoTimestamp = note ? (note.videoTimestamp || 0) : 0;
+        pendingContent = note ? (note.content || '') : '';
+
+        const noteTitle = note ? note.title : '';
+        const isEdit = !!note;
+        const videoInfo = getCurrentVideoInfo();
+        const headerTitle = videoInfo.hasVideo
+            ? `✏️ ${isEdit ? '编辑笔记' : '新建笔记'} - Vditor`
+            : `✏️ ${isEdit ? '编辑笔记' : '新建普通笔记'} - Vditor`;
+
+        panelInstance = Card.create({
+            className: `bili-speed-vditor-panel theme-${currentTheme}`,
+            header: {
+                visible: true,
+                draggable: true,
+                title: headerTitle
+            },
+            footer: { visible: true },
+            styles: {
+                width: '560px',
+                height: '550px',
+                display: 'flex',
+                flexDirection: 'column',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                zIndex: 10000,
+                ...(savedPosition ? {
+                    left: savedPosition.left,
+                    top: savedPosition.top,
+                    transform: 'none'
+                } : {})
+            },
+            onHeaderReady: (headerEl) => {
+                const actionsEl = headerEl.querySelector('.bili-speed-vditor-panel-actions');
+                if (actionsEl) {
+                    actionsEl.style.pointerEvents = 'auto';
+                    actionsEl.style.position = 'relative';
+                    actionsEl.style.zIndex = '1001';
+                }
+
+                const listBtn = document.createElement('button');
+                listBtn.className = 'bili-speed-editor-list';
+                listBtn.title = '打开笔记列表';
+                listBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; position: relative; z-index: 1001; pointer-events: auto; transition: transform 0.15s ease;';
+                listBtn.textContent = '📋';
+                listBtn.addEventListener('mouseenter', () => { listBtn.style.transform = 'scale(1.2)'; });
+                listBtn.addEventListener('mouseleave', () => { listBtn.style.transform = 'scale(1)'; });
+                listBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    NotesPanel.show();
+                });
+
+                const saveBtn = document.createElement('button');
+                saveBtn.className = 'bili-speed-editor-save';
+                saveBtn.title = '保存笔记';
+                saveBtn.style.cssText = 'background: #F0F1F2; color: #333; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; position: relative; z-index: 1001; pointer-events: auto; transition: transform 0.15s ease;';
+                saveBtn.textContent = '💾 保存';
+                saveBtn.addEventListener('mouseenter', () => { saveBtn.style.transform = 'scale(1.1)'; });
+                saveBtn.addEventListener('mouseleave', () => { saveBtn.style.transform = 'scale(1)'; });
+                saveBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    saveNote();
+                });
+
+                const closeBtn = document.createElement('button');
+                closeBtn.className = 'bili-speed-editor-close';
+                closeBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; position: relative; z-index: 1001; pointer-events: auto; transition: transform 0.15s ease;';
+                closeBtn.textContent = '×';
+                closeBtn.addEventListener('mouseenter', () => { closeBtn.style.transform = 'scale(1.2)'; });
+                closeBtn.addEventListener('mouseleave', () => { closeBtn.style.transform = 'scale(1)'; });
+                closeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    VditorEditorPanel.close();
+                });
+
+                actionsEl.appendChild(listBtn);
+                actionsEl.appendChild(saveBtn);
+                actionsEl.appendChild(closeBtn);
+
+                dragCleanup = Draggable.make(headerEl.parentElement, 'editorPanelPosition', `[class*="-header"]`);
+            },
+            onBodyReady: (bodyEl) => {
+                bodyEl.className = 'bili-speed-vditor-panel-body';
+                bodyEl.style.cssText = 'padding: 12px; flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden;';
+
+                bodyEl.innerHTML = `
+                    <div style="margin-bottom: 10px;">
+                        <input type="text" class="bili-speed-editor-title-input" placeholder="输入笔记标题..." value="${noteTitle}" style="width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box; outline: none;">
+                    </div>
+                    <div style="margin-bottom: 10px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        <div class="bili-speed-editor-tags" style="display: flex; gap: 4px; flex-wrap: wrap;"></div>
+                        <input type="text" class="bili-speed-editor-tag-input" placeholder="添加标签..." style="padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; width: 100px; outline: none;">
+                        <button class="bili-speed-editor-tag-add" style="padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 12px;">+</button>
+                    </div>
+                    ${videoInfo.hasVideo ? `
+                    <div style="margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 12px; color: #999;">时间点:</span>
+                        <span class="bili-speed-editor-timestamp" style="font-size: 12px; color: #00AEEC;">${videoTimestamp > 0 ? Utils.formatTime(videoTimestamp) : '未标记'}</span>
+                        <button class="bili-speed-editor-mark-time" style="padding: 2px 8px; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 11px;">📍标记当前时间</button>
+                    </div>
+                    ` : ''}
+                    <div id="vditor-editor-container"></div>
+                    <div class="bili-speed-editor-loading" style="text-align: center; padding: 40px 0; color: #999; display: none;">
+                        <div>正在加载编辑器资源...</div>
+                    </div>
+                `;
+
+                const editorContainer = document.getElementById('vditor-editor-container');
+                if (editorContainer) {
+                    editorContainer.style.flex = '1';
+                    editorContainer.style.minHeight = '0';
+                    editorContainer.style.height = '100%';
+                }
+
+                const style = document.createElement('style');
+                style.textContent = `
+                    #vditor-editor-container {
+                        display: flex;
+                        flex-direction: column;
+                    }
+                    #vditor-editor-container .vditor {
+                        height: 100% !important;
+                        overflow: hidden;
+                        display: flex;
+                        flex-direction: column;
+                    }
+                    #vditor-editor-container .vditor-content {
+                        flex: 1;
+                        min-height: 0;
+                    }
+                `;
+                document.head.appendChild(style);
+
+                renderTags(bodyEl);
+
+                const tagInput = bodyEl.querySelector('.bili-speed-editor-tag-input');
+                const tagAddBtn = bodyEl.querySelector('.bili-speed-editor-tag-add');
+                tagAddBtn.addEventListener('click', () => addTag(bodyEl, tagInput));
+                tagInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addTag(bodyEl, tagInput);
+                    }
+                });
+
+                const markTimeBtn = bodyEl.querySelector('.bili-speed-editor-mark-time');
+                if (markTimeBtn) {
+                    markTimeBtn.addEventListener('click', () => {
+                        const video = VideoController.getVideo();
+                        if (video) {
+                            videoTimestamp = video.currentTime;
+                            const tsEl = bodyEl.querySelector('.bili-speed-editor-timestamp');
+                            if (tsEl) tsEl.textContent = Utils.formatTime(videoTimestamp);
+                            Toast.show(`已标记时间点: ${Utils.formatTime(videoTimestamp)}`);
+                        } else {
+                            Toast.show('未找到视频元素');
+                        }
+                    });
+                }
+
+                const loadingEl = bodyEl.querySelector('.bili-speed-editor-loading');
+                const panelEl = bodyEl.parentElement;
+
+                resizeCleanup = Resizable.make(panelEl, {
+                    minWidth: 400,
+                    minHeight: 400,
+                    onResize: (newWidth, newHeight) => {
+                        if (vditorInstance) {
+                            adjustVditorEditorHeight();
+                        }
+                    },
+                    saveKey: 'editorPanelSize'
+                });
+
+                if (isResourcesLoaded && getVditor()) {
+                    initVditorEditor(bodyEl, pendingContent, currentTheme, panelEl.getBoundingClientRect().height);
+                    setTimeout(() => updateFooterStatus(), 500);
+                } else {
+                    loadingEl.style.display = 'block';
+
+                    loadVditorResources().then(() => {
+                        loadingEl.style.display = 'none';
+                        initVditorEditor(bodyEl, pendingContent, currentTheme, panelEl.getBoundingClientRect().height);
+                        setTimeout(() => updateFooterStatus(), 500);
+                    }).catch(() => {
+                        loadingEl.innerHTML = '<div style="color: #ff6b6b;">编辑器加载失败，使用简易编辑模式</div>';
+                        setTimeout(() => { loadingEl.style.display = 'none'; }, 2000);
+                        const editorContainer = bodyEl.querySelector('#vditor-editor-container');
+                        if (editorContainer) {
+                            editorContainer.innerHTML = `<textarea class="bili-speed-editor-fallback" style="width: 100%; min-height: 200px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; resize: vertical; outline: none; box-sizing: border-box;">${pendingContent}</textarea>`;
+                        }
+                    });
+                }
+            }
+        });
+    }
+
+    return {
+        create() {
+            if (panelInstance) panelInstance.destroy();
+            if (dragCleanup) dragCleanup();
+            if (resizeCleanup) resizeCleanup();
+            dragCleanup = null;
+            resizeCleanup = null;
+            if (vditorInstance) {
+                try { vditorInstance.destroy(); } catch {}
+                vditorInstance = null;
+            }
+        },
+
+        open(note) {
+            if (panelInstance) {
+                VditorEditorPanel.close();
+            }
+
+            if (QuillEditorPanel && typeof QuillEditorPanel.close === 'function') {
+                QuillEditorPanel.close();
+            }
+
+            createPanel(note || null);
+        },
+
+        close() {
+            if (vditorInstance) {
+                try { vditorInstance.destroy(); } catch {}
+                vditorInstance = null;
+            }
+            if (dragCleanup) dragCleanup();
+            if (resizeCleanup) resizeCleanup();
+            dragCleanup = null;
+            resizeCleanup = null;
+            if (panelInstance) panelInstance.destroy();
+            panelInstance = null;
+            currentNoteId = null;
+            tags = [];
+            videoTimestamp = 0;
+            pendingContent = '';
+        },
+
+        applyTheme(theme) {
+            if (!panelInstance) return;
+            const el = panelInstance.element;
+            el.classList.remove('theme-light', 'theme-dark');
+            el.classList.add(`theme-${theme}`);
+        },
+
+        isOpen() {
+            return panelInstance !== null;
+        },
+
+        destroy() {
+            VditorEditorPanel.close();
+        }
+    };
+})();

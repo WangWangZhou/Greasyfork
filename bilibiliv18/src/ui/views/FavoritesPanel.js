@@ -215,7 +215,7 @@ const FavoritesPanel = (() => {
                 actionsEl.appendChild(exportBtn);
                 actionsEl.appendChild(closeBtn);
 
-                dragCleanup = Draggable.make(headerEl.parentElement, 'favoritesPanelPosition', `.bili-speed-favorites-panel-header`);
+                dragCleanup = Draggable.make(headerEl.parentElement, 'favoritesPanelPosition', `[class*="-header"]`);
             },
             onBodyReady: (bodyEl) => {
                 bodyEl.className = 'bili-speed-favorites-panel-body';

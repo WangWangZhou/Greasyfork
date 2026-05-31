@@ -326,6 +326,103 @@ const ControlPanel = (() => {
         }
     }
 
+    function renderNotesMenu(contentEl) {
+        const currentEditor = Config.data.defaultEditor || 'quill';
+        const noteCount = Notes.count();
+        const url = location.href;
+        const match = url.match(/BV[\w]+/);
+        const currentNoteCount = match ? Notes.countByBvid(match[0]) : 0;
+
+        contentEl.innerHTML = `
+            <div style="padding: 16px;">
+                <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="font-size: 14px; font-weight: bold;">📝 笔记管理</div>
+                    <div style="font-size: 12px; color: #999;">共 ${noteCount} 条笔记</div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <span style="font-size: 13px;">默认编辑器:</span>
+                        <select id="default-editor-select" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; background: #fff; color: #000; cursor: pointer;">
+                            <option value="quill" ${currentEditor === 'quill' ? 'selected' : ''}>Quill 富文本</option>
+                            <option value="vditor" ${currentEditor === 'vditor' ? 'selected' : ''}>Vditor Markdown</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <div style="font-size: 12px; color: #999; margin-bottom: 8px;">当前视频笔记: ${currentNoteCount} 条</div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <button id="open-notes-panel-btn" style="width: 100%; padding: 10px; border-radius: 4px; border: none; background: #00AEEC; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <span>📝</span>
+                        <span>打开笔记面板</span>
+                    </button>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <button id="export-notes-btn" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <span>📤</span>
+                        <span>导出笔记数据</span>
+                    </button>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <button id="import-notes-btn" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <span>📥</span>
+                        <span>导入笔记数据</span>
+                    </button>
+                    <input type="file" id="import-notes-file" accept=".json" style="display: none;">
+                </div>
+                ${noteCount > 0 ? `
+                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee;">
+                    <button id="clear-notes-btn" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ff6b6b; background: #fff; color: #ff6b6b; cursor: pointer;">
+                        🗑️ 清空所有笔记
+                    </button>
+                </div>
+                ` : ''}
+            </div>
+        `;
+
+        contentEl.querySelector('#default-editor-select').addEventListener('change', (e) => {
+            Config.data.defaultEditor = e.target.value;
+            Toast.show(`默认编辑器已切换为 ${e.target.value === 'quill' ? 'Quill 富文本' : 'Vditor Markdown'}`);
+        });
+
+        contentEl.querySelector('#open-notes-panel-btn').addEventListener('click', () => {
+            EventBus.emit('notes:toggle');
+        });
+
+        contentEl.querySelector('#export-notes-btn').addEventListener('click', () => {
+            Notes.downloadExport();
+        });
+
+        const importBtn = contentEl.querySelector('#import-notes-btn');
+        const importFile = contentEl.querySelector('#import-notes-file');
+
+        importBtn.addEventListener('click', () => {
+            importFile.click();
+        });
+
+        importFile.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                Notes.importData(event.target.result);
+                renderNotesMenu(contentEl);
+            };
+            reader.readAsText(file);
+        });
+
+        const clearBtn = contentEl.querySelector('#clear-notes-btn');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                if (confirm('确定要清空所有笔记吗？此操作不可恢复。')) {
+                    Notes.clear();
+                    renderNotesMenu(contentEl);
+                }
+            });
+        }
+    }
+
     function switchMenu(menuName) {
         if (!panelInstance) return;
         
@@ -348,6 +445,9 @@ const ControlPanel = (() => {
                 break;
             case 'favorites':
                 renderFavoritesMenu(contentEl);
+                break;
+            case 'notes':
+                renderNotesMenu(contentEl);
                 break;
         }
     }
@@ -395,7 +495,7 @@ const ControlPanel = (() => {
                 const actionsEl = headerEl.querySelector('.bili-speed-panel-actions');
                 actionsEl.appendChild(closeBtn);
 
-                dragCleanup = Draggable.make(headerEl.parentElement, 'panelPosition', `.bili-speed-panel-header`);
+                dragCleanup = Draggable.make(headerEl.parentElement, 'panelPosition', `[class*="-header"]`);
 
                 let advancedVisible = false;
                 multiClickCleanup = Utils.multiClick(titleEl, 5, () => {
@@ -423,6 +523,9 @@ const ControlPanel = (() => {
                         </div>
                         <div class="bili-speed-panel-menu-item ${currentMenu === 'favorites' ? 'active' : ''}" data-menu="favorites" style="padding: 10px 12px; cursor: pointer; font-size: 13px; border-left: 3px solid transparent; transition: all 0.2s;">
                             ⭐ 收藏夹
+                        </div>
+                        <div class="bili-speed-panel-menu-item ${currentMenu === 'notes' ? 'active' : ''}" data-menu="notes" style="padding: 10px 12px; cursor: pointer; font-size: 13px; border-left: 3px solid transparent; transition: all 0.2s;">
+                            📝 笔记
                         </div>
                     </div>
                     <div class="bili-speed-panel-content" style="flex: 1; min-height: 300px;"></div>

@@ -13,13 +13,16 @@ const Draggable = (() => {
             if (!header) return () => {};
 
             const onMouseDown = (e) => {
-                if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || e.target.classList.contains('bili-speed-drag-text')) return;
+                if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+                if (e.target.classList.contains('bili-speed-drag-text')) return;
+                if (e.target.closest('[class*="-actions"]')) return;
                 isDragging = true;
                 startX = e.clientX;
                 startY = e.clientY;
                 const rect = el.getBoundingClientRect();
                 startLeft = rect.left;
                 startTop = rect.top;
+                el.style.transform = 'none';
                 el.style.cursor = 'grabbing';
                 e.preventDefault();
             };
