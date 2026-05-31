@@ -5,13 +5,15 @@
 
 /* 通用UI组件样式 - 信息卡片和控制面板的共同样式 */
 .bili-speed-card,
-.bili-speed-panel {
+.bili-speed-panel,
+.bili-speed-favorites-panel {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
 /* 按钮基础样式 */
 .bili-speed-card button,
-.bili-speed-panel button {
+.bili-speed-panel button,
+.bili-speed-favorites-panel button {
     font-family: inherit;
 }
 
@@ -97,7 +99,8 @@
 }
 
 .bili-speed-panel-btn,
-.bili-speed-close-btn {
+.bili-speed-close-btn,
+.bili-speed-favorite-btn {
     background: transparent;
     color: #000;
     border: none;
@@ -105,10 +108,19 @@
     border-radius: 4px;
     cursor: pointer;
     font-size: 14px;
+    transition: all 0.2s;
 }
 
 .bili-speed-close-btn {
     font-weight: bold;
+}
+
+.bili-speed-favorite-btn:hover {
+    background: rgba(255, 107, 129, 0.1);
+}
+
+.bili-speed-favorite-btn.favorited {
+    color: #FF6B81;
 }
 
 /* 控制面板样式 */
@@ -207,4 +219,122 @@
     background: #fff;
     color: #000;
     text-transform: uppercase;
+}
+
+/* 收藏面板样式 */
+.bili-speed-favorites-panel {
+    position: fixed;
+    background: #F0F1F2;
+    color: #000;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.bili-speed-favorites-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 12px 8px 12px;
+    cursor: move;
+}
+
+.bili-speed-favorites-panel-body {
+    padding: 8px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.bili-speed-favorite-item {
+    display: flex;
+    gap: 12px;
+    padding: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+    position: relative;
+}
+
+.bili-speed-favorite-item:hover {
+    background: #f5f5f5;
+}
+
+.bili-speed-favorite-delete {
+    position: absolute;
+    right: 4px;
+    top: 4px;
+    background: rgba(255, 0, 0, 0.8);
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    font-size: 12px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.bili-speed-favorite-item:hover .bili-speed-favorite-delete {
+    opacity: 1;
+}
+
+/* 深色主题样式 */
+.bili-speed-card.theme-dark,
+.bili-speed-panel.theme-dark,
+.bili-speed-favorites-panel.theme-dark {
+    background: #1f1f1f;
+    color: #fff;
+}
+
+.bili-speed-card.theme-dark .bili-speed-panel-btn,
+.bili-speed-card.theme-dark .bili-speed-close-btn,
+.bili-speed-card.theme-dark .bili-speed-favorite-btn,
+.bili-speed-panel.theme-dark .bili-speed-close,
+.bili-speed-favorites-panel.theme-dark .bili-speed-favorites-close,
+.bili-speed-favorites-panel.theme-dark .bili-speed-favorites-export {
+    color: #fff;
+}
+
+.bili-speed-card.theme-dark .bili-speed-progress-wrapper {
+    background: #333;
+}
+
+.bili-speed-favorites-panel.theme-dark .bili-speed-favorite-item:hover {
+    background: #333;
+}
+
+.bili-speed-favorites-panel.theme-dark .bili-speed-favorite-title {
+    color: #fff;
+}
+
+/* 菜单项样式 */
+.bili-speed-panel-menu-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    border-left: 3px solid transparent;
+    transition: all 0.2s;
+}
+
+.bili-speed-panel-menu-item:hover {
+    background: #f0f0f0;
+}
+
+.bili-speed-panel-menu-item.active {
+    background: #e6f7ff;
+    border-left-color: #00AEEC;
+    color: #00AEEC;
+}
+
+.bili-speed-panel.theme-dark .bili-speed-panel-menu-item:hover {
+    background: #333;
+}
+
+.bili-speed-panel.theme-dark .bili-speed-panel-menu-item.active {
+    background: #333;
+    border-left-color: #00AEEC;
+    color: #00AEEC;
 }

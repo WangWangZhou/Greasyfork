@@ -98,7 +98,8 @@ const Card = (() => {
                     titleEl.innerHTML = header.title;
 
                     const actionsEl = document.createElement('div');
-                    actionsEl.className = `${className}-actions`;
+                    const baseClassName = className.split(' ')[0];
+                    actionsEl.className = `${baseClassName}-actions`;
                     actionsEl.style.cssText = 'visibility: visible; gap: 4px; display: flex;';
 
                     headerEl.appendChild(titleEl);
@@ -137,22 +138,14 @@ const Card = (() => {
             }
 
             function setupAutoHideActions() {
-                const actionsEl = cardEl.querySelector(`.${className}-actions`);
+                if (!cardEl) return;
+                
+                const baseClassName = className.split(' ')[0];
+                const actionsEl = cardEl.querySelector(`.${baseClassName}-actions`);
                 if (!actionsEl) return;
-
+                
+                // 让按钮始终可见
                 actionsEl.style.visibility = 'visible';
-                setTimeout(() => {
-                    if (actionsEl.parentElement) {
-                        actionsEl.style.visibility = 'hidden';
-                    }
-                }, 5000);
-
-                cardEl.addEventListener('mouseenter', () => {
-                    actionsEl.style.visibility = 'visible';
-                });
-                cardEl.addEventListener('mouseleave', () => {
-                    actionsEl.style.visibility = 'hidden';
-                });
             }
 
             render();
@@ -174,7 +167,8 @@ const Card = (() => {
                 },
 
                 getActions() {
-                    return cardEl.querySelector(`.${className}-actions`);
+                    const baseClassName = className.split(' ')[0];
+                    return cardEl.querySelector(`.${baseClassName}-actions`);
                 },
 
                 show() {

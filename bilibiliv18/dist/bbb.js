@@ -172,6 +172,11 @@ const Utils = (() => ({
     },
 
     multiClick(element, times, callback, timeout = 800) {
+        if (!element) {
+            console.warn('multiClick: element is null');
+            return () => {};
+        }
+        
         let clickCount = 0;
         let clickTimer = null;
 
@@ -209,13 +214,14 @@ const Config = (() => {
         defaultRate: 1.0,
         cardVisible: true,
         panelVisible: false,
-        favoritesVisible: false,
         cardPosition: null,
         panelPosition: null,
-        favoritesPosition: null,
         keyReset: 'z',
         keyUp: 'c',
-        keyDown: 'x'
+        keyDown: 'x',
+        theme: 'light',
+        favoritesPanelVisible: false,
+        favoritesPanelPosition: null
     };
 
     const proxy = new Proxy({}, {
@@ -252,221 +258,6 @@ const Config = (() => {
     };
 })();
 
-/**
- * Favorites - 收藏数据存储模块
- * 实现收藏数据的本地持久化存储，包括增删改查操作及数据格式验证
- */
-const Favorites = (() => {
-    const STORAGE_KEY = 'favorites';
-    const MAX_FAVORITES = 1000;
-
-    /**
-     * 获取所有收藏
-     * @returns {Array} 收藏列表
-     */
-    function getAll() {
-        try {
-            const data = GM_getValue(STORAGE_KEY);
-            return data ? JSON.parse(data) : [];
-        } catch (e) {
-            Logger.error('获取收藏数据失败', e);
-            return [];
-        }
-    }
-
-    /**
-     * 保存收藏数据
-     * @param {Array} favorites 收藏列表
-     */
-    function saveAll(favorites) {
-        try {
-            GM_setValue(STORAGE_KEY, JSON.stringify(favorites));
-            EventBus.emit('favorites:updated');
-        } catch (e) {
-            Logger.error('保存收藏数据失败', e);
-        }
-    }
-
-    /**
-     * 验证收藏项数据格式
-     * @param {Object} item 收藏项
-     * @returns {boolean} 是否有效
-     */
-    function validateItem(item) {
-        return item &&
-               typeof item.id === 'string' && item.id.length > 0 &&
-               typeof item.bvid === 'string' && item.bvid.length > 0 &&
-               typeof item.title === 'string' && item.title.length > 0 &&
-               typeof item.author === 'string' &&
-               typeof item.duration === 'number' && item.duration >= 0 &&
-               typeof item.url === 'string' && item.url.startsWith('https://');
-    }
-
-    /**
-     * 获取当前页面视频信息
-     * @returns {Object|null} 视频信息
-     */
-    function getCurrentVideoInfo() {
-        try {
-            const video = VideoController.getVideo();
-            if (!video) return null;
-
-            const bvid = Utils.getBVid();
-            if (!bvid) return null;
-
-            const title = document.querySelector('h1.video-title')?.textContent?.trim() ||
-                         document.querySelector('.video-info-title')?.textContent?.trim() ||
-                         document.title.replace('- 哔哩哔哩', '').trim() ||
-                         '未知标题';
-
-            const author = document.querySelector('.up-name')?.textContent?.trim() ||
-                          document.querySelector('.video-owner-name')?.textContent?.trim() ||
-                          '未知UP主';
-
-            const duration = video.duration || 0;
-
-            const cover = document.querySelector('meta[property="og:image"]')?.content ||
-                         document.querySelector('.cover img')?.src || '';
-
-            return {
-                id: bvid,
-                bvid: bvid,
-                title: title,
-                author: author,
-                duration: duration,
-                cover: cover,
-                url: window.location.href,
-                addedAt: Date.now()
-            };
-        } catch (e) {
-            Logger.error('获取当前视频信息失败', e);
-            return null;
-        }
-    }
-
-    return {
-        /**
-         * 添加收藏
-         * @param {Object} item 收藏项
-         * @returns {boolean} 是否添加成功
-         */
-        add(item) {
-            if (!validateItem(item)) {
-                Logger.warn('收藏项数据格式无效');
-                return false;
-            }
-
-            const favorites = getAll();
-            
-            if (favorites.length >= MAX_FAVORITES) {
-                Toast.show('收藏数量已达上限');
-                return false;
-            }
-
-            const existingIndex = favorites.findIndex(f => f.id === item.id);
-            if (existingIndex !== -1) {
-                favorites[existingIndex] = { ...item, addedAt: Date.now() };
-            } else {
-                favorites.push({ ...item, addedAt: Date.now() });
-            }
-
-            saveAll(favorites);
-            Toast.show('已添加收藏');
-            return true;
-        },
-
-        /**
-         * 删除收藏
-         * @param {string} id 视频ID
-         * @returns {boolean} 是否删除成功
-         */
-        remove(id) {
-            const favorites = getAll();
-            const initialLength = favorites.length;
-            const filtered = favorites.filter(f => f.id !== id);
-            
-            if (filtered.length === initialLength) {
-                return false;
-            }
-
-            saveAll(filtered);
-            return true;
-        },
-
-        /**
-         * 获取单个收藏
-         * @param {string} id 视频ID
-         * @returns {Object|null} 收藏项
-         */
-        get(id) {
-            const favorites = getAll();
-            return favorites.find(f => f.id === id) || null;
-        },
-
-        /**
-         * 获取所有收藏
-         * @returns {Array} 收藏列表
-         */
-        getAll() {
-            return getAll();
-        },
-
-        /**
-         * 判断是否已收藏
-         * @param {string} id 视频ID
-         * @returns {boolean} 是否已收藏
-         */
-        has(id) {
-            return getAll().some(f => f.id === id);
-        },
-
-        /**
-         * 清空所有收藏
-         */
-        clear() {
-            saveAll([]);
-            Toast.show('已清空所有收藏');
-        },
-
-        /**
-         * 获取收藏数量
-         * @returns {number} 收藏数量
-         */
-        count() {
-            return getAll().length;
-        },
-
-        /**
-         * 添加当前页面视频到收藏
-         * @returns {boolean} 是否添加成功
-         */
-        addCurrentVideo() {
-            const videoInfo = getCurrentVideoInfo();
-            if (!videoInfo) {
-                Toast.show('无法获取当前视频信息');
-                return false;
-            }
-            
-            const isAlreadyFavorited = this.has(videoInfo.id);
-            if (isAlreadyFavorited) {
-                this.remove(videoInfo.id);
-                Toast.show('已取消收藏');
-                return false;
-            }
-            
-            return this.add(videoInfo);
-        },
-
-        /**
-         * 获取当前页面视频的收藏状态
-         * @returns {boolean} 是否已收藏
-         */
-        isCurrentVideoFavorited() {
-            const bvid = Utils.getBVid();
-            return bvid ? this.has(bvid) : false;
-        }
-    };
-})();
 
 /**
  * PageGuard - 页面守卫模块
@@ -711,7 +502,8 @@ const Card = (() => {
                     titleEl.innerHTML = header.title;
 
                     const actionsEl = document.createElement('div');
-                    actionsEl.className = `${className}-actions`;
+                    const baseClassName = className.split(' ')[0];
+                    actionsEl.className = `${baseClassName}-actions`;
                     actionsEl.style.cssText = 'visibility: visible; gap: 4px; display: flex;';
 
                     headerEl.appendChild(titleEl);
@@ -750,22 +542,14 @@ const Card = (() => {
             }
 
             function setupAutoHideActions() {
-                const actionsEl = cardEl.querySelector(`.${className}-actions`);
+                if (!cardEl) return;
+                
+                const baseClassName = className.split(' ')[0];
+                const actionsEl = cardEl.querySelector(`.${baseClassName}-actions`);
                 if (!actionsEl) return;
-
+                
+                // 让按钮始终可见
                 actionsEl.style.visibility = 'visible';
-                setTimeout(() => {
-                    if (actionsEl.parentElement) {
-                        actionsEl.style.visibility = 'hidden';
-                    }
-                }, 5000);
-
-                cardEl.addEventListener('mouseenter', () => {
-                    actionsEl.style.visibility = 'visible';
-                });
-                cardEl.addEventListener('mouseleave', () => {
-                    actionsEl.style.visibility = 'hidden';
-                });
             }
 
             render();
@@ -787,7 +571,8 @@ const Card = (() => {
                 },
 
                 getActions() {
-                    return cardEl.querySelector(`.${className}-actions`);
+                    const baseClassName = className.split(' ')[0];
+                    return cardEl.querySelector(`.${baseClassName}-actions`);
                 },
 
                 show() {
@@ -1142,6 +927,217 @@ const VideoController = (() => {
 })();
 
 /**
+ * Favorites - 收藏夹存储模块
+ * 提供视频收藏的增删改查及数据导出功能
+ */
+const Favorites = (() => {
+    const STORAGE_KEY = 'favorites';
+    const MAX_FAVORITES = 1000;
+
+    function getFavorites() {
+        try {
+            const data = GM_getValue(STORAGE_KEY);
+            return Array.isArray(data) ? data : [];
+        } catch (err) {
+            Logger.error('读取收藏数据失败:', err);
+            return [];
+        }
+    }
+
+    function saveFavorites(favorites) {
+        try {
+            GM_setValue(STORAGE_KEY, favorites);
+            EventBus.emit('favorites:updated');
+            return true;
+        } catch (err) {
+            Logger.error('保存收藏数据失败:', err);
+            return false;
+        }
+    }
+
+    function escapeHtml(str) {
+        if (typeof str !== 'string') return '';
+        const escapeMap = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        };
+        return str.replace(/[&<>"']/g, char => escapeMap[char]);
+    }
+
+    function validateItem(item) {
+        if (!item || typeof item !== 'object') return false;
+        if (!item.id || typeof item.id !== 'string') return false;
+        if (!item.bvid || typeof item.bvid !== 'string') return false;
+        if (!item.title || typeof item.title !== 'string') return false;
+        if (!item.url || typeof item.url !== 'string') return false;
+        return true;
+    }
+
+    function sanitizeItem(item) {
+        return {
+            id: escapeHtml(String(item.id)),
+            bvid: escapeHtml(String(item.bvid)),
+            title: escapeHtml(String(item.title)),
+            author: escapeHtml(String(item.author || '未知')),
+            duration: Math.max(0, parseInt(item.duration) || 0),
+            cover: escapeHtml(String(item.cover || '')),
+            url: escapeHtml(String(item.url)),
+            addedAt: parseInt(item.addedAt) || Date.now()
+        };
+    }
+
+    return {
+        add(item) {
+            if (!validateItem(item)) {
+                Logger.warn('无效的收藏项');
+                return false;
+            }
+
+            const favorites = getFavorites();
+            
+            if (favorites.length >= MAX_FAVORITES) {
+                Toast.show(`收藏数量已达上限 (${MAX_FAVORITES})`);
+                return false;
+            }
+
+            const existingIndex = favorites.findIndex(f => f.id === item.id);
+            if (existingIndex !== -1) {
+                Logger.info('视频已在收藏夹中');
+                return false;
+            }
+
+            const sanitizedItem = sanitizeItem(item);
+            favorites.push(sanitizedItem);
+            
+            if (saveFavorites(favorites)) {
+                EventBus.emit('favorites:add', sanitizedItem);
+                Toast.show('已添加到收藏夹');
+                return true;
+            }
+            return false;
+        },
+
+        remove(id) {
+            if (!id) return false;
+
+            const favorites = getFavorites();
+            const index = favorites.findIndex(f => f.id === id);
+            
+            if (index === -1) {
+                Logger.warn('未找到要删除的收藏项');
+                return false;
+            }
+
+            const removed = favorites.splice(index, 1)[0];
+            
+            if (saveFavorites(favorites)) {
+                EventBus.emit('favorites:remove', removed);
+                Toast.show('已从收藏夹移除');
+                return true;
+            }
+            return false;
+        },
+
+        get(id) {
+            if (!id) return null;
+            const favorites = getFavorites();
+            return favorites.find(f => f.id === id) || null;
+        },
+
+        getAll() {
+            return getFavorites();
+        },
+
+        has(id) {
+            if (!id) return false;
+            const favorites = getFavorites();
+            return favorites.some(f => f.id === id);
+        },
+
+        clear() {
+            saveFavorites([]);
+            EventBus.emit('favorites:clear');
+            Toast.show('收藏夹已清空');
+        },
+
+        count() {
+            return getFavorites().length;
+        },
+
+        exportData() {
+            const data = {
+                version: "1.0",
+                exportedAt: Date.now(),
+                count: this.count(),
+                data: this.getAll()
+            };
+            return JSON.stringify(data, null, 2);
+        },
+
+        downloadExport() {
+            const json = this.exportData();
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `bili-favorites-${new Date().toISOString().slice(0, 10)}.json`;
+            const target = document.body || document.documentElement;
+            target.appendChild(a);
+            a.click();
+            target.removeChild(a);
+            URL.revokeObjectURL(url);
+            Toast.show('收藏数据已导出');
+        },
+
+        importData(jsonString) {
+            try {
+                const data = JSON.parse(jsonString);
+                
+                if (!data.data || !Array.isArray(data.data)) {
+                    throw new Error('无效的数据格式');
+                }
+
+                const validItems = data.data.filter(item => validateItem(item))
+                    .map(item => sanitizeItem(item));
+
+                if (validItems.length === 0) {
+                    Toast.show('没有有效的收藏数据');
+                    return false;
+                }
+
+                const favorites = getFavorites();
+                let addedCount = 0;
+
+                validItems.forEach(item => {
+                    if (favorites.length >= MAX_FAVORITES) return;
+                    if (!favorites.some(f => f.id === item.id)) {
+                        favorites.push(item);
+                        addedCount++;
+                    }
+                });
+
+                if (addedCount > 0) {
+                    saveFavorites(favorites);
+                    Toast.show(`成功导入 ${addedCount} 条收藏`);
+                    return true;
+                } else {
+                    Toast.show('没有新的收藏数据可导入');
+                    return false;
+                }
+            } catch (err) {
+                Logger.error('导入收藏数据失败:', err);
+                Toast.show('导入失败：数据格式错误');
+                return false;
+            }
+        }
+    };
+})();
+
+
+/**
  * CardPanel - 信息卡片视图
  * 视图层 - 使用Card和Progress组件渲染悬浮信息卡片
  */
@@ -1153,6 +1149,7 @@ const CardPanel = (() => {
     let timeEl = null;
     let collectionEl = null;
     let dragCleanup = null;
+    let favoriteBtn = null;
     const cleanupFns = new Set();
 
     function updateCard() {
@@ -1181,11 +1178,21 @@ const CardPanel = (() => {
                 collectionEl.style.display = 'none';
             }
         }
+
+        updateFavoriteBtn();
     }
 
     function updatePlayBtn(video) {
         if (!video || !playBtn) return;
         playBtn.textContent = video.paused ? '▶' : '⏸';
+    }
+
+    function updateFavoriteBtn() {
+        if (!favoriteBtn) return;
+        const isFavorited = FavoritesPanel.isCurrentVideoFavorited();
+        favoriteBtn.textContent = isFavorited ? '★' : '☆';
+        favoriteBtn.classList.toggle('favorited', isFavorited);
+        favoriteBtn.title = isFavorited ? '取消收藏' : '添加收藏';
     }
 
     function createCard() {
@@ -1204,8 +1211,10 @@ const CardPanel = (() => {
             initialPosition = savedPosition;
         }
 
+        const currentTheme = Config.data.theme || 'light';
+
         cardInstance = Card.create({
-            className: 'bili-speed-card',
+            className: `bili-speed-card theme-${currentTheme}`,
             header: {
                 visible: true,
                 draggable: true,
@@ -1226,30 +1235,57 @@ const CardPanel = (() => {
                 rateEl = headerEl.querySelector('.bili-speed-rate');
 
                 const actionsEl = headerEl.querySelector('.bili-speed-card-actions');
+                if (!actionsEl) {
+                    console.error('actionsEl is null');
+                    return;
+                }
+                
+                // 确保 actionsEl 可以点击
+                actionsEl.style.zIndex = '1000';
+                actionsEl.style.pointerEvents = 'auto';
+                actionsEl.style.visibility = 'visible';
+
+                favoriteBtn = document.createElement('button');
+                favoriteBtn.className = 'bili-speed-favorite-btn';
+                favoriteBtn.title = '添加收藏';
+                favoriteBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; position: relative; z-index: 1000; pointer-events: auto;';
+                favoriteBtn.textContent = '☆';
+                favoriteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    FavoritesPanel.toggleCurrentVideo();
+                    updateFavoriteBtn();
+                });
 
                 const settingsBtn = document.createElement('button');
                 settingsBtn.className = 'bili-speed-panel-btn';
                 settingsBtn.title = `快捷键: ${Config.data.keyReset.toUpperCase()}重置 | ${Config.data.keyUp.toUpperCase()}加速 | ${Config.data.keyDown.toUpperCase()}减速`;
-                settingsBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px;';
+                settingsBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; position: relative; z-index: 1000; pointer-events: auto;';
                 settingsBtn.textContent = '⚙️';
                 settingsBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    EventBus.emit('panel:toggle');
+                    if (EventBus) {
+                        EventBus.emit('panel:toggle');
+                    }
                 });
 
                 const closeBtn = document.createElement('button');
                 closeBtn.className = 'bili-speed-close-btn';
-                closeBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;';
+                closeBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; position: relative; z-index: 1000; pointer-events: auto;';
                 closeBtn.textContent = 'X';
                 closeBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    EventBus.emit('card:toggle');
+                    if (EventBus) {
+                        EventBus.emit('card:toggle');
+                    }
                 });
 
+                actionsEl.appendChild(favoriteBtn);
                 actionsEl.appendChild(settingsBtn);
                 actionsEl.appendChild(closeBtn);
 
                 dragCleanup = Draggable.make(headerEl.parentElement, 'cardPosition', `.bili-speed-card-header`);
+
+                updateFavoriteBtn();
             },
             onBodyReady: (bodyEl) => {
                 bodyEl.innerHTML = `
@@ -1396,6 +1432,8 @@ const CardPanel = (() => {
             updatePlayBtn(video);
             setTimeout(updateCard, 500);
         }
+
+        EventBus.on('favorites:updated', updateFavoriteBtn);
     }
 
     return {
@@ -1429,6 +1467,13 @@ const CardPanel = (() => {
             }
         },
 
+        applyTheme(theme) {
+            if (!cardInstance) return;
+            const cardEl = cardInstance.element;
+            cardEl.classList.remove('theme-light', 'theme-dark');
+            cardEl.classList.add(`theme-${theme}`);
+        },
+
         destroy() {
             cleanupFns.forEach(fn => fn());
             cleanupFns.clear();
@@ -1442,18 +1487,22 @@ const CardPanel = (() => {
             timeEl = null;
             collectionEl = null;
             playBtn = null;
+            favoriteBtn = null;
         }
     };
 })();
 
+
 /**
  * ControlPanel - 控制面板视图
  * 视图层 - 使用Card组件渲染设置面板
+ * 支持左侧菜单导航和主题切换
  */
 const ControlPanel = (() => {
     let panelInstance = null;
     let dragCleanup = null;
     let multiClickCleanup = null;
+    let currentMenu = 'speed';
 
     function updateButtonState() {
         if (!panelInstance) return;
@@ -1503,6 +1552,301 @@ const ControlPanel = (() => {
         });
     }
 
+    function applyTheme(theme) {
+        if (!panelInstance) return;
+        const panelEl = panelInstance.element;
+        
+        panelEl.classList.remove('theme-light', 'theme-dark');
+        panelEl.classList.add(`theme-${theme}`);
+        
+        const themeBtn = panelEl.querySelector('.theme-toggle-btn');
+        if (themeBtn) {
+            themeBtn.textContent = theme === 'dark' ? '🌙' : '☀️';
+            themeBtn.title = theme === 'dark' ? '切换到浅色主题' : '切换到深色主题';
+        }
+    }
+
+    function toggleTheme() {
+        const currentTheme = Config.data.theme || 'light';
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        Config.data.theme = newTheme;
+        applyTheme(newTheme);
+        EventBus.emit('theme:changed', newTheme);
+        Toast.show(`已切换到${newTheme === 'dark' ? '深色' : '浅色'}主题`);
+    }
+
+    function renderSystemMenu(contentEl) {
+        const currentTheme = Config.data.theme || 'light';
+        contentEl.innerHTML = `
+            <div style="padding: 16px;">
+                <div style="margin-bottom: 16px;">
+                    <div style="font-size: 14px; font-weight: bold; margin-bottom: 12px;">🎨 主题设置</div>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <span style="font-size: 13px;">当前主题:</span>
+                        <button class="theme-toggle-btn" style="padding: 8px 16px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer; font-size: 16px;">
+                            ${currentTheme === 'dark' ? '🌙' : '☀️'}
+                        </button>
+                        <span style="font-size: 12px; color: #999;">${currentTheme === 'dark' ? '深色模式' : '浅色模式'}</span>
+                    </div>
+                </div>
+                <div style="font-size: 12px; color: #999; padding: 8px; background: #f5f5f5; border-radius: 4px;">
+                    💡 提示: 主题设置会应用到所有面板组件
+                </div>
+            </div>
+        `;
+
+        const themeBtn = contentEl.querySelector('.theme-toggle-btn');
+        themeBtn.addEventListener('click', toggleTheme);
+    }
+
+    function renderSpeedMenu(contentEl) {
+        contentEl.innerHTML = `
+            <div style="padding: 0 16px;">
+                <div style="margin-bottom: 12px;">
+                    <div style="margin-bottom: 8px;">📏 步进值:</div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button class="step-btn" data-step="0.02">0.02</button>
+                        <button class="step-btn" data-step="0.05">0.05</button>
+                        <button class="step-btn" data-step="0.10">0.10</button>
+                    </div>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <div style="margin-bottom: 8px;">🎯 初始倍速:</div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button class="default-btn" data-rate="0.8">0.8x</button>
+                        <button class="default-btn" data-rate="0.9">0.9x</button>
+                        <button class="default-btn" data-rate="1.0">1.0x</button>
+                        <button class="default-btn" data-rate="1.1">1.1x</button>
+                        <button class="default-btn" data-rate="1.25">1.25x</button>
+                    </div>
+                </div>
+                <div style="margin-bottom: 12px; display: none;" class="advanced-option">
+                    <div style="margin-bottom: 8px;">⬇️ 最小倍速:</div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button class="min-rate-btn" data-rate="0.3">0.3x</button>
+                        <button class="min-rate-btn" data-rate="0.5">0.5x</button>
+                        <button class="min-rate-btn" data-rate="0.6">0.6x</button>
+                        <button class="min-rate-btn" data-rate="0.7">0.7x</button>
+                    </div>
+                </div>
+                <div style="margin-bottom: 12px; display: none;" class="advanced-option">
+                    <div style="margin-bottom: 8px;">⬆️ 最大倍速:</div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button class="max-rate-btn" data-rate="2">2x</button>
+                        <button class="max-rate-btn" data-rate="3">3x</button>
+                        <button class="max-rate-btn" data-rate="4">4x</button>
+                        <button class="max-rate-btn" data-rate="5">5x</button>
+                    </div>
+                </div>
+                <div style="margin-bottom: 12px; display: none;" class="advanced-option">
+                    <div style="margin-bottom: 8px;">⌨️ 快捷键设置:</div>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <span style="font-size: 12px;">🔄 重置:</span>
+                            <input type="text" id="key-reset" maxlength="1" value="${Config.data.keyReset.toUpperCase()}" style="width: 30px; padding: 4px; text-align: center; border-radius: 4px; border: 1px solid #ccc; background: #fff; color: #000; text-transform: uppercase;">
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <span style="font-size: 12px;">⏩ 加速:</span>
+                            <input type="text" id="key-up" maxlength="1" value="${Config.data.keyUp.toUpperCase()}" style="width: 30px; padding: 4px; text-align: center; border-radius: 4px; border: 1px solid #ccc; background: #fff; color: #000; text-transform: uppercase;">
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <span style="font-size: 12px;">⏪ 减速:</span>
+                            <input type="text" id="key-down" maxlength="1" value="${Config.data.keyDown.toUpperCase()}" style="width: 30px; padding: 4px; text-align: center; border-radius: 4px; border: 1px solid #ccc; background: #fff; color: #000; text-transform: uppercase;">
+                        </div>
+                    </div>
+                    <div style="font-size: 11px; color: #999; margin-top: 4px;">* 快捷键修改后需刷新网页生效，不支持F键</div>
+                </div>
+                <div style="display: flex; gap: 8px; justify-content: flex-end; padding: 12px 0;">
+                    <button id="reset-btn" style="padding: 8px 16px; border-radius: 4px; border: none; background: #999; color: #fff; cursor: pointer;">🔄 重置</button>
+                    <button id="save-btn" style="padding: 8px 16px; border-radius: 4px; border: none; background: #00AEEC; color: #fff; cursor: pointer;">💾 保存</button>
+                </div>
+            </div>
+        `;
+
+        const updateButtonStateLocal = (el) => {
+            const buttonGroups = [
+                { selector: '.step-btn', dataAttr: 'step', configKey: 'step' },
+                { selector: '.default-btn', dataAttr: 'rate', configKey: 'defaultRate' },
+                { selector: '.min-rate-btn', dataAttr: 'rate', configKey: 'minRate' },
+                { selector: '.max-rate-btn', dataAttr: 'rate', configKey: 'maxRate' }
+            ];
+
+            buttonGroups.forEach(({ selector, dataAttr, configKey }) => {
+                el.querySelectorAll(selector).forEach(btn => {
+                    const isActive = parseFloat(btn.dataset[dataAttr]) === Config.data[configKey];
+                    btn.classList.toggle('active', isActive);
+                });
+            });
+        };
+
+        updateButtonStateLocal(contentEl);
+
+        contentEl.querySelectorAll('.step-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                Config.data.step = parseFloat(btn.dataset.step);
+                updateButtonStateLocal(contentEl);
+            });
+        });
+
+        contentEl.querySelectorAll('.default-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                Config.data.defaultRate = parseFloat(btn.dataset.rate);
+                updateButtonStateLocal(contentEl);
+            });
+        });
+
+        contentEl.querySelectorAll('.min-rate-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                Config.data.minRate = parseFloat(btn.dataset.rate);
+                updateButtonStateLocal(contentEl);
+            });
+        });
+
+        contentEl.querySelectorAll('.max-rate-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                Config.data.maxRate = parseFloat(btn.dataset.rate);
+                updateButtonStateLocal(contentEl);
+            });
+        });
+
+        handleKeyInput('key-reset', 'keyReset');
+        handleKeyInput('key-up', 'keyUp');
+        handleKeyInput('key-down', 'keyDown');
+
+        contentEl.querySelector('#reset-btn').addEventListener('click', () => {
+            Config.batchUpdate({
+                step: Config.DEFAULTS.step,
+                minRate: Config.DEFAULTS.minRate,
+                maxRate: Config.DEFAULTS.maxRate,
+                defaultRate: Config.DEFAULTS.defaultRate,
+                keyReset: Config.DEFAULTS.keyReset,
+                keyUp: Config.DEFAULTS.keyUp,
+                keyDown: Config.DEFAULTS.keyDown
+            });
+            contentEl.querySelector('#key-reset').value = Config.DEFAULTS.keyReset.toUpperCase();
+            contentEl.querySelector('#key-up').value = Config.DEFAULTS.keyUp.toUpperCase();
+            contentEl.querySelector('#key-down').value = Config.DEFAULTS.keyDown.toUpperCase();
+            updateButtonStateLocal(contentEl);
+            EventBus.emit('config:reset');
+        });
+
+        contentEl.querySelector('#save-btn').addEventListener('click', () => {
+            Config.data.keyReset = contentEl.querySelector('#key-reset').value.toLowerCase() || 'z';
+            Config.data.keyUp = contentEl.querySelector('#key-up').value.toLowerCase() || 'x';
+            Config.data.keyDown = contentEl.querySelector('#key-down').value.toLowerCase() || 'c';
+            const video = VideoController.getVideo();
+            if (video && video.playbackRate === Config.data.defaultRate) {
+                VideoController.setRate(Config.data.defaultRate);
+            }
+            EventBus.emit('panel:toggle');
+            EventBus.emit('config:saved');
+            Toast.show('配置已保存，刷新后生效');
+        });
+    }
+
+    function renderFavoritesMenu(contentEl) {
+        const favorites = Favorites.getAll();
+        const count = favorites.length;
+        
+        contentEl.innerHTML = `
+            <div style="padding: 16px;">
+                <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="font-size: 14px; font-weight: bold;">📚 收藏管理</div>
+                    <div style="font-size: 12px; color: #999;">共 ${count} 条收藏</div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <button id="export-favorites-btn" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <span>📤</span>
+                        <span>导出收藏数据</span>
+                    </button>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <button id="import-favorites-btn" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <span>📥</span>
+                        <span>导入收藏数据</span>
+                    </button>
+                    <input type="file" id="import-favorites-file" accept=".json" style="display: none;">
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <button id="open-favorites-panel-btn" style="width: 100%; padding: 10px; border-radius: 4px; border: none; background: #00AEEC; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <span>⭐</span>
+                        <span>打开收藏面板</span>
+                    </button>
+                </div>
+                ${count > 0 ? `
+                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee;">
+                    <button id="clear-favorites-btn" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ff6b6b; background: #fff; color: #ff6b6b; cursor: pointer;">
+                        🗑️ 清空所有收藏
+                    </button>
+                </div>
+                ` : ''}
+            </div>
+        `;
+
+        contentEl.querySelector('#export-favorites-btn').addEventListener('click', () => {
+            Favorites.downloadExport();
+        });
+
+        const importBtn = contentEl.querySelector('#import-favorites-btn');
+        const importFile = contentEl.querySelector('#import-favorites-file');
+        
+        importBtn.addEventListener('click', () => {
+            importFile.click();
+        });
+
+        importFile.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                Favorites.importData(event.target.result);
+                renderFavoritesMenu(contentEl);
+            };
+            reader.readAsText(file);
+        });
+
+        contentEl.querySelector('#open-favorites-panel-btn').addEventListener('click', () => {
+            EventBus.emit('favorites:toggle');
+        });
+
+        const clearBtn = contentEl.querySelector('#clear-favorites-btn');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                if (confirm('确定要清空所有收藏吗？此操作不可恢复。')) {
+                    Favorites.clear();
+                    renderFavoritesMenu(contentEl);
+                }
+            });
+        }
+    }
+
+    function switchMenu(menuName) {
+        if (!panelInstance) return;
+        
+        currentMenu = menuName;
+        const panelEl = panelInstance.element;
+        
+        panelEl.querySelectorAll('.bili-speed-panel-menu-item').forEach(item => {
+            item.classList.toggle('active', item.dataset.menu === menuName);
+        });
+
+        const contentEl = panelEl.querySelector('.bili-speed-panel-content');
+        if (!contentEl) return;
+
+        switch (menuName) {
+            case 'system':
+                renderSystemMenu(contentEl);
+                break;
+            case 'speed':
+                renderSpeedMenu(contentEl);
+                break;
+            case 'favorites':
+                renderFavoritesMenu(contentEl);
+                break;
+        }
+    }
+
     function createPanel() {
         if (multiClickCleanup) {
             multiClickCleanup();
@@ -1510,9 +1854,10 @@ const ControlPanel = (() => {
         }
 
         let savedPosition = Config.data.panelPosition;
+        const currentTheme = Config.data.theme || 'light';
 
         panelInstance = Card.create({
-            className: 'bili-speed-panel',
+            className: `bili-speed-panel theme-${currentTheme}`,
             header: {
                 visible: true,
                 draggable: true,
@@ -1520,7 +1865,7 @@ const ControlPanel = (() => {
             },
             footer: { visible: false },
             styles: {
-                width: '300px',
+                width: '420px',
                 display: Config.data.panelVisible ? 'block' : 'none',
                 top: '50%',
                 left: '50%',
@@ -1550,193 +1895,134 @@ const ControlPanel = (() => {
                 let advancedVisible = false;
                 multiClickCleanup = Utils.multiClick(titleEl, 5, () => {
                     advancedVisible = !advancedVisible;
-                    const hiddenItems = headerEl.parentElement.querySelectorAll('.bili-speed-panel-body > div[style*="display: none"]');
-                    hiddenItems.forEach(item => {
-                        item.style.display = advancedVisible ? 'block' : 'none';
-                    });
+                    const contentEl = panelInstance.element.querySelector('.bili-speed-panel-content');
+                    if (contentEl) {
+                        contentEl.querySelectorAll('.advanced-option').forEach(item => {
+                            item.style.display = advancedVisible ? 'block' : 'none';
+                        });
+                    }
                     Toast.show(advancedVisible ? '已显示高级选项' : '已隐藏高级选项');
                 });
             },
             onBodyReady: (bodyEl) => {
                 bodyEl.className = 'bili-speed-panel-body';
-                bodyEl.style.cssText = 'padding: 0 16px;';
+                bodyEl.style.cssText = 'padding: 0; display: flex;';
 
                 bodyEl.innerHTML = `
-                    <div style="margin-bottom: 12px;">
-                        <div style="margin-bottom: 8px;">📏 步进值:</div>
-                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                            <button class="step-btn" data-step="0.02">0.02</button>
-                            <button class="step-btn" data-step="0.05">0.05</button>
-                            <button class="step-btn" data-step="0.10">0.10</button>
+                    <div class="bili-speed-panel-menu" style="width: 120px; border-right: 1px solid #ddd; padding: 8px 0; flex-shrink: 0;">
+                        <div class="bili-speed-panel-menu-item ${currentMenu === 'system' ? 'active' : ''}" data-menu="system" style="padding: 10px 12px; cursor: pointer; font-size: 13px; border-left: 3px solid transparent; transition: all 0.2s;">
+                            🔧 系统菜单
+                        </div>
+                        <div class="bili-speed-panel-menu-item ${currentMenu === 'speed' ? 'active' : ''}" data-menu="speed" style="padding: 10px 12px; cursor: pointer; font-size: 13px; border-left: 3px solid transparent; transition: all 0.2s;">
+                            ⚡ 倍速设置
+                        </div>
+                        <div class="bili-speed-panel-menu-item ${currentMenu === 'favorites' ? 'active' : ''}" data-menu="favorites" style="padding: 10px 12px; cursor: pointer; font-size: 13px; border-left: 3px solid transparent; transition: all 0.2s;">
+                            ⭐ 收藏夹
                         </div>
                     </div>
-                    <div style="margin-bottom: 12px;">
-                        <div style="margin-bottom: 8px;">🎯 初始倍速:</div>
-                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                            <button class="default-btn" data-rate="0.8">0.8x</button>
-                            <button class="default-btn" data-rate="0.9">0.9x</button>
-                            <button class="default-btn" data-rate="1.0">1.0x</button>
-                            <button class="default-btn" data-rate="1.1">1.1x</button>
-                            <button class="default-btn" data-rate="1.25">1.25x</button>
-                        </div>
-                    </div>
-                    <div style="margin-bottom: 12px; display: none;">
-                        <div style="margin-bottom: 8px;">⬇️ 最小倍速:</div>
-                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                            <button class="min-rate-btn" data-rate="0.3">0.3x</button>
-                            <button class="min-rate-btn" data-rate="0.5">0.5x</button>
-                            <button class="min-rate-btn" data-rate="0.6">0.6x</button>
-                            <button class="min-rate-btn" data-rate="0.7">0.7x</button>
-                        </div>
-                    </div>
-                    <div style="margin-bottom: 12px; display: none;">
-                        <div style="margin-bottom: 8px;">⬆️ 最大倍速:</div>
-                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                            <button class="max-rate-btn" data-rate="2">2x</button>
-                            <button class="max-rate-btn" data-rate="3">3x</button>
-                            <button class="max-rate-btn" data-rate="4">4x</button>
-                            <button class="max-rate-btn" data-rate="5">5x</button>
-                        </div>
-                    </div>
-                    <div style="margin-bottom: 12px; display: none;">
-                        <div style="margin-bottom: 8px;">⌨️ 快捷键设置:</div>
-                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                            <div style="display: flex; align-items: center; gap: 4px;">
-                                <span style="font-size: 12px;">🔄 重置:</span>
-                                <input type="text" id="key-reset" maxlength="1" value="${Config.data.keyReset.toUpperCase()}" style="width: 30px; padding: 4px; text-align: center; border-radius: 4px; border: 1px solid #ccc; background: #fff; color: #000; text-transform: uppercase;">
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 4px;">
-                                <span style="font-size: 12px;">⏩ 加速:</span>
-                                <input type="text" id="key-up" maxlength="1" value="${Config.data.keyUp.toUpperCase()}" style="width: 30px; padding: 4px; text-align: center; border-radius: 4px; border: 1px solid #ccc; background: #fff; color: #000; text-transform: uppercase;">
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 4px;">
-                                <span style="font-size: 12px;">⏪ 减速:</span>
-                                <input type="text" id="key-down" maxlength="1" value="${Config.data.keyDown.toUpperCase()}" style="width: 30px; padding: 4px; text-align: center; border-radius: 4px; border: 1px solid #ccc; background: #fff; color: #000; text-transform: uppercase;">
-                            </div>
-                        </div>
-                        <div style="font-size: 11px; color: #999; margin-top: 4px;">* 快捷键修改后需刷新网页生效，不支持F键</div>
-                    </div>
-                    <div style="display: flex; gap: 8px; justify-content: flex-end; padding: 12px 0;">
-                        <button id="reset-btn" style="padding: 8px 16px; border-radius: 4px; border: none; background: #999; color: #fff; cursor: pointer;">🔄 重置</button>
-                        <button id="save-btn" style="padding: 8px 16px; border-radius: 4px; border: none; background: #00AEEC; color: #fff; cursor: pointer;">💾 保存</button>
-                    </div>
+                    <div class="bili-speed-panel-content" style="flex: 1; min-height: 300px;"></div>
                 `;
 
-                const panelStyle = document.createElement('style');
-                panelStyle.textContent = `
-                    .bili-speed-panel .step-btn,
-                    .bili-speed-panel .default-btn,
-                    .bili-speed-panel .min-rate-btn,
-                    .bili-speed-panel .max-rate-btn {
-                        padding: 4px 12px;
-                        border-radius: 4px;
-                        border: 1px solid #ccc;
-                        background: #fff;
-                        color: #000;
-                        cursor: pointer;
-                        transition: all 0.2s;
-                    }
-                    .bili-speed-panel .step-btn:hover,
-                    .bili-speed-panel .default-btn:hover,
-                    .bili-speed-panel .min-rate-btn:hover,
-                    .bili-speed-panel .max-rate-btn:hover {
-                        background: #e0e0e0;
-                    }
-                    .bili-speed-panel .step-btn.active,
-                    .bili-speed-panel .default-btn.active,
-                    .bili-speed-panel .min-rate-btn.active,
-                    .bili-speed-panel .max-rate-btn.active {
-                        background: #00AEEC;
-                        color: #fff;
-                        border-color: #00AEEC;
-                    }
-                `;
-                if (!document.querySelector('#bili-speed-panel-style')) {
-                    panelStyle.id = 'bili-speed-panel-style';
-                    document.head.appendChild(panelStyle);
-                }
-
-                const updateButtonState = (el) => {
-                    const buttonGroups = [
-                        { selector: '.step-btn', dataAttr: 'step', configKey: 'step' },
-                        { selector: '.default-btn', dataAttr: 'rate', configKey: 'defaultRate' },
-                        { selector: '.min-rate-btn', dataAttr: 'rate', configKey: 'minRate' },
-                        { selector: '.max-rate-btn', dataAttr: 'rate', configKey: 'maxRate' }
-                    ];
-
-                    buttonGroups.forEach(({ selector, dataAttr, configKey }) => {
-                        el.querySelectorAll(selector).forEach(btn => {
-                            const isActive = parseFloat(btn.dataset[dataAttr]) === Config.data[configKey];
-                            btn.classList.toggle('active', isActive);
-                        });
+                const menuItems = bodyEl.querySelectorAll('.bili-speed-panel-menu-item');
+                menuItems.forEach(item => {
+                    item.addEventListener('click', () => {
+                        switchMenu(item.dataset.menu);
                     });
-                };
 
-                updateButtonState(bodyEl);
+                    item.addEventListener('mouseenter', () => {
+                        if (!item.classList.contains('active')) {
+                            item.style.background = '#f0f0f0';
+                        }
+                    });
 
-                bodyEl.querySelectorAll('.step-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        Config.data.step = parseFloat(btn.dataset.step);
-                        updateButtonState(bodyEl);
+                    item.addEventListener('mouseleave', () => {
+                        if (!item.classList.contains('active')) {
+                            item.style.background = '';
+                        }
                     });
                 });
 
-                bodyEl.querySelectorAll('.default-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        Config.data.defaultRate = parseFloat(btn.dataset.rate);
-                        updateButtonState(bodyEl);
-                    });
-                });
-
-                bodyEl.querySelectorAll('.min-rate-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        Config.data.minRate = parseFloat(btn.dataset.rate);
-                        updateButtonState(bodyEl);
-                    });
-                });
-
-                bodyEl.querySelectorAll('.max-rate-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        Config.data.maxRate = parseFloat(btn.dataset.rate);
-                        updateButtonState(bodyEl);
-                    });
-                });
-
-                handleKeyInput('key-reset', 'keyReset');
-                handleKeyInput('key-up', 'keyUp');
-                handleKeyInput('key-down', 'keyDown');
-
-                bodyEl.querySelector('#reset-btn').addEventListener('click', () => {
-                    Config.batchUpdate({
-                        step: Config.DEFAULTS.step,
-                        minRate: Config.DEFAULTS.minRate,
-                        maxRate: Config.DEFAULTS.maxRate,
-                        defaultRate: Config.DEFAULTS.defaultRate,
-                        keyReset: Config.DEFAULTS.keyReset,
-                        keyUp: Config.DEFAULTS.keyUp,
-                        keyDown: Config.DEFAULTS.keyDown
-                    });
-                    bodyEl.querySelector('#key-reset').value = Config.DEFAULTS.keyReset.toUpperCase();
-                    bodyEl.querySelector('#key-up').value = Config.DEFAULTS.keyUp.toUpperCase();
-                    bodyEl.querySelector('#key-down').value = Config.DEFAULTS.keyDown.toUpperCase();
-                    updateButtonState(bodyEl);
-                    EventBus.emit('config:reset');
-                });
-
-                bodyEl.querySelector('#save-btn').addEventListener('click', () => {
-                    Config.data.keyReset = bodyEl.querySelector('#key-reset').value.toLowerCase() || 'z';
-                    Config.data.keyUp = bodyEl.querySelector('#key-up').value.toLowerCase() || 'x';
-                    Config.data.keyDown = bodyEl.querySelector('#key-down').value.toLowerCase() || 'c';
-                    const video = VideoController.getVideo();
-                    if (video && video.playbackRate === Config.data.defaultRate) {
-                        VideoController.setRate(Config.data.defaultRate);
-                    }
-                    EventBus.emit('panel:toggle');
-                    EventBus.emit('config:saved');
-                    Toast.show('配置已保存，刷新后生效');
-                });
+                const contentEl = bodyEl.querySelector('.bili-speed-panel-content');
+                switchMenu(currentMenu);
             }
         });
+
+        const panelStyle = document.createElement('style');
+        panelStyle.textContent = `
+            .bili-speed-panel .step-btn,
+            .bili-speed-panel .default-btn,
+            .bili-speed-panel .min-rate-btn,
+            .bili-speed-panel .max-rate-btn {
+                padding: 4px 12px;
+                border-radius: 4px;
+                border: 1px solid #ccc;
+                background: #fff;
+                color: #000;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            .bili-speed-panel .step-btn:hover,
+            .bili-speed-panel .default-btn:hover,
+            .bili-speed-panel .min-rate-btn:hover,
+            .bili-speed-panel .max-rate-btn:hover {
+                background: #e0e0e0;
+            }
+            .bili-speed-panel .step-btn.active,
+            .bili-speed-panel .default-btn.active,
+            .bili-speed-panel .min-rate-btn.active,
+            .bili-speed-panel .max-rate-btn.active {
+                background: #00AEEC;
+                color: #fff;
+                border-color: #00AEEC;
+            }
+            .bili-speed-panel-menu-item.active {
+                background: #e6f7ff;
+                border-left-color: #00AEEC;
+                color: #00AEEC;
+            }
+            .bili-speed-panel.theme-dark {
+                background: #1f1f1f;
+                color: #fff;
+            }
+            .bili-speed-panel.theme-dark .bili-speed-panel-menu {
+                border-right-color: #333;
+            }
+            .bili-speed-panel.theme-dark .bili-speed-panel-menu-item {
+                color: #ccc;
+            }
+            .bili-speed-panel.theme-dark .bili-speed-panel-menu-item:hover {
+                background: #333;
+            }
+            .bili-speed-panel.theme-dark .bili-speed-panel-menu-item.active {
+                background: #333;
+                border-left-color: #00AEEC;
+                color: #00AEEC;
+            }
+            .bili-speed-panel.theme-dark button {
+                color: #fff;
+                border-color: #444;
+                background: #333;
+            }
+            .bili-speed-panel.theme-dark button:hover {
+                background: #444;
+            }
+            .bili-speed-panel.theme-dark button.active {
+                background: #00AEEC;
+                border-color: #00AEEC;
+            }
+            .bili-speed-panel.theme-dark input {
+                background: #333;
+                color: #fff;
+                border-color: #444;
+            }
+            .bili-speed-panel.theme-dark .bili-speed-close {
+                color: #fff;
+            }
+        `;
+        if (!document.querySelector('#bili-speed-panel-style')) {
+            panelStyle.id = 'bili-speed-panel-style';
+            document.head.appendChild(panelStyle);
+        }
     }
 
     return {
@@ -1759,6 +2045,14 @@ const ControlPanel = (() => {
             }
         },
 
+        switchMenu(menuName) {
+            switchMenu(menuName);
+        },
+
+        applyTheme(theme) {
+            applyTheme(theme);
+        },
+
         destroy() {
             if (multiClickCleanup) {
                 multiClickCleanup();
@@ -1772,131 +2066,180 @@ const ControlPanel = (() => {
     };
 })();
 
+
 /**
- * FavoritesPanel - 收藏夹视图
- * 展示收藏列表、添加收藏、删除收藏、跳转视频
+ * FavoritesPanel - 收藏夹面板视图
+ * 视图层 - 使用Card组件渲染收藏夹面板
  */
 const FavoritesPanel = (() => {
     let panelInstance = null;
     let dragCleanup = null;
 
-    /**
-     * 渲染收藏列表
-     * @param {HTMLElement} bodyEl 容器元素
-     */
-    function renderFavorites(bodyEl) {
+    function getCurrentVideoInfo() {
+        const url = location.href;
+        const match = url.match(/BV[\w]+/);
+        if (!match) return null;
+
+        const bvid = match[0];
+        const video = VideoController.getVideo();
+        
+        let title = document.querySelector('h1.video-title, .video-title-href, h1[class*="title"]')?.textContent?.trim() || '未知标题';
+        let author = document.querySelector('.up-name, a.up-name, [class*="up-name"]')?.textContent?.trim() || '未知UP主';
+        let cover = document.querySelector('meta[property="og:image"]')?.content || '';
+        
+        return {
+            id: bvid,
+            bvid: bvid,
+            title: title,
+            author: author,
+            duration: video ? video.duration : 0,
+            cover: cover,
+            url: url,
+            addedAt: Date.now()
+        };
+    }
+
+    function renderFavoriteItem(item, containerEl) {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'bili-speed-favorite-item';
+        itemEl.dataset.id = item.id;
+        itemEl.style.cssText = `
+            display: flex;
+            gap: 12px;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+            position: relative;
+        `;
+
+        const coverEl = document.createElement('img');
+        coverEl.src = item.cover || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><rect fill="%23ddd" width="60" height="60"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="%23999">暂无</text></svg>';
+        coverEl.style.cssText = `
+            width: 60px;
+            height: 60px;
+            border-radius: 4px;
+            object-fit: cover;
+            flex-shrink: 0;
+        `;
+        coverEl.onerror = () => {
+            coverEl.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><rect fill="%23ddd" width="60" height="60"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="%23999">暂无</text></svg>';
+        };
+
+        const infoEl = document.createElement('div');
+        infoEl.style.cssText = `
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        `;
+
+        const titleEl = document.createElement('div');
+        titleEl.className = 'bili-speed-favorite-title';
+        titleEl.textContent = item.title;
+        titleEl.style.cssText = `
+            font-size: 14px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        `;
+
+        const metaEl = document.createElement('div');
+        metaEl.style.cssText = `
+            font-size: 12px;
+            color: #999;
+            display: flex;
+            gap: 8px;
+        `;
+
+        const authorEl = document.createElement('span');
+        authorEl.textContent = item.author;
+
+        const durationEl = document.createElement('span');
+        durationEl.textContent = Utils.formatTime(item.duration);
+
+        metaEl.appendChild(authorEl);
+        metaEl.appendChild(durationEl);
+
+        infoEl.appendChild(titleEl);
+        infoEl.appendChild(metaEl);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'bili-speed-favorite-delete';
+        deleteBtn.textContent = '×';
+        deleteBtn.style.cssText = `
+            position: absolute;
+            right: 4px;
+            top: 4px;
+            background: rgba(255, 0, 0, 0.8);
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 12px;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+
+        itemEl.appendChild(coverEl);
+        itemEl.appendChild(infoEl);
+        itemEl.appendChild(deleteBtn);
+
+        itemEl.addEventListener('mouseenter', () => {
+            deleteBtn.style.opacity = '1';
+            itemEl.style.background = '#f5f5f5';
+        });
+
+        itemEl.addEventListener('mouseleave', () => {
+            deleteBtn.style.opacity = '0';
+            itemEl.style.background = '';
+        });
+
+        itemEl.addEventListener('click', (e) => {
+            if (e.target === deleteBtn) return;
+            window.open(item.url, '_blank');
+        });
+
+        deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            Favorites.remove(item.id);
+            renderFavoritesList(containerEl);
+        });
+
+        return itemEl;
+    }
+
+    function renderFavoritesList(containerEl) {
+        containerEl.innerHTML = '';
+        
         const favorites = Favorites.getAll();
         
         if (favorites.length === 0) {
-            bodyEl.innerHTML = `
-                <div style="text-align: center; padding: 40px 20px; color: #999;">
-                    <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
-                    <div style="font-size: 14px;">暂无收藏</div>
-                    <div style="font-size: 12px; margin-top: 8px;">在视频页面点击收藏按钮添加</div>
+            containerEl.innerHTML = `
+                <div style="text-align: center; padding: 40px 0; color: #999;">
+                    <div style="font-size: 48px; margin-bottom: 8px;">📭</div>
+                    <div>暂无收藏</div>
                 </div>
             `;
             return;
         }
 
-        const favoritesHtml = favorites.map((item, index) => `
-            <div class="favorites-item" data-id="${item.id}" style="display: flex; gap: 12px; padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.2s;" data-index="${index}">
-                <img src="${item.cover}" alt="${item.title}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; flex-shrink: 0;" onerror="this.src='https://i0.hdslb.com/bfs/archive/6d1e3e6d4a7c5f8b9a0c3e2d1f4b5a6c.png';">
-                <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-width: 0;">
-                    <div>
-                        <div class="favorites-title" style="font-size: 13px; font-weight: 500; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(item.title)}</div>
-                        <div style="font-size: 12px; color: #999; margin-top: 4px;">${escapeHtml(item.author)} · ${Utils.formatTime(item.duration)}</div>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 11px; color: #ccc;">${formatDate(item.addedAt)}</span>
-                        <button class="favorites-delete-btn" data-id="${item.id}" style="display: none; padding: 4px 8px; border: none; border-radius: 4px; background: #ff4d4f; color: #fff; font-size: 11px; cursor: pointer;">删除</button>
-                    </div>
-                </div>
-            </div>
-        `).join('');
-
-        bodyEl.innerHTML = `
-            <div class="favorites-list" style="max-height: 400px; overflow-y: auto;">
-                ${favoritesHtml}
-            </div>
-        `;
-
-        // 添加事件监听
-        bindEvents(bodyEl);
-    }
-
-    /**
-     * HTML转义
-     * @param {string} text 文本
-     * @returns {string} 转义后的文本
-     */
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    /**
-     * 格式化日期
-     * @param {number} timestamp 时间戳
-     * @returns {string} 格式化后的日期
-     */
-    function formatDate(timestamp) {
-        const date = new Date(timestamp);
-        const month = date.getMonth() + 1;
-        const day = date.getDate();
-        return `${month}月${day}日`;
-    }
-
-    /**
-     * 绑定事件
-     * @param {HTMLElement} bodyEl 容器元素
-     */
-    function bindEvents(bodyEl) {
-        // 列表项点击事件
-        bodyEl.querySelectorAll('.favorites-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                if (e.target.classList.contains('favorites-delete-btn')) return;
-                
-                const id = item.dataset.id;
-                const favorite = Favorites.get(id);
-                if (favorite) {
-                    window.open(favorite.url, '_blank');
-                }
-            });
-
-            // 鼠标悬停显示删除按钮
-            item.addEventListener('mouseenter', () => {
-                const deleteBtn = item.querySelector('.favorites-delete-btn');
-                if (deleteBtn) deleteBtn.style.display = 'block';
-            });
-
-            item.addEventListener('mouseleave', () => {
-                const deleteBtn = item.querySelector('.favorites-delete-btn');
-                if (deleteBtn) deleteBtn.style.display = 'none';
-            });
-        });
-
-        // 删除按钮点击事件
-        bodyEl.querySelectorAll('.favorites-delete-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const id = btn.dataset.id;
-                if (Favorites.remove(id)) {
-                    renderFavorites(bodyEl);
-                    Toast.show('已删除收藏');
-                }
-            });
+        favorites.forEach(item => {
+            containerEl.appendChild(renderFavoriteItem(item, containerEl));
         });
     }
 
-    /**
-     * 创建面板
-     */
     function createPanel() {
-        let savedPosition = Config.data.favoritesPosition;
+        let savedPosition = Config.data.favoritesPanelPosition;
 
         panelInstance = Card.create({
-            className: 'bili-speed-favorites',
+            className: 'bili-speed-favorites-panel',
             header: {
                 visible: true,
                 draggable: true,
@@ -1905,7 +2248,7 @@ const FavoritesPanel = (() => {
             footer: { visible: false },
             styles: {
                 width: '320px',
-                display: Config.data.favoritesVisible ? 'block' : 'none',
+                display: Config.data.favoritesPanelVisible ? 'block' : 'none',
                 top: '50%',
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
@@ -1917,82 +2260,115 @@ const FavoritesPanel = (() => {
                 } : {})
             },
             onHeaderReady: (headerEl) => {
+                const actionsEl = headerEl.querySelector('.bili-speed-favorites-panel-actions');
+                
+                const exportBtn = document.createElement('button');
+                exportBtn.className = 'bili-speed-favorites-export';
+                exportBtn.title = '导出收藏数据';
+                exportBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px;';
+                exportBtn.textContent = '📤';
+                exportBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    Favorites.downloadExport();
+                });
+
                 const closeBtn = document.createElement('button');
-                closeBtn.className = 'bili-speed-close';
-                closeBtn.style.cssText = 'background: none; border: none; color: #000; font-size: 20px; cursor: pointer;';
+                closeBtn.className = 'bili-speed-favorites-close';
+                closeBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;';
                 closeBtn.textContent = '×';
-                closeBtn.addEventListener('click', () => {
+                closeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
                     EventBus.emit('favorites:toggle');
                 });
 
-                const clearBtn = document.createElement('button');
-                clearBtn.className = 'bili-speed-clear';
-                clearBtn.style.cssText = 'background: none; border: none; color: #999; font-size: 16px; cursor: pointer; padding: 0 4px;';
-                clearBtn.textContent = '🗑';
-                clearBtn.title = '清空收藏';
-                clearBtn.addEventListener('click', () => {
-                    if (confirm('确定要清空所有收藏吗？')) {
-                        Favorites.clear();
-                        renderFavorites(headerEl.parentElement.querySelector('.bili-speed-favorites-body'));
-                    }
-                });
-
-                const actionsEl = headerEl.querySelector('.bili-speed-favorites-actions') || 
-                                 headerEl.querySelector('.bili-speed-actions') || 
-                                 headerEl.querySelector('div:last-child');
-                actionsEl.appendChild(clearBtn);
+                actionsEl.appendChild(exportBtn);
                 actionsEl.appendChild(closeBtn);
 
-                dragCleanup = Draggable.make(headerEl.parentElement, 'favoritesPosition', '.bili-speed-favorites-header');
+                dragCleanup = Draggable.make(headerEl.parentElement, 'favoritesPanelPosition', `.bili-speed-favorites-panel-header`);
             },
             onBodyReady: (bodyEl) => {
-                bodyEl.className = 'bili-speed-favorites-body';
-                bodyEl.style.cssText = 'padding: 0;';
-                renderFavorites(bodyEl);
-            }
-        });
-    }
+                bodyEl.className = 'bili-speed-favorites-panel-body';
+                bodyEl.style.cssText = 'padding: 8px; max-height: 400px; overflow-y: auto;';
 
-    /**
-     * 订阅收藏更新事件
-     */
-    function subscribeToUpdates() {
-        EventBus.on('favorites:updated', () => {
-            if (panelInstance) {
-                const bodyEl = panelInstance.element.querySelector('.bili-speed-favorites-body');
-                if (bodyEl) {
-                    renderFavorites(bodyEl);
-                }
+                renderFavoritesList(bodyEl);
+
+                EventBus.on('favorites:updated', () => {
+                    if (panelInstance && bodyEl) {
+                        renderFavoritesList(bodyEl);
+                    }
+                });
             }
         });
     }
 
     return {
-        /**
-         * 创建收藏面板
-         */
         create() {
             if (panelInstance) panelInstance.destroy();
             if (dragCleanup) dragCleanup();
             dragCleanup = null;
 
             createPanel();
-            subscribeToUpdates();
         },
 
-        /**
-         * 切换面板显示/隐藏
-         */
         toggle() {
-            Config.data.favoritesVisible = !Config.data.favoritesVisible;
+            Config.data.favoritesPanelVisible = !Config.data.favoritesPanelVisible;
             if (panelInstance) {
-                panelInstance.element.style.display = Config.data.favoritesVisible ? 'block' : 'none';
+                panelInstance.element.style.display = Config.data.favoritesPanelVisible ? 'block' : 'none';
             }
         },
 
-        /**
-         * 销毁面板
-         */
+        show() {
+            Config.data.favoritesPanelVisible = true;
+            if (panelInstance) {
+                panelInstance.element.style.display = 'block';
+            }
+        },
+
+        hide() {
+            Config.data.favoritesPanelVisible = false;
+            if (panelInstance) {
+                panelInstance.element.style.display = 'none';
+            }
+        },
+
+        addCurrentVideo() {
+            const videoInfo = getCurrentVideoInfo();
+            if (!videoInfo) {
+                Toast.show('无法获取当前视频信息');
+                return false;
+            }
+            return Favorites.add(videoInfo);
+        },
+
+        removeCurrentVideo() {
+            const videoInfo = getCurrentVideoInfo();
+            if (!videoInfo) {
+                Toast.show('无法获取当前视频信息');
+                return false;
+            }
+            return Favorites.remove(videoInfo.id);
+        },
+
+        toggleCurrentVideo() {
+            const videoInfo = getCurrentVideoInfo();
+            if (!videoInfo) {
+                Toast.show('无法获取当前视频信息');
+                return false;
+            }
+            
+            if (Favorites.has(videoInfo.id)) {
+                return Favorites.remove(videoInfo.id);
+            } else {
+                return Favorites.add(videoInfo);
+            }
+        },
+
+        isCurrentVideoFavorited() {
+            const videoInfo = getCurrentVideoInfo();
+            if (!videoInfo) return false;
+            return Favorites.has(videoInfo.id);
+        },
+
         destroy() {
             if (dragCleanup) dragCleanup();
             dragCleanup = null;
@@ -2001,6 +2377,7 @@ const FavoritesPanel = (() => {
         }
     };
 })();
+
 
 /**
  * KeyboardHandler - 键盘快捷键模块
@@ -2121,11 +2498,16 @@ const App = (() => {
 
         GM_registerMenuCommand('打开信息卡片', () => EventBus.emit('card:toggle'));
         GM_registerMenuCommand('打开控制面板', () => EventBus.emit('panel:toggle'));
-        GM_registerMenuCommand('收藏面板', () => EventBus.emit('favorites:toggle'));
+        GM_registerMenuCommand('打开收藏面板', () => EventBus.emit('favorites:toggle'));
 
         EventBus.on('panel:toggle', ControlPanel.toggle);
         EventBus.on('card:toggle', CardPanel.toggle);
         EventBus.on('favorites:toggle', FavoritesPanel.toggle);
+
+        EventBus.on('theme:changed', (theme) => {
+            CardPanel.applyTheme(theme);
+            ControlPanel.applyTheme(theme);
+        });
 
         Logger.info('脚本初始化完成');
     }
@@ -2164,6 +2546,7 @@ const App = (() => {
         }
     };
 })();
+
 
     // 启动应用
     App.start();

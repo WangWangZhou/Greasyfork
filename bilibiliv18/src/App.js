@@ -19,14 +19,22 @@ const App = (() => {
         Toast.create();
         CardPanel.create();
         ControlPanel.create();
+        FavoritesPanel.create();
         ScreenModeManager.init();
         KeyboardHandler.register();
 
         GM_registerMenuCommand('打开信息卡片', () => EventBus.emit('card:toggle'));
         GM_registerMenuCommand('打开控制面板', () => EventBus.emit('panel:toggle'));
+        GM_registerMenuCommand('打开收藏面板', () => EventBus.emit('favorites:toggle'));
 
         EventBus.on('panel:toggle', ControlPanel.toggle);
         EventBus.on('card:toggle', CardPanel.toggle);
+        EventBus.on('favorites:toggle', FavoritesPanel.toggle);
+
+        EventBus.on('theme:changed', (theme) => {
+            CardPanel.applyTheme(theme);
+            ControlPanel.applyTheme(theme);
+        });
 
         Logger.info('脚本初始化完成');
     }
@@ -35,6 +43,7 @@ const App = (() => {
         Toast.destroy();
         CardPanel.destroy();
         ControlPanel.destroy();
+        FavoritesPanel.destroy();
         ScreenModeManager.destroy();
         KeyboardHandler.unregister();
         EventBus.clear();

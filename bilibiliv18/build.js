@@ -12,8 +12,10 @@ const moduleOrder = [
     { name: 'Card', path: 'ui/components' },
     { name: 'Progress', path: 'ui/components' },
     { name: 'VideoController', path: 'modules' },
+    { name: 'Favorites', path: 'modules' },
     { name: 'CardPanel', path: 'ui/views' },
     { name: 'ControlPanel', path: 'ui/views' },
+    { name: 'FavoritesPanel', path: 'ui/views' },
     { name: 'KeyboardHandler', path: 'modules' },
     { name: 'ScreenModeManager', path: 'modules' }
 ];

@@ -14,7 +14,10 @@ const Config = (() => {
         panelPosition: null,
         keyReset: 'z',
         keyUp: 'c',
-        keyDown: 'x'
+        keyDown: 'x',
+        theme: 'light',
+        favoritesPanelVisible: false,
+        favoritesPanelPosition: null
     };
 
     const proxy = new Proxy({}, {

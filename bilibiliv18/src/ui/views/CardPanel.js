@@ -10,6 +10,7 @@ const CardPanel = (() => {
     let timeEl = null;
     let collectionEl = null;
     let dragCleanup = null;
+    let favoriteBtn = null;
     const cleanupFns = new Set();
 
     function updateCard() {
@@ -38,11 +39,21 @@ const CardPanel = (() => {
                 collectionEl.style.display = 'none';
             }
         }
+
+        updateFavoriteBtn();
     }
 
     function updatePlayBtn(video) {
         if (!video || !playBtn) return;
         playBtn.textContent = video.paused ? '▶' : '⏸';
+    }
+
+    function updateFavoriteBtn() {
+        if (!favoriteBtn) return;
+        const isFavorited = FavoritesPanel.isCurrentVideoFavorited();
+        favoriteBtn.textContent = isFavorited ? '★' : '☆';
+        favoriteBtn.classList.toggle('favorited', isFavorited);
+        favoriteBtn.title = isFavorited ? '取消收藏' : '添加收藏';
     }
 
     function createCard() {
@@ -61,8 +72,10 @@ const CardPanel = (() => {
             initialPosition = savedPosition;
         }
 
+        const currentTheme = Config.data.theme || 'light';
+
         cardInstance = Card.create({
-            className: 'bili-speed-card',
+            className: `bili-speed-card theme-${currentTheme}`,
             header: {
                 visible: true,
                 draggable: true,
@@ -83,30 +96,57 @@ const CardPanel = (() => {
                 rateEl = headerEl.querySelector('.bili-speed-rate');
 
                 const actionsEl = headerEl.querySelector('.bili-speed-card-actions');
+                if (!actionsEl) {
+                    console.error('actionsEl is null');
+                    return;
+                }
+                
+                // 确保 actionsEl 可以点击
+                actionsEl.style.zIndex = '1000';
+                actionsEl.style.pointerEvents = 'auto';
+                actionsEl.style.visibility = 'visible';
+
+                favoriteBtn = document.createElement('button');
+                favoriteBtn.className = 'bili-speed-favorite-btn';
+                favoriteBtn.title = '添加收藏';
+                favoriteBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; position: relative; z-index: 1000; pointer-events: auto;';
+                favoriteBtn.textContent = '☆';
+                favoriteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    FavoritesPanel.toggleCurrentVideo();
+                    updateFavoriteBtn();
+                });
 
                 const settingsBtn = document.createElement('button');
                 settingsBtn.className = 'bili-speed-panel-btn';
                 settingsBtn.title = `快捷键: ${Config.data.keyReset.toUpperCase()}重置 | ${Config.data.keyUp.toUpperCase()}加速 | ${Config.data.keyDown.toUpperCase()}减速`;
-                settingsBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px;';
+                settingsBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; position: relative; z-index: 1000; pointer-events: auto;';
                 settingsBtn.textContent = '⚙️';
                 settingsBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    EventBus.emit('panel:toggle');
+                    if (EventBus) {
+                        EventBus.emit('panel:toggle');
+                    }
                 });
 
                 const closeBtn = document.createElement('button');
                 closeBtn.className = 'bili-speed-close-btn';
-                closeBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;';
+                closeBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; position: relative; z-index: 1000; pointer-events: auto;';
                 closeBtn.textContent = 'X';
                 closeBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    EventBus.emit('card:toggle');
+                    if (EventBus) {
+                        EventBus.emit('card:toggle');
+                    }
                 });
 
+                actionsEl.appendChild(favoriteBtn);
                 actionsEl.appendChild(settingsBtn);
                 actionsEl.appendChild(closeBtn);
 
                 dragCleanup = Draggable.make(headerEl.parentElement, 'cardPosition', `.bili-speed-card-header`);
+
+                updateFavoriteBtn();
             },
             onBodyReady: (bodyEl) => {
                 bodyEl.innerHTML = `
@@ -253,6 +293,8 @@ const CardPanel = (() => {
             updatePlayBtn(video);
             setTimeout(updateCard, 500);
         }
+
+        EventBus.on('favorites:updated', updateFavoriteBtn);
     }
 
     return {
@@ -286,6 +328,13 @@ const CardPanel = (() => {
             }
         },
 
+        applyTheme(theme) {
+            if (!cardInstance) return;
+            const cardEl = cardInstance.element;
+            cardEl.classList.remove('theme-light', 'theme-dark');
+            cardEl.classList.add(`theme-${theme}`);
+        },
+
         destroy() {
             cleanupFns.forEach(fn => fn());
             cleanupFns.clear();
@@ -299,6 +348,7 @@ const CardPanel = (() => {
             timeEl = null;
             collectionEl = null;
             playBtn = null;
+            favoriteBtn = null;
         }
     };
 })();

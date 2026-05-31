@@ -78,6 +78,11 @@ const Utils = (() => ({
     },
 
     multiClick(element, times, callback, timeout = 800) {
+        if (!element) {
+            console.warn('multiClick: element is null');
+            return () => {};
+        }
+        
         let clickCount = 0;
         let clickTimer = null;
 
