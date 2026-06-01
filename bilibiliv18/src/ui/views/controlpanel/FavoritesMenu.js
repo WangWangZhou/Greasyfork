@@ -45,7 +45,7 @@ const FavoritesMenu = (() => {
         `;
 
         contentEl.querySelector('#export-favorites-btn').addEventListener('click', () => {
-            Favorites.downloadExport();
+            EventBus.emit('favorites:export');
         });
 
         const importBtn = contentEl.querySelector('#import-favorites-btn');
@@ -75,8 +75,7 @@ const FavoritesMenu = (() => {
         if (clearBtn) {
             clearBtn.addEventListener('click', async () => {
                 if (confirm('确定要清空所有收藏吗？此操作不可恢复。')) {
-                    await Favorites.clear();
-                    if (renderCallback) await renderCallback(contentEl);
+                    EventBus.emit('favorites:clearAll');
                 }
             });
         }

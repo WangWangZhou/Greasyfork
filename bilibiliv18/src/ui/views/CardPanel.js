@@ -125,22 +125,9 @@ const CardPanel = (() => {
                 noteBtn.title = '打开笔记';
                 noteBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; position: relative; z-index: 1000; pointer-events: auto; transition: all 0.2s;';
                 noteBtn.textContent = '🗒️';
-                noteBtn.addEventListener('click', async (e) => {
+                noteBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    const url = location.href;
-                    const match = url.match(/BV[\w]+/);
-                    if (match) {
-                        const bvid = match[0];
-                        const existingNotes = await Notes.getByBvid(bvid);
-                        if (existingNotes && existingNotes.length > 0) {
-                            const note = existingNotes[0];
-                            EventBus.emit('notes:edit', note);
-                        } else {
-                            EventBus.emit('notes:new');
-                        }
-                    } else {
-                        EventBus.emit('notes:new');
-                    }
+                    EventBus.emit('notes:new');
                 });
 
                 favoriteBtn = document.createElement('button');
@@ -148,20 +135,9 @@ const CardPanel = (() => {
                 favoriteBtn.title = '添加收藏';
                 favoriteBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; position: relative; z-index: 1000; pointer-events: auto;';
                 favoriteBtn.textContent = '☆';
-                favoriteBtn.addEventListener('click', async (e) => {
+                favoriteBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    const url = location.href;
-                    const match = url.match(/BV[\w]+/);
-                    if (!match) return;
-                    
-                    const bvid = match[0];
-                    const isFavorited = await FavoritesPanel.isCurrentVideoFavorited();
-                    
-                    if (isFavorited) {
-                        EventBus.emit('favorites:removeVideo', bvid);
-                    } else {
-                        AddToFavoritesModal.show(null);
-                    }
+                    EventBus.emit('favorites:showAddModal');
                 });
 
                 const settingsBtn = document.createElement('button');

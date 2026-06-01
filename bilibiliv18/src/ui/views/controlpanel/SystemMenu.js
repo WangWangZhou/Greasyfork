@@ -68,22 +68,12 @@ const SystemMenu = (() => {
             if (toggleThemeLocal) toggleThemeLocal();
         });
 
-        contentEl.querySelector('.export-favorites-json').addEventListener('click', async () => {
-            try {
-                await Favorites.downloadExport();
-            } catch (err) {
-                Logger.error('导出收藏夹失败:', err);
-                Toast.show('导出失败，请重试');
-            }
+        contentEl.querySelector('.export-favorites-json').addEventListener('click', () => {
+            EventBus.emit('favorites:export');
         });
 
-        contentEl.querySelector('.export-notes-json').addEventListener('click', async () => {
-            try {
-                await Notes.downloadExport();
-            } catch (err) {
-                Logger.error('导出笔记失败:', err);
-                Toast.show('导出失败，请重试');
-            }
+        contentEl.querySelector('.export-notes-json').addEventListener('click', () => {
+            EventBus.emit('notes:export');
         });
 
         contentEl.querySelector('.cdn-save').addEventListener('click', () => {

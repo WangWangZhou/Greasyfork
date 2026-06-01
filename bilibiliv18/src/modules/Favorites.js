@@ -279,4 +279,12 @@ const Favorites = (() => {
             return { ...DEFAULT_VIDEO };
         }
     };
+
+    EventBus.on('favorites:export', () => {
+        downloadExport();
+    });
+
+    EventBus.on('favorites:clearAll', async () => {
+        await clear();
+    });
 })();

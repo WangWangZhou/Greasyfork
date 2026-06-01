@@ -57,6 +57,20 @@ const App = (() => {
             }
         });
 
+        EventBus.on('favorites:showAddModal', async () => {
+            const isFavorited = await FavoritesPanel.isCurrentVideoFavorited();
+            if (isFavorited) {
+                const bvid = location.href.match(/BV[\w]+/)?.[0];
+                if (bvid) {
+                    await Favorites.remove(bvid);
+                    EventBus.emit('favorites:updated');
+                    Toast.show('已取消收藏');
+                }
+            } else {
+                AddToFavoritesModal.show();
+            }
+        });
+
         EventBus.on('theme:changed', (theme) => {
             CardPanel.applyTheme(theme);
             ControlPanel.applyTheme(theme);

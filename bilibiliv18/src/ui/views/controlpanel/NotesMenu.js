@@ -241,7 +241,7 @@ const NotesMenu = (() => {
         });
 
         contentEl.querySelector('#export-notes-btn').addEventListener('click', () => {
-            Notes.downloadExport();
+            EventBus.emit('notes:export');
         });
 
         const importBtn = contentEl.querySelector('#import-notes-btn');
@@ -267,12 +267,7 @@ const NotesMenu = (() => {
         if (clearBtn) {
             clearBtn.addEventListener('click', async () => {
                 if (confirm('确定要清空所有笔记吗？此操作不可恢复。')) {
-                    try {
-                        await Notes.clear();
-                        if (renderCallback) await renderCallback(contentEl);
-                    } catch (err) {
-                        Logger.error('清空笔记失败:', err);
-                    }
+                    EventBus.emit('notes:clearAll');
                 }
             });
         }

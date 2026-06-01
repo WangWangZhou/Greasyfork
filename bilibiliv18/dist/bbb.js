@@ -2576,6 +2576,14 @@ const Favorites = (() => {
             return { ...DEFAULT_VIDEO };
         }
     };
+
+    EventBus.on('favorites:export', () => {
+        downloadExport();
+    });
+
+    EventBus.on('favorites:clearAll', async () => {
+        await clear();
+    });
 })();
 
 const Notes = (() => {
@@ -2915,6 +2923,14 @@ const Notes = (() => {
             }
         }
     };
+
+    EventBus.on('notes:export', () => {
+        downloadExport();
+    });
+
+    EventBus.on('notes:clearAll', async () => {
+        await clear();
+    });
 })();
 
 /**
@@ -3044,22 +3060,9 @@ const CardPanel = (() => {
                 noteBtn.title = '打开笔记';
                 noteBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; position: relative; z-index: 1000; pointer-events: auto; transition: all 0.2s;';
                 noteBtn.textContent = '🗒️';
-                noteBtn.addEventListener('click', async (e) => {
+                noteBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    const url = location.href;
-                    const match = url.match(/BV[\w]+/);
-                    if (match) {
-                        const bvid = match[0];
-                        const existingNotes = await Notes.getByBvid(bvid);
-                        if (existingNotes && existingNotes.length > 0) {
-                            const note = existingNotes[0];
-                            EventBus.emit('notes:edit', note);
-                        } else {
-                            EventBus.emit('notes:new');
-                        }
-                    } else {
-                        EventBus.emit('notes:new');
-                    }
+                    EventBus.emit('notes:new');
                 });
 
                 favoriteBtn = document.createElement('button');
@@ -3067,20 +3070,9 @@ const CardPanel = (() => {
                 favoriteBtn.title = '添加收藏';
                 favoriteBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; position: relative; z-index: 1000; pointer-events: auto;';
                 favoriteBtn.textContent = '☆';
-                favoriteBtn.addEventListener('click', async (e) => {
+                favoriteBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    const url = location.href;
-                    const match = url.match(/BV[\w]+/);
-                    if (!match) return;
-                    
-                    const bvid = match[0];
-                    const isFavorited = await FavoritesPanel.isCurrentVideoFavorited();
-                    
-                    if (isFavorited) {
-                        EventBus.emit('favorites:removeVideo', bvid);
-                    } else {
-                        AddToFavoritesModal.show(null);
-                    }
+                    EventBus.emit('favorites:showAddModal');
                 });
 
                 const settingsBtn = document.createElement('button');
@@ -3442,22 +3434,12 @@ const SystemMenu = (() => {
             if (toggleThemeLocal) toggleThemeLocal();
         });
 
-        contentEl.querySelector('.export-favorites-json').addEventListener('click', async () => {
-            try {
-                await Favorites.downloadExport();
-            } catch (err) {
-                Logger.error('导出收藏夹失败:', err);
-                Toast.show('导出失败，请重试');
-            }
+        contentEl.querySelector('.export-favorites-json').addEventListener('click', () => {
+            EventBus.emit('favorites:export');
         });
 
-        contentEl.querySelector('.export-notes-json').addEventListener('click', async () => {
-            try {
-                await Notes.downloadExport();
-            } catch (err) {
-                Logger.error('导出笔记失败:', err);
-                Toast.show('导出失败，请重试');
-            }
+        contentEl.querySelector('.export-notes-json').addEventListener('click', () => {
+            EventBus.emit('notes:export');
         });
 
         contentEl.querySelector('.cdn-save').addEventListener('click', () => {
@@ -3717,7 +3699,7 @@ const FavoritesMenu = (() => {
         `;
 
         contentEl.querySelector('#export-favorites-btn').addEventListener('click', () => {
-            Favorites.downloadExport();
+            EventBus.emit('favorites:export');
         });
 
         const importBtn = contentEl.querySelector('#import-favorites-btn');
@@ -3747,8 +3729,7 @@ const FavoritesMenu = (() => {
         if (clearBtn) {
             clearBtn.addEventListener('click', async () => {
                 if (confirm('确定要清空所有收藏吗？此操作不可恢复。')) {
-                    await Favorites.clear();
-                    if (renderCallback) await renderCallback(contentEl);
+                    EventBus.emit('favorites:clearAll');
                 }
             });
         }
@@ -4004,7 +3985,7 @@ const NotesMenu = (() => {
         });
 
         contentEl.querySelector('#export-notes-btn').addEventListener('click', () => {
-            Notes.downloadExport();
+            EventBus.emit('notes:export');
         });
 
         const importBtn = contentEl.querySelector('#import-notes-btn');
@@ -4030,12 +4011,7 @@ const NotesMenu = (() => {
         if (clearBtn) {
             clearBtn.addEventListener('click', async () => {
                 if (confirm('确定要清空所有笔记吗？此操作不可恢复。')) {
-                    try {
-                        await Notes.clear();
-                        if (renderCallback) await renderCallback(contentEl);
-                    } catch (err) {
-                        Logger.error('清空笔记失败:', err);
-                    }
+                    EventBus.emit('notes:clearAll');
                 }
             });
         }
@@ -8100,6 +8076,20 @@ const App = (() => {
                 VditorEditorPanel.open(null);
             } else {
                 QuillEditorPanel.open(null);
+            }
+        });
+
+        EventBus.on('favorites:showAddModal', async () => {
+            const isFavorited = await FavoritesPanel.isCurrentVideoFavorited();
+            if (isFavorited) {
+                const bvid = location.href.match(/BV[\w]+/)?.[0];
+                if (bvid) {
+                    await Favorites.remove(bvid);
+                    EventBus.emit('favorites:updated');
+                    Toast.show('已取消收藏');
+                }
+            } else {
+                AddToFavoritesModal.show();
             }
         });
 
