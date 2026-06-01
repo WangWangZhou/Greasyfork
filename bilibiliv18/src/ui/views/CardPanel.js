@@ -125,8 +125,18 @@ const CardPanel = (() => {
                 noteBtn.title = '打开笔记';
                 noteBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; position: relative; z-index: 1000; pointer-events: auto; transition: all 0.2s;';
                 noteBtn.textContent = '🗒️';
-                noteBtn.addEventListener('click', (e) => {
+                noteBtn.addEventListener('click', async (e) => {
                     e.stopPropagation();
+                    const url = location.href;
+                    const match = url.match(/BV[\w]+/);
+                    if (match) {
+                        const notes = await Notes.getByBvid(match[0]);
+                        if (notes.length > 0) {
+                            const mostRecent = notes.sort((a, b) => b.updatedAt - a.updatedAt)[0];
+                            EventBus.emit('notes:edit', mostRecent);
+                            return;
+                        }
+                    }
                     EventBus.emit('notes:new');
                 });
 

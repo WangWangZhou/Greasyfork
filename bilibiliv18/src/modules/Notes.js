@@ -335,12 +335,4 @@ const Notes = (() => {
             }
         }
     };
-
-    EventBus.on('notes:export', () => {
-        downloadExport();
-    });
-
-    EventBus.on('notes:clearAll', async () => {
-        await clear();
-    });
 })();

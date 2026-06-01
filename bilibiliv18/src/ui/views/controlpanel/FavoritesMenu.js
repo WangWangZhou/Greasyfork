@@ -75,7 +75,8 @@ const FavoritesMenu = (() => {
         if (clearBtn) {
             clearBtn.addEventListener('click', async () => {
                 if (confirm('确定要清空所有收藏吗？此操作不可恢复。')) {
-                    EventBus.emit('favorites:clearAll');
+                    await Favorites.clear();
+                    if (renderCallback) await renderCallback(contentEl);
                 }
             });
         }

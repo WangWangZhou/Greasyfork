@@ -267,7 +267,8 @@ const NotesMenu = (() => {
         if (clearBtn) {
             clearBtn.addEventListener('click', async () => {
                 if (confirm('确定要清空所有笔记吗？此操作不可恢复。')) {
-                    EventBus.emit('notes:clearAll');
+                    await Notes.clear();
+                    if (renderCallback) await renderCallback(contentEl);
                 }
             });
         }

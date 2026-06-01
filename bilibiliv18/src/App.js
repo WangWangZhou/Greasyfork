@@ -71,6 +71,22 @@ const App = (() => {
             }
         });
 
+        EventBus.on('notes:export', () => {
+            Notes.downloadExport();
+        });
+
+        EventBus.on('notes:clearAll', async () => {
+            await Notes.clear();
+        });
+
+        EventBus.on('favorites:export', () => {
+            Favorites.downloadExport();
+        });
+
+        EventBus.on('favorites:clearAll', async () => {
+            await Favorites.clear();
+        });
+
         EventBus.on('theme:changed', (theme) => {
             CardPanel.applyTheme(theme);
             ControlPanel.applyTheme(theme);
