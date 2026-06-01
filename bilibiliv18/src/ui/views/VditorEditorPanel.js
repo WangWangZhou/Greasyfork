@@ -252,7 +252,7 @@ const VditorEditorPanel = (() => {
         }, 3000);
     }
 
-    function saveNote() {
+    async function saveNote() {
         const panelEl = panelInstance?.element;
         if (!panelEl) return;
 
@@ -275,7 +275,7 @@ const VditorEditorPanel = (() => {
         const noteType = videoInfo.hasVideo ? 'videoNote' : 'normalNote';
 
         if (currentNoteId) {
-            Notes.update(currentNoteId, {
+            await Notes.update(currentNoteId, {
                 title: title,
                 content: content,
                 contentDelta: '',
@@ -301,7 +301,7 @@ const VditorEditorPanel = (() => {
                 createdAt: Date.now(),
                 updatedAt: Date.now()
             };
-            Notes.add(note);
+            await Notes.add(note);
             currentNoteId = note.id;
             showSaveStatus('✓ 笔记已保存');
         }
@@ -604,6 +604,18 @@ const VditorEditorPanel = (() => {
             const el = panelInstance.element;
             el.classList.remove('theme-light', 'theme-dark');
             el.classList.add(`theme-${theme}`);
+            
+            // 更新 Vditor 编辑器自身的主题
+            if (vditorInstance) {
+                const Vditor = getVditor();
+                if (Vditor && vditorInstance.element) {
+                    const vditorRoot = vditorInstance.element.querySelector('.vditor');
+                    if (vditorRoot) {
+                        vditorRoot.classList.remove('vditor-classic', 'vditor-dark');
+                        vditorRoot.classList.add(theme === 'dark' ? 'vditor-dark' : 'vditor-classic');
+                    }
+                }
+            }
         },
 
         isOpen() {

@@ -15,7 +15,7 @@ const CardPanel = (() => {
     const cleanupFns = new Set();
     let createTimer = null;
 
-    function updateCard() {
+    async function updateCard() {
         const video = VideoController.getVideo();
         if (!video || !cardInstance) return;
 
@@ -42,8 +42,8 @@ const CardPanel = (() => {
             }
         }
 
-        updateFavoriteBtn();
-        updateNoteBtn();
+        await updateFavoriteBtn();
+        await updateNoteBtn();
     }
 
     function updatePlayBtn(video) {
@@ -51,20 +51,20 @@ const CardPanel = (() => {
         playBtn.textContent = video.paused ? '▶' : '⏸';
     }
 
-    function updateFavoriteBtn() {
+    async function updateFavoriteBtn() {
         if (!favoriteBtn) return;
-        const isFavorited = FavoritesPanel.isCurrentVideoFavorited();
+        const isFavorited = await FavoritesPanel.isCurrentVideoFavorited();
         favoriteBtn.textContent = isFavorited ? '★' : '☆';
         favoriteBtn.classList.toggle('favorited', isFavorited);
         favoriteBtn.title = isFavorited ? '取消收藏' : '添加收藏';
     }
 
-    function updateNoteBtn() {
+    async function updateNoteBtn() {
         if (!noteBtn) return;
         const url = location.href;
         const match = url.match(/BV[\w]+/);
         if (match) {
-            const count = Notes.countByBvid(match[0]);
+            const count = await Notes.countByBvid(match[0]);
             noteBtn.textContent = count > 0 ? '📝' : '🗒️';
             noteBtn.title = count > 0 ? `当前视频有 ${count} 条笔记` : '打开笔记';
         }
@@ -125,9 +125,22 @@ const CardPanel = (() => {
                 noteBtn.title = '打开笔记';
                 noteBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; position: relative; z-index: 1000; pointer-events: auto; transition: all 0.2s;';
                 noteBtn.textContent = '🗒️';
-                noteBtn.addEventListener('click', (e) => {
+                noteBtn.addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    EventBus.emit('notes:new');
+                    const url = location.href;
+                    const match = url.match(/BV[\w]+/);
+                    if (match) {
+                        const bvid = match[0];
+                        const existingNotes = await Notes.getByBvid(bvid);
+                        if (existingNotes && existingNotes.length > 0) {
+                            const note = existingNotes[0];
+                            EventBus.emit('notes:edit', note);
+                        } else {
+                            EventBus.emit('notes:new');
+                        }
+                    } else {
+                        EventBus.emit('notes:new');
+                    }
                 });
 
                 favoriteBtn = document.createElement('button');
@@ -137,8 +150,14 @@ const CardPanel = (() => {
                 favoriteBtn.textContent = '☆';
                 favoriteBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    FavoritesPanel.toggleCurrentVideo();
-                    updateFavoriteBtn();
+                    const url = location.href;
+                    const match = url.match(/BV[\w]+/);
+                    if (match) {
+                        AddToFavoritesModal.show();
+                    } else {
+                        const defaultVideo = Favorites.getDefaultVideo();
+                        AddToFavoritesModal.show(defaultVideo);
+                    }
                 });
 
                 const settingsBtn = document.createElement('button');

@@ -22,7 +22,13 @@ const Draggable = (() => {
                 const rect = el.getBoundingClientRect();
                 startLeft = rect.left;
                 startTop = rect.top;
+                
+                el.style.left = startLeft + 'px';
+                el.style.top = startTop + 'px';
+                el.style.right = 'auto';
+                el.style.bottom = 'auto';
                 el.style.transform = 'none';
+                
                 el.style.cursor = 'grabbing';
                 e.preventDefault();
             };

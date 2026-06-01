@@ -5,6 +5,9 @@ const NotesPanel = (() => {
     let currentSearchKeyword = '';
     let currentTagFilter = '';
     let currentTypeFilter = 'all';
+    let currentPage = 1;
+    let paginationInstance = null;
+    const pageSize = 10;
 
     function getCurrentBvid() {
         const match = location.href.match(/BV[\w]+/);
@@ -22,8 +25,8 @@ const NotesPanel = (() => {
         return `${y}-${m}-${day} ${h}:${min}`;
     }
 
-    function getFilteredNotes() {
-        let notes = Notes.getAll();
+    async function getFilteredNotes() {
+        let notes = await Notes.getAll();
 
         if (currentTypeFilter === 'videoNote') {
             notes = notes.filter(n => n.noteType === 'videoNote');
@@ -123,11 +126,10 @@ const NotesPanel = (() => {
         });
 
         const deleteBtn = itemEl.querySelector('.bili-speed-note-delete-btn');
-        deleteBtn.addEventListener('click', (e) => {
+        deleteBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             if (confirm('确定要删除这条笔记吗？')) {
-                Notes.remove(note.id);
-                renderNotesList(containerEl);
+                await Notes.remove(note.id);
             }
         });
 
@@ -146,32 +148,44 @@ const NotesPanel = (() => {
         return itemEl;
     }
 
-    function renderNotesList(containerEl) {
+    async function renderNotesList(containerEl) {
         containerEl.innerHTML = '';
 
-        const notes = getFilteredNotes();
+        const allNotes = await getFilteredNotes();
+        const total = allNotes.length;
+        const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-        if (notes.length === 0) {
+        if (currentPage > totalPages) {
+            currentPage = totalPages;
+        }
+
+        const start = (currentPage - 1) * pageSize;
+        const pageData = allNotes.slice(start, start + pageSize);
+
+        if (pageData.length === 0) {
             containerEl.innerHTML = `
                 <div style="text-align: center; padding: 40px 0; color: #999;">
                     <div style="font-size: 48px; margin-bottom: 8px;">📭</div>
                     <div>${currentSearchKeyword || currentTagFilter || currentFilter === 'current' ? '没有匹配的笔记' : '暂无笔记'}</div>
                 </div>
             `;
-            return;
+        } else {
+            pageData.forEach(note => {
+                containerEl.appendChild(renderNoteItem(note, containerEl));
+            });
         }
 
-        notes.forEach(note => {
-            containerEl.appendChild(renderNoteItem(note, containerEl));
-        });
+        if (paginationInstance) {
+            paginationInstance.setTotal(total);
+        }
     }
 
-    function renderFilterBar(bodyEl) {
+    async function renderFilterBar(bodyEl) {
         const bvid = getCurrentBvid();
-        const allTags = Notes.getAllTags();
-        const currentNoteCount = bvid ? Notes.countByBvid(bvid) : 0;
-        const videoNoteCount = Notes.countByType('videoNote');
-        const normalNoteCount = Notes.countByType('normalNote');
+        const allTags = await Notes.getAllTags();
+        const currentNoteCount = bvid ? await Notes.countByBvid(bvid) : 0;
+        const videoNoteCount = await Notes.countByType('videoNote');
+        const normalNoteCount = await Notes.countByType('normalNote');
 
         const filterBar = document.createElement('div');
         filterBar.className = 'bili-speed-notes-filter';
@@ -196,52 +210,56 @@ const NotesPanel = (() => {
             </div>
         `;
 
+        async function onFilterChange() {
+            currentPage = 1;
+            const listEl = bodyEl.querySelector('.bili-speed-notes-list');
+            if (listEl) await renderNotesList(listEl);
+        }
+
         const searchInput = filterBar.querySelector('.bili-speed-notes-search-input');
         let searchTimer = null;
         searchInput.addEventListener('input', (e) => {
             if (searchTimer) clearTimeout(searchTimer);
-            searchTimer = setTimeout(() => {
+            searchTimer = setTimeout(async () => {
                 currentSearchKeyword = e.target.value.trim();
-                const listEl = bodyEl.querySelector('.bili-speed-notes-list');
-                if (listEl) renderNotesList(listEl);
+                await onFilterChange();
             }, 300);
         });
 
         filterBar.querySelectorAll('[data-type]').forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', async () => {
                 currentTypeFilter = btn.dataset.type;
                 filterBar.querySelectorAll('[data-type]').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                const listEl = bodyEl.querySelector('.bili-speed-notes-list');
-                if (listEl) renderNotesList(listEl);
+                await onFilterChange();
             });
         });
 
         filterBar.querySelectorAll('[data-filter]').forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', async () => {
                 currentFilter = btn.dataset.filter;
                 filterBar.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                const listEl = bodyEl.querySelector('.bili-speed-notes-list');
-                if (listEl) renderNotesList(listEl);
+                await onFilterChange();
             });
         });
 
         const tagSelect = filterBar.querySelector('.bili-speed-notes-tag-select');
         if (tagSelect) {
-            tagSelect.addEventListener('change', (e) => {
+            tagSelect.addEventListener('change', async (e) => {
                 currentTagFilter = e.target.value;
-                const listEl = bodyEl.querySelector('.bili-speed-notes-list');
-                if (listEl) renderNotesList(listEl);
+                await onFilterChange();
             });
         }
 
         bodyEl.appendChild(filterBar);
     }
 
-    function createPanel() {
+    async function createPanel() {
         let savedPosition = Config.data.notesPanelPosition;
         const currentTheme = Config.data.theme || 'light';
+
+        const noteCount = await Notes.count();
 
         panelInstance = Card.create({
             className: `bili-speed-notes-panel theme-${currentTheme}`,
@@ -302,30 +320,57 @@ const NotesPanel = (() => {
 
                 dragCleanup = Draggable.make(headerEl.parentElement, 'notesPanelPosition', `[class*="-header"]`);
             },
-            onBodyReady: (bodyEl) => {
+            onBodyReady: async (bodyEl) => {
                 bodyEl.className = 'bili-speed-notes-panel-body';
-                bodyEl.style.cssText = 'padding: 8px; max-height: 500px; overflow-y: auto;';
+                bodyEl.style.cssText = 'padding: 8px; max-height: 500px; overflow-y: auto; display: flex; flex-direction: column;';
 
-                renderFilterBar(bodyEl);
+                await renderFilterBar(bodyEl);
 
                 const listEl = document.createElement('div');
                 listEl.className = 'bili-speed-notes-list';
                 bodyEl.appendChild(listEl);
 
-                renderNotesList(listEl);
+                const paginationContainer = document.createElement('div');
+                paginationContainer.className = 'bili-speed-notes-pagination';
+                bodyEl.appendChild(paginationContainer);
+
+                currentPage = 1;
+                if (paginationInstance) {
+                    paginationInstance.destroy();
+                    paginationInstance = null;
+                }
+
+                paginationInstance = Pagination.create({
+                    container: paginationContainer,
+                    total: 0,
+                    pageSize: pageSize,
+                    currentPage: 1,
+                    theme: Config.data.theme || 'light',
+                    onChange: async (page) => {
+                        currentPage = page;
+                        const list = bodyEl.querySelector('.bili-speed-notes-list');
+                        if (list) await renderNotesList(list);
+                    }
+                });
+
+                await renderNotesList(listEl);
 
                 const countEl = document.createElement('div');
                 countEl.className = 'bili-speed-notes-count';
                 countEl.style.cssText = 'text-align: center; padding: 8px 0; font-size: 12px; color: #999;';
-                countEl.textContent = `共 ${Notes.count()} 条笔记`;
+                countEl.textContent = `共 ${noteCount} 条笔记`;
                 bodyEl.appendChild(countEl);
 
-                EventBus.on('notes:updated', () => {
+                EventBus.on('notes:updated', async () => {
                     if (panelInstance && bodyEl) {
+                        currentPage = 1;
                         const list = bodyEl.querySelector('.bili-speed-notes-list');
                         const count = bodyEl.querySelector('.bili-speed-notes-count');
-                        if (list) renderNotesList(list);
-                        if (count) count.textContent = `共 ${Notes.count()} 条笔记`;
+                        if (list) await renderNotesList(list);
+                        if (count) {
+                            const newCount = await Notes.count();
+                            count.textContent = `共 ${newCount} 条笔记`;
+                        }
                     }
                 });
             }
@@ -342,6 +387,7 @@ const NotesPanel = (() => {
             currentSearchKeyword = '';
             currentTagFilter = '';
             currentTypeFilter = 'all';
+            currentPage = 1;
 
             createPanel();
         },
@@ -372,9 +418,16 @@ const NotesPanel = (() => {
             const el = panelInstance.element;
             el.classList.remove('theme-light', 'theme-dark');
             el.classList.add(`theme-${theme}`);
+            if (paginationInstance) {
+                paginationInstance.setTheme(theme);
+            }
         },
 
         destroy() {
+            if (paginationInstance) {
+                paginationInstance.destroy();
+                paginationInstance = null;
+            }
             if (dragCleanup) dragCleanup();
             dragCleanup = null;
             if (panelInstance) panelInstance.destroy();

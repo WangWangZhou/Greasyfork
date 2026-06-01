@@ -1,28 +1,5 @@
 const Notes = (() => {
-    const STORAGE_KEY = 'notes';
-    const MAX_NOTES = 500;
     const MAX_CONTENT_SIZE = 51200;
-
-    function getNotes() {
-        try {
-            const data = GM_getValue(STORAGE_KEY);
-            return Array.isArray(data) ? data : [];
-        } catch (err) {
-            Logger.error('读取笔记数据失败:', err);
-            return [];
-        }
-    }
-
-    function saveNotes(notes) {
-        try {
-            GM_setValue(STORAGE_KEY, notes);
-            EventBus.emit('notes:updated');
-            return true;
-        } catch (err) {
-            Logger.error('保存笔记数据失败:', err);
-            return false;
-        }
-    }
 
     function escapeHtml(str) {
         if (typeof str !== 'string') return '';
@@ -80,7 +57,7 @@ const Notes = (() => {
     }
 
     return {
-        add(note) {
+        async add(note) {
             if (!validateNote(note)) {
                 Logger.warn('无效的笔记数据');
                 return false;
@@ -91,37 +68,32 @@ const Notes = (() => {
                 return false;
             }
 
-            const notes = getNotes();
-
-            if (notes.length >= MAX_NOTES) {
-                Toast.show(`笔记数量已达上限 (${MAX_NOTES})`);
-                return false;
-            }
-
-            const existingIndex = notes.findIndex(n => n.id === note.id);
-            if (existingIndex !== -1) {
+            const existing = await Storage.notes.get(note.id);
+            if (existing) {
                 Logger.info('笔记ID已存在');
                 return false;
             }
 
             const sanitizedNote = sanitizeNote(note);
-            notes.push(sanitizedNote);
-
-            if (saveNotes(notes)) {
+            
+            try {
+                await Storage.notes.put(sanitizedNote);
                 EventBus.emit('notes:add', sanitizedNote);
+                EventBus.emit('notes:updated');
                 Toast.show('笔记已保存');
                 return true;
+            } catch (err) {
+                Logger.error('保存笔记失败:', err);
+                Toast.show('保存笔记失败');
+                return false;
             }
-            return false;
         },
 
-        update(id, updates) {
+        async update(id, updates) {
             if (!id) return false;
 
-            const notes = getNotes();
-            const index = notes.findIndex(n => n.id === id);
-
-            if (index === -1) {
+            const existingNote = await Storage.notes.get(id);
+            if (!existingNote) {
                 Logger.warn('未找到要更新的笔记');
                 return false;
             }
@@ -131,7 +103,7 @@ const Notes = (() => {
                 return false;
             }
 
-            const updatedNote = { ...notes[index] };
+            const updatedNote = { ...existingNote };
 
             if (updates.title !== undefined) updatedNote.title = String(updates.title).substring(0, 200);
             if (updates.content !== undefined) updatedNote.content = String(updates.content);
@@ -148,73 +120,95 @@ const Notes = (() => {
             updatedNote.updatedAt = Date.now();
 
             const sanitizedNote = sanitizeNote(updatedNote);
-            notes[index] = sanitizedNote;
 
-            if (saveNotes(notes)) {
+            try {
+                await Storage.notes.put(sanitizedNote);
                 EventBus.emit('notes:update', sanitizedNote);
+                EventBus.emit('notes:updated');
                 Toast.show('笔记已更新');
                 return true;
+            } catch (err) {
+                Logger.error('更新笔记失败:', err);
+                Toast.show('更新笔记失败');
+                return false;
             }
-            return false;
         },
 
-        remove(id) {
+        async remove(id) {
             if (!id) return false;
 
-            const notes = getNotes();
-            const index = notes.findIndex(n => n.id === id);
-
-            if (index === -1) {
+            const existingNote = await Storage.notes.get(id);
+            if (!existingNote) {
                 Logger.warn('未找到要删除的笔记');
                 return false;
             }
 
-            const removed = notes.splice(index, 1)[0];
-
-            if (saveNotes(notes)) {
-                EventBus.emit('notes:remove', removed);
+            try {
+                await Storage.notes.remove(id);
+                EventBus.emit('notes:remove', existingNote);
+                EventBus.emit('notes:updated');
                 Toast.show('笔记已删除');
                 return true;
+            } catch (err) {
+                Logger.error('删除笔记失败:', err);
+                Toast.show('删除笔记失败');
+                return false;
             }
-            return false;
         },
 
-        get(id) {
+        async get(id) {
             if (!id) return null;
-            const notes = getNotes();
-            return notes.find(n => n.id === id) || null;
+            try {
+                return await Storage.notes.get(id);
+            } catch (err) {
+                Logger.error('获取笔记失败:', err);
+                return null;
+            }
         },
 
-        getAll() {
-            return getNotes();
+        async getAll() {
+            try {
+                return await Storage.notes.getAll();
+            } catch (err) {
+                Logger.error('获取所有笔记失败:', err);
+                return [];
+            }
         },
 
-        getByBvid(bvid) {
+        async getByBvid(bvid) {
             if (!bvid) return [];
-            const notes = getNotes();
-            return notes.filter(n => n.bvid === bvid);
+            try {
+                return await Storage.notes.getByBvid(bvid);
+            } catch (err) {
+                Logger.error('获取视频笔记失败:', err);
+                return [];
+            }
         },
 
-        search(keyword) {
-            if (!keyword || typeof keyword !== 'string') return getNotes();
+        async search(keyword) {
+            if (!keyword || typeof keyword !== 'string') {
+                return await this.getAll();
+            }
+            
             const lowerKeyword = keyword.toLowerCase();
-            const notes = getNotes();
+            const notes = await this.getAll();
+            
             return notes.filter(n =>
                 n.title.toLowerCase().includes(lowerKeyword) ||
                 n.content.toLowerCase().includes(lowerKeyword) ||
                 n.videoTitle.toLowerCase().includes(lowerKeyword) ||
-                n.tags.some(t => t.toLowerCase().includes(lowerKeyword))
+                (n.tags && n.tags.some(t => t.toLowerCase().includes(lowerKeyword)))
             );
         },
 
-        getByTag(tag) {
+        async getByTag(tag) {
             if (!tag) return [];
-            const notes = getNotes();
-            return notes.filter(n => n.tags.includes(tag));
+            const notes = await this.getAll();
+            return notes.filter(n => n.tags && n.tags.includes(tag));
         },
 
-        getAllTags() {
-            const notes = getNotes();
+        async getAllTags() {
+            const notes = await this.getAll();
             const tagSet = new Set();
             notes.forEach(n => {
                 if (Array.isArray(n.tags)) {
@@ -224,46 +218,69 @@ const Notes = (() => {
             return Array.from(tagSet).sort();
         },
 
-        count() {
-            return getNotes().length;
+        async count() {
+            try {
+                return await Storage.notes.count();
+            } catch (err) {
+                Logger.error('获取笔记数量失败:', err);
+                return 0;
+            }
         },
 
-        countByBvid(bvid) {
+        async countByBvid(bvid) {
             if (!bvid) return 0;
-            const notes = getNotes();
-            return notes.filter(n => n.bvid === bvid).length;
+            const notes = await this.getByBvid(bvid);
+            return notes.length;
         },
 
-        countByType(type) {
+        async countByType(type) {
             if (!type) return 0;
-            const notes = getNotes();
-            return notes.filter(n => n.noteType === type).length;
+            try {
+                const notes = await Storage.notes.getByType(type);
+                return notes ? notes.length : 0;
+            } catch (err) {
+                Logger.error('按类型统计笔记失败:', err);
+                return 0;
+            }
         },
 
-        getByType(type) {
+        async getByType(type) {
             if (!type) return [];
-            const notes = getNotes();
-            return notes.filter(n => n.noteType === type);
+            try {
+                return await Storage.notes.getByType(type);
+            } catch (err) {
+                Logger.error('按类型获取笔记失败:', err);
+                return [];
+            }
         },
 
-        clear() {
-            saveNotes([]);
-            EventBus.emit('notes:clear');
-            Toast.show('所有笔记已清空');
+        async clear() {
+            try {
+                await Storage.notes.clear();
+                if (typeof GM_setValue === 'function') {
+                    GM_setValue('notes', null);
+                }
+                EventBus.emit('notes:clear');
+                EventBus.emit('notes:updated');
+                Toast.show('所有笔记已清空');
+            } catch (err) {
+                Logger.error('清空笔记失败:', err);
+                Toast.show('清空笔记失败');
+            }
         },
 
-        exportData() {
+        async exportData() {
             const data = {
-                version: "1.0",
+                version: "2.0",
                 exportedAt: Date.now(),
-                count: this.count(),
-                data: this.getAll()
+                count: await this.count(),
+                data: await this.getAll()
             };
             return JSON.stringify(data, null, 2);
         },
 
-        downloadExport() {
-            const json = this.exportData();
+        async downloadExport() {
+            const json = await this.exportData();
             const blob = new Blob([json], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -277,7 +294,7 @@ const Notes = (() => {
             Toast.show('笔记数据已导出');
         },
 
-        importData(jsonString) {
+        async importData(jsonString) {
             try {
                 const data = JSON.parse(jsonString);
 
@@ -293,19 +310,18 @@ const Notes = (() => {
                     return false;
                 }
 
-                const notes = getNotes();
                 let addedCount = 0;
 
-                validItems.forEach(item => {
-                    if (notes.length >= MAX_NOTES) return;
-                    if (!notes.some(n => n.id === item.id)) {
-                        notes.push(item);
+                for (const item of validItems) {
+                    const existing = await Storage.notes.get(item.id);
+                    if (!existing) {
+                        await Storage.notes.put(item);
                         addedCount++;
                     }
-                });
+                }
 
                 if (addedCount > 0) {
-                    saveNotes(notes);
+                    EventBus.emit('notes:updated');
                     Toast.show(`成功导入 ${addedCount} 条笔记`);
                     return true;
                 } else {

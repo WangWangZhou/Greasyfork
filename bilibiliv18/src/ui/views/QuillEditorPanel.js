@@ -268,7 +268,7 @@ const QuillEditorPanel = (() => {
         }, 3000);
     }
 
-    function saveNote() {
+    async function saveNote() {
         const panelEl = panelInstance?.element;
         if (!panelEl) return;
 
@@ -286,7 +286,7 @@ const QuillEditorPanel = (() => {
         const noteType = videoInfo.hasVideo ? 'videoNote' : 'normalNote';
 
         if (currentNoteId) {
-            Notes.update(currentNoteId, {
+            await Notes.update(currentNoteId, {
                 title: title,
                 content: content,
                 contentDelta: contentDelta,
@@ -312,7 +312,7 @@ const QuillEditorPanel = (() => {
                 createdAt: Date.now(),
                 updatedAt: Date.now()
             };
-            Notes.add(note);
+            await Notes.add(note);
             currentNoteId = note.id;
             showSaveStatus('✓ 笔记已保存');
         }

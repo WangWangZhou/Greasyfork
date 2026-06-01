@@ -290,7 +290,10 @@
 /* 深色主题样式 */
 .bili-speed-card.theme-dark,
 .bili-speed-panel.theme-dark,
-.bili-speed-favorites-panel.theme-dark {
+.bili-speed-favorites-panel.theme-dark,
+.bili-speed-notes-panel.theme-dark,
+.bili-speed-quill-panel.theme-dark,
+.bili-speed-vditor-panel.theme-dark {
     background: #1f1f1f;
     color: #fff;
 }
@@ -298,9 +301,19 @@
 .bili-speed-card.theme-dark .bili-speed-panel-btn,
 .bili-speed-card.theme-dark .bili-speed-close-btn,
 .bili-speed-card.theme-dark .bili-speed-favorite-btn,
+.bili-speed-card.theme-dark .bili-speed-note-btn,
 .bili-speed-panel.theme-dark .bili-speed-close,
 .bili-speed-favorites-panel.theme-dark .bili-speed-favorites-close,
-.bili-speed-favorites-panel.theme-dark .bili-speed-favorites-export {
+.bili-speed-favorites-panel.theme-dark .bili-speed-favorites-export,
+.bili-speed-notes-panel.theme-dark .bili-speed-notes-close,
+.bili-speed-notes-panel.theme-dark .bili-speed-notes-export,
+.bili-speed-notes-panel.theme-dark .bili-speed-notes-add,
+.bili-speed-quill-panel.theme-dark .bili-speed-editor-close,
+.bili-speed-quill-panel.theme-dark .bili-speed-editor-list,
+.bili-speed-quill-panel.theme-dark .bili-speed-editor-save,
+.bili-speed-vditor-panel.theme-dark .bili-speed-editor-close,
+.bili-speed-vditor-panel.theme-dark .bili-speed-editor-list,
+.bili-speed-vditor-panel.theme-dark .bili-speed-editor-save {
     color: #fff;
 }
 
@@ -314,6 +327,584 @@
 
 .bili-speed-favorites-panel.theme-dark .bili-speed-favorite-title {
     color: #fff;
+}
+
+/* 控制面板深色模式 */
+.bili-speed-panel.theme-dark .step-btn,
+.bili-speed-panel.theme-dark .default-btn,
+.bili-speed-panel.theme-dark .min-rate-btn,
+.bili-speed-panel.theme-dark .max-rate-btn {
+    border-color: #444;
+    background: #2a2a2a;
+    color: #fff;
+}
+
+.bili-speed-panel.theme-dark .step-btn:hover,
+.bili-speed-panel.theme-dark .default-btn:hover,
+.bili-speed-panel.theme-dark .min-rate-btn:hover,
+.bili-speed-panel.theme-dark .max-rate-btn:hover {
+    background: #333;
+}
+
+.bili-speed-panel.theme-dark .step-btn.active,
+.bili-speed-panel.theme-dark .default-btn.active,
+.bili-speed-panel.theme-dark .min-rate-btn.active,
+.bili-speed-panel.theme-dark .max-rate-btn.active {
+    background: #00AEEC;
+    border-color: #00AEEC;
+}
+
+.bili-speed-panel.theme-dark #key-reset,
+.bili-speed-panel.theme-dark #key-up,
+.bili-speed-panel.theme-dark #key-down {
+    border-color: #444;
+    background: #2a2a2a;
+    color: #fff;
+}
+
+.bili-speed-panel.theme-dark .theme-toggle-btn {
+    border-color: #444;
+    background: #2a2a2a;
+}
+
+.bili-speed-panel.theme-dark .cdn-quill-js,
+.bili-speed-panel.theme-dark .cdn-quill-css,
+.bili-speed-panel.theme-dark .cdn-vditor-js,
+.bili-speed-panel.theme-dark .cdn-vditor-css {
+    border-color: #444;
+    background: #2a2a2a;
+    color: #fff;
+}
+
+.bili-speed-panel.theme-dark .cdn-save,
+.bili-speed-panel.theme-dark .cdn-restore {
+    border-color: #444;
+    background: #2a2a2a;
+    color: #fff;
+}
+
+.bili-speed-panel.theme-dark .editor-btn {
+    border-color: #444;
+    background: #2a2a2a;
+    color: #fff;
+}
+
+.bili-speed-panel.theme-dark .editor-btn.active {
+    background: #00AEEC;
+    border-color: #00AEEC;
+}
+
+.bili-speed-panel.theme-dark .vditor-mode-btn {
+    border-color: #444;
+    background: #2a2a2a;
+    color: #fff;
+}
+
+.bili-speed-panel.theme-dark .vditor-mode-btn.active {
+    background: #00AEEC;
+    border-color: #00AEEC;
+}
+
+.bili-speed-panel.theme-dark .quill-width-input,
+.bili-speed-panel.theme-dark .quill-height-input,
+.bili-speed-panel.theme-dark .quill-min-width-input,
+.bili-speed-panel.theme-dark .quill-min-height-input,
+.bili-speed-panel.theme-dark .vditor-width-input,
+.bili-speed-panel.theme-dark .vditor-height-input,
+.bili-speed-panel.theme-dark .vditor-min-width-input,
+.bili-speed-panel.theme-dark .vditor-min-height-input {
+    border-color: #444;
+    background: #2a2a2a;
+    color: #fff;
+}
+
+.bili-speed-panel.theme-dark .quill-size-save,
+.bili-speed-panel.theme-dark .quill-size-restore,
+.bili-speed-panel.theme-dark .vditor-size-save,
+.bili-speed-panel.theme-dark .vditor-size-restore {
+    border-color: #444;
+    background: #2a2a2a;
+    color: #fff;
+}
+
+/* 笔记面板深色模式 */
+.bili-speed-notes-panel.theme-dark .bili-speed-notes-search-input,
+.bili-speed-notes-panel.theme-dark .bili-speed-editor-title-input,
+.bili-speed-notes-panel.theme-dark .bili-speed-notes-tag-select {
+    background: #333;
+    color: #fff;
+    border-color: #444;
+}
+
+.bili-speed-notes-panel.theme-dark .bili-speed-note-tag,
+.bili-speed-quill-panel.theme-dark .bili-speed-editor-tag,
+.bili-speed-vditor-panel.theme-dark .bili-speed-editor-tag {
+    background: #333;
+    color: #00AEEC;
+}
+
+.bili-speed-notes-panel.theme-dark .bili-speed-notes-filter-btn,
+.bili-speed-quill-panel.theme-dark .bili-speed-editor-tag-input,
+.bili-speed-vditor-panel.theme-dark .bili-speed-editor-tag-input,
+.bili-speed-quill-panel.theme-dark .bili-speed-editor-mark-time,
+.bili-speed-vditor-panel.theme-dark .bili-speed-editor-mark-time,
+.bili-speed-quill-panel.theme-dark .bili-speed-editor-fallback,
+.bili-speed-vditor-panel.theme-dark .bili-speed-editor-fallback,
+.bili-speed-notes-panel.theme-dark .bili-speed-notes-tag-select {
+    background: #333;
+    color: #ccc;
+    border-color: #444;
+}
+
+.bili-speed-notes-panel.theme-dark .bili-speed-notes-filter-btn.active {
+    background: #00AEEC;
+    color: #fff;
+    border-color: #00AEEC;
+}
+
+.bili-speed-notes-panel.theme-dark .bili-speed-note-editor-type {
+    background: #444;
+    color: #ccc;
+}
+
+.bili-speed-notes-panel.theme-dark .bili-speed-note-item:hover {
+    background: #333;
+}
+
+.bili-speed-notes-panel.theme-dark .bili-speed-note-item-title {
+    color: #fff;
+}
+
+/* Quill 编辑器深色模式 */
+.bili-speed-quill-panel.theme-dark .ql-toolbar {
+    border-color: #444;
+    background: #2a2a2a;
+}
+
+.bili-speed-quill-panel.theme-dark .ql-container {
+    border-color: #444;
+    background: #1f1f1f;
+    color: #fff;
+}
+
+.bili-speed-quill-panel.theme-dark .ql-editor {
+    color: #fff;
+}
+
+.bili-speed-quill-panel.theme-dark .ql-snow .ql-stroke {
+    stroke: #ccc;
+}
+
+.bili-speed-quill-panel.theme-dark .ql-snow .ql-fill {
+    fill: #ccc;
+}
+
+.bili-speed-quill-panel.theme-dark .ql-snow .ql-picker-label {
+    color: #ccc;
+}
+
+.bili-speed-quill-panel.theme-dark .bili-speed-editor-save,
+.bili-speed-vditor-panel.theme-dark .bili-speed-editor-save {
+    background: #333;
+    color: #fff;
+}
+
+/* 编辑器内部按钮深色模式 */
+.bili-speed-quill-panel.theme-dark .bili-speed-editor-tag-add,
+.bili-speed-vditor-panel.theme-dark .bili-speed-editor-tag-add {
+    background: #333;
+    color: #fff;
+    border-color: #444;
+}
+
+/* 控制面板菜单样式 */
+.bili-speed-panel-menu-container {
+    padding: 16px;
+}
+
+.bili-speed-panel-menu-section {
+    margin-bottom: 16px;
+}
+
+.bili-speed-panel-menu-title {
+    font-size: 14px;
+    font-weight: bold;
+    margin-bottom: 12px;
+}
+
+.bili-speed-panel-theme-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.bili-speed-panel-theme-label {
+    font-size: 13px;
+}
+
+.theme-toggle-btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    background: #fff;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.bili-speed-panel-theme-status {
+    font-size: 12px;
+    color: #999;
+}
+
+.bili-speed-panel-tip {
+    font-size: 12px;
+    color: #999;
+    padding: 8px;
+    background: #f5f5f5;
+    border-radius: 4px;
+}
+
+.bili-speed-panel-cdn-section {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid #eee;
+}
+
+.bili-speed-panel-cdn-row {
+    margin-bottom: 6px;
+}
+
+.bili-speed-panel-cdn-label {
+    font-size: 12px;
+    color: #666;
+    display: block;
+    margin-bottom: 2px;
+}
+
+.bili-speed-panel-cdn-section input {
+    width: 100%;
+    padding: 4px 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 12px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.bili-speed-panel-cdn-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.bili-speed-panel-cdn-buttons button {
+    flex: 1;
+    padding: 6px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    background: #fff;
+    color: #000;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.bili-speed-panel-export-section {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 2px solid #e0e0e0;
+}
+
+.bili-speed-panel-export-group {
+    margin-bottom: 16px;
+}
+
+.bili-speed-panel-export-group:last-child {
+    margin-bottom: 0;
+}
+
+.bili-speed-panel-export-category {
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.bili-speed-panel-export-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.bili-speed-panel-export-buttons button {
+    flex: 1;
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    background: #fff;
+    color: #000;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s ease;
+}
+
+.bili-speed-panel-export-buttons button:hover {
+    background: #f0f7ff;
+    border-color: #00aeec;
+    color: #00aeec;
+}
+
+.bili-speed-panel-menu-section {
+    margin-bottom: 24px;
+}
+
+.bili-speed-panel-menu-section:last-child {
+    margin-bottom: 0;
+}
+
+/* 控制面板深色模式 - 新增样式 */
+.bili-speed-panel.theme-dark .bili-speed-panel-menu-title {
+    color: #fff;
+}
+
+.bili-speed-panel.theme-dark .bili-speed-panel-theme-label {
+    color: #ccc;
+}
+
+.bili-speed-panel.theme-dark .theme-toggle-btn {
+    border-color: #444;
+    background: #2a2a2a;
+}
+
+.bili-speed-panel.theme-dark .bili-speed-panel-theme-status {
+    color: #999;
+}
+
+.bili-speed-panel.theme-dark .bili-speed-panel-tip {
+    background: #2a2a2a;
+    color: #999;
+}
+
+.bili-speed-panel.theme-dark .bili-speed-panel-cdn-section {
+    border-top-color: #333;
+}
+
+.bili-speed-panel.theme-dark .bili-speed-panel-cdn-label {
+    color: #999;
+}
+
+.bili-speed-panel.theme-dark .bili-speed-panel-cdn-section input {
+    border-color: #444;
+    background: #2a2a2a;
+    color: #fff;
+}
+
+.bili-speed-panel.theme-dark .bili-speed-panel-cdn-buttons button {
+    border-color: #444;
+    background: #2a2a2a;
+    color: #fff;
+}
+
+.bili-speed-panel.theme-dark .bili-speed-panel-export-section {
+    border-top-color: #444;
+}
+
+.bili-speed-panel.theme-dark .bili-speed-panel-export-category {
+    color: #fff;
+}
+
+.bili-speed-panel.theme-dark .bili-speed-panel-export-buttons button {
+    border-color: #444;
+    background: #2a2a2a;
+    color: #fff;
+}
+
+.bili-speed-panel.theme-dark .bili-speed-panel-export-buttons button:hover {
+    background: #1a3040;
+    border-color: #00aeec;
+    color: #00aeec;
+}
+
+/* 速度菜单样式 */
+.bili-speed-panel-speed-menu {
+    padding: 0 16px;
+}
+
+.bili-speed-panel-option-group {
+    margin-bottom: 12px;
+}
+
+.bili-speed-panel-option-label {
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.bili-speed-panel-button-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.bili-speed-panel-keybind-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.bili-speed-panel-keybind-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+}
+
+.bili-speed-panel-keybind-item input {
+    width: 30px;
+    padding: 4px;
+    text-align: center;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    background: #fff;
+    color: #000;
+    text-transform: uppercase;
+}
+
+.bili-speed-panel-keybind-tip {
+    font-size: 11px;
+    color: #999;
+    margin-top: 4px;
+}
+
+.bili-speed-panel-action-buttons {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    padding: 12px 0;
+}
+
+.bili-speed-panel-action-buttons button {
+    padding: 8px 16px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+}
+
+.bili-speed-panel-action-buttons #reset-btn {
+    background: #999;
+    color: #fff;
+}
+
+.bili-speed-panel-action-buttons #save-btn {
+    background: #00AEEC;
+    color: #fff;
+}
+
+/* 速度菜单深色模式 */
+.bili-speed-panel.theme-dark .bili-speed-panel-option-label {
+    color: #fff;
+}
+
+.bili-speed-panel.theme-dark .bili-speed-panel-keybind-item {
+    color: #ccc;
+}
+
+.bili-speed-panel.theme-dark .bili-speed-panel-keybind-item input {
+    border-color: #444;
+    background: #2a2a2a;
+    color: #fff;
+}
+
+.bili-speed-panel.theme-dark .bili-speed-panel-keybind-tip {
+    color: #999;
+}
+
+/* 收藏菜单样式 */
+.bili-speed-panel-favorites-menu {
+    padding: 16px;
+}
+
+.bili-speed-panel-favorites-header {
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.bili-speed-panel-favorites-title {
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.bili-speed-panel-favorites-count {
+    font-size: 12px;
+    color: #999;
+}
+
+.bili-speed-panel-favorites-action {
+    margin-bottom: 16px;
+}
+
+.bili-speed-panel-favorites-action button {
+    width: 100%;
+    padding: 10px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    background: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.bili-speed-panel-favorites-action-primary button {
+    border: none;
+    background: #00AEEC;
+    color: #fff;
+}
+
+.bili-speed-panel-favorites-action-danger {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #eee;
+}
+
+.bili-speed-panel-favorites-action-danger button {
+    border-color: #ff6b6b;
+    color: #ff6b6b;
+}
+
+.bili-speed-panel-favorites-action input[type=file] {
+    display: none;
+}
+
+/* 收藏菜单深色模式 */
+.bili-speed-panel.theme-dark .bili-speed-panel-favorites-title {
+    color: #fff;
+}
+
+.bili-speed-panel.theme-dark .bili-speed-panel-favorites-count {
+    color: #999;
+}
+
+.bili-speed-panel.theme-dark .bili-speed-panel-favorites-action button {
+    border-color: #444;
+    background: #2a2a2a;
+    color: #fff;
+}
+
+.bili-speed-panel.theme-dark .bili-speed-panel-favorites-action-primary button {
+    background: #00AEEC;
+    color: #fff;
+}
+
+.bili-speed-panel.theme-dark .bili-speed-panel-favorites-action-danger {
+    border-top-color: #333;
+}
+
+.bili-speed-panel.theme-dark .bili-speed-panel-favorites-action-danger button {
+    border-color: #ff6b6b;
+    color: #ff6b6b;
+    background: #2a2a2a;
 }
 
 /* 菜单项样式 */

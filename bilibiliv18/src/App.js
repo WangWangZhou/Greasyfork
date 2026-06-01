@@ -1,10 +1,22 @@
 const App = (() => {
     let lastUrl = location.href;
 
-    function init() {
+    async function init() {
         if (PageGuard.isNotAllowedPage()) {
             Logger.info('当前页面不启用脚本');
             return;
+        }
+
+        try {
+            await Storage.init();
+            Logger.info('存储层初始化完成');
+
+            const migrated = await Storage.migrateFromGM();
+            if (migrated) {
+                Logger.info('数据迁移完成');
+            }
+        } catch (err) {
+            Logger.error('存储层初始化失败:', err);
         }
 
         Toast.create();
@@ -48,6 +60,7 @@ const App = (() => {
         EventBus.on('theme:changed', (theme) => {
             CardPanel.applyTheme(theme);
             ControlPanel.applyTheme(theme);
+            FavoritesPanel.applyTheme(theme);
             NotesPanel.applyTheme(theme);
             QuillEditorPanel.applyTheme(theme);
             VditorEditorPanel.applyTheme(theme);

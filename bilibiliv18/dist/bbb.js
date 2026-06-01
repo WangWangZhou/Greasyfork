@@ -336,7 +336,13 @@ const Draggable = (() => {
                 const rect = el.getBoundingClientRect();
                 startLeft = rect.left;
                 startTop = rect.top;
+                
+                el.style.left = startLeft + 'px';
+                el.style.top = startTop + 'px';
+                el.style.right = 'auto';
+                el.style.bottom = 'auto';
                 el.style.transform = 'none';
+                
                 el.style.cursor = 'grabbing';
                 e.preventDefault();
             };
@@ -1045,6 +1051,543 @@ const Progress = (() => {
 })();
 
 /**
+ * Pagination - 通用分页组件
+ * UI基础组件 - 提供分页控制功能
+ */
+const Pagination = (() => {
+    let styleInjected = false;
+
+    function injectStyles() {
+        if (styleInjected) return;
+        styleInjected = true;
+
+        const style = document.createElement('style');
+        style.id = 'bili-pagination-style';
+        style.textContent = `
+            .bili-pagination {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                padding: 8px 0;
+                font-size: 13px;
+                user-select: none;
+            }
+            .bili-pagination-btn {
+                padding: 4px 10px;
+                border-radius: 4px;
+                border: 1px solid #ccc;
+                background: #fff;
+                color: #000;
+                cursor: pointer;
+                font-size: 16px;
+                line-height: 1;
+                transition: all 0.2s;
+                min-width: 28px;
+                text-align: center;
+            }
+            .bili-pagination-btn:hover:not(:disabled) {
+                background: #e0e0e0;
+            }
+            .bili-pagination-btn:disabled {
+                opacity: 0.4;
+                cursor: not-allowed;
+            }
+            .bili-pagination-info {
+                color: #666;
+                min-width: 60px;
+                text-align: center;
+                font-size: 13px;
+            }
+            .bili-pagination-input {
+                width: 50px;
+                padding: 3px 6px;
+                border-radius: 4px;
+                border: 1px solid #ccc;
+                background: #fff;
+                color: #000;
+                font-size: 13px;
+                text-align: center;
+                outline: none;
+                transition: border-color 0.2s;
+            }
+            .bili-pagination-input:focus {
+                border-color: #00AEEC;
+            }
+            .bili-pagination-input::-webkit-inner-spin-button,
+            .bili-pagination-input::-webkit-outer-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
+            }
+            .bili-pagination-input[type=number] {
+                -moz-appearance: textfield;
+            }
+            .bili-pagination-total {
+                color: #999;
+                font-size: 12px;
+                margin-left: 4px;
+            }
+            .bili-pagination-hidden {
+                display: none !important;
+            }
+            .theme-dark .bili-pagination-btn {
+                background: #333;
+                border-color: #555;
+                color: #fff;
+            }
+            .theme-dark .bili-pagination-btn:hover:not(:disabled) {
+                background: #444;
+            }
+            .theme-dark .bili-pagination-info {
+                color: #aaa;
+            }
+            .theme-dark .bili-pagination-input {
+                background: #333;
+                color: #fff;
+                border-color: #555;
+            }
+            .theme-dark .bili-pagination-input:focus {
+                border-color: #00AEEC;
+            }
+            .theme-dark .bili-pagination-total {
+                color: #777;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    return {
+        create(options = {}) {
+            const {
+                container,
+                total = 0,
+                pageSize = 10,
+                currentPage: initialPage = 1,
+                onChange,
+                theme = 'light'
+            } = options;
+
+            if (!container) {
+                console.warn('Pagination: container is required');
+                return null;
+            }
+
+            injectStyles();
+
+            let currentPage = initialPage;
+            let currentTotal = total;
+            let paginationEl = null;
+
+            function getTotalPages() {
+                return Math.max(1, Math.ceil(currentTotal / pageSize));
+            }
+
+            function render() {
+                if (paginationEl) {
+                    paginationEl.remove();
+                }
+
+                const totalPages = getTotalPages();
+                const showPagination = currentTotal > pageSize;
+
+                paginationEl = document.createElement('div');
+                paginationEl.className = 'bili-pagination';
+
+                if (!showPagination) {
+                    paginationEl.classList.add('bili-pagination-hidden');
+                }
+
+                const prevBtn = document.createElement('button');
+                prevBtn.className = 'bili-pagination-btn';
+                prevBtn.textContent = '‹';
+                prevBtn.title = '上一页';
+                prevBtn.disabled = currentPage <= 1;
+
+                const pageInfo = document.createElement('span');
+                pageInfo.className = 'bili-pagination-info';
+                pageInfo.textContent = `${currentPage} / ${totalPages}`;
+
+                const pageInput = document.createElement('input');
+                pageInput.className = 'bili-pagination-input';
+                pageInput.type = 'number';
+                pageInput.min = 1;
+                pageInput.max = totalPages;
+                pageInput.value = currentPage;
+
+                const nextBtn = document.createElement('button');
+                nextBtn.className = 'bili-pagination-btn';
+                nextBtn.textContent = '›';
+                nextBtn.title = '下一页';
+                nextBtn.disabled = currentPage >= totalPages;
+
+                const totalInfo = document.createElement('span');
+                totalInfo.className = 'bili-pagination-total';
+                totalInfo.textContent = `共 ${currentTotal}`;
+
+                prevBtn.addEventListener('click', () => {
+                    if (currentPage > 1) {
+                        goToPage(currentPage - 1);
+                    }
+                });
+
+                nextBtn.addEventListener('click', () => {
+                    if (currentPage < totalPages) {
+                        goToPage(currentPage + 1);
+                    }
+                });
+
+                pageInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        const val = parseInt(pageInput.value, 10);
+                        if (!isNaN(val) && val >= 1 && val <= totalPages) {
+                            goToPage(val);
+                        } else {
+                            pageInput.value = currentPage;
+                        }
+                    }
+                });
+                pageInput.addEventListener('blur', () => {
+                    pageInput.value = currentPage;
+                });
+
+                paginationEl.appendChild(prevBtn);
+                paginationEl.appendChild(pageInfo);
+                paginationEl.appendChild(pageInput);
+                paginationEl.appendChild(nextBtn);
+                paginationEl.appendChild(totalInfo);
+
+                container.appendChild(paginationEl);
+
+                if (theme === 'dark') {
+                    applyThemeToUI('dark');
+                }
+            }
+
+            function applyThemeToUI(newTheme) {
+                if (!paginationEl) return;
+
+                if (newTheme === 'dark') {
+                    paginationEl.classList.add('theme-dark');
+                } else {
+                    paginationEl.classList.remove('theme-dark');
+                }
+            }
+
+            function goToPage(page) {
+                const totalPages = getTotalPages();
+                if (page < 1 || page > totalPages || page === currentPage) return;
+
+                currentPage = page;
+
+                if (onChange) {
+                    onChange(currentPage);
+                }
+
+                render();
+            }
+
+            function setTotal(newTotal) {
+                currentTotal = newTotal;
+                const totalPages = getTotalPages();
+
+                if (currentPage > totalPages) {
+                    currentPage = totalPages;
+                }
+
+                render();
+            }
+
+            function setCurrentPage(page) {
+                const totalPages = getTotalPages();
+                if (page < 1) page = 1;
+                if (page > totalPages) page = totalPages;
+                if (page === currentPage) return;
+
+                currentPage = page;
+                render();
+            }
+
+            function setTheme(newTheme) {
+                applyThemeToUI(newTheme);
+            }
+
+            function destroy() {
+                if (paginationEl) {
+                    paginationEl.remove();
+                    paginationEl = null;
+                }
+            }
+
+            function getCurrentPage() {
+                return currentPage;
+            }
+
+            function getTotal() {
+                return currentTotal;
+            }
+
+            render();
+
+            return {
+                goToPage,
+                setTotal,
+                setCurrentPage,
+                setTheme,
+                destroy,
+                getCurrentPage,
+                getTotal,
+                getTotalPages
+            };
+        }
+    };
+})();
+
+
+/**
+ * Switch - 开关组件
+ * UI基础组件 - 提供美观的开关控件
+ *
+ * @module UI/Components
+ *
+ * @example
+ * const switchEl = Switch.create({
+ *   checked: false,
+ *   onChange: (isChecked) => {
+ *     console.log('Switch:', isChecked);
+ *   }
+ * });
+ *
+ * document.body.appendChild(switchEl);
+ */
+const Switch = (() => {
+    return {
+        /**
+         * 创建Switch实例
+         * @param {Object} options - 配置选项
+         * @param {boolean} [options.checked=false] - 初始是否选中
+         * @param {Function} [options.onChange] - 状态变化回调
+         * @param {boolean} [options.disabled=false] - 是否禁用
+         * @param {string} [options.size='normal'] - 尺寸: 'small', 'normal', 'large'
+         * @returns {HTMLElement} Switch元素
+         */
+        create(options = {}) {
+            const {
+                checked = false,
+                onChange,
+                disabled = false,
+                size = 'normal'
+            } = options;
+
+            const container = document.createElement('div');
+            container.className = 'bili-speed-switch-container';
+
+            const sizes = {
+                small: { width: 28, height: 16, knob: 12 },
+                normal: { width: 40, height: 22, knob: 18 },
+                large: { width: 52, height: 28, knob: 24 }
+            };
+
+            const config = sizes[size] || sizes.normal;
+            const transitionDuration = '0.25s';
+
+            container.innerHTML = `
+                <div class="bili-speed-switch ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''}" 
+                     role="switch" 
+                     aria-checked="${checked}"
+                     tabindex="0">
+                    <div class="bili-speed-switch-track">
+                        <div class="bili-speed-switch-knob"></div>
+                    </div>
+                </div>
+            `;
+
+            const switchEl = container.querySelector('.bili-speed-switch');
+            const trackEl = container.querySelector('.bili-speed-switch-track');
+
+            const baseStyles = `
+                display: inline-block;
+                vertical-align: middle;
+            `;
+            container.style.cssText = baseStyles;
+
+            const switchStyles = `
+                position: relative;
+                display: inline-block;
+                width: ${config.width}px;
+                height: ${config.height}px;
+                cursor: ${disabled ? 'not-allowed' : 'pointer'};
+                transition: all ${transitionDuration} ease;
+            `;
+            switchEl.style.cssText = switchStyles;
+
+            const trackStyles = `
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: #ccc;
+                border-radius: ${config.height / 2}px;
+                transition: background-color ${transitionDuration} ease;
+            `;
+            trackEl.style.cssText = trackStyles;
+
+            const knobEl = container.querySelector('.bili-speed-switch-knob');
+            const knobSize = config.knob;
+            const knobMargin = (config.height - knobSize) / 2;
+            const knobStyles = `
+                position: absolute;
+                top: ${knobMargin}px;
+                left: ${knobMargin}px;
+                width: ${knobSize}px;
+                height: ${knobSize}px;
+                background-color: #fff;
+                border-radius: 50%;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                transition: transform ${transitionDuration} ease;
+            `;
+            knobEl.style.cssText = knobStyles;
+
+            if (checked) {
+                const translateX = config.width - knobSize - knobMargin * 2;
+                knobEl.style.transform = `translateX(${translateX}px)`;
+                trackEl.style.backgroundColor = '#00aeec';
+            }
+
+            function updateState(newChecked) {
+                if (disabled) return;
+
+                const isChecked = newChecked;
+                if (isChecked) {
+                    switchEl.classList.add('checked');
+                    trackEl.style.backgroundColor = '#00aeec';
+                    knobEl.style.transform = `translateX(${config.width - knobSize - knobMargin * 2}px)`;
+                } else {
+                    switchEl.classList.remove('checked');
+                    trackEl.style.backgroundColor = '#ccc';
+                    knobEl.style.transform = 'translateX(0)';
+                }
+                switchEl.setAttribute('aria-checked', isChecked);
+
+                if (onChange && typeof onChange === 'function') {
+                    onChange(isChecked);
+                }
+            }
+
+            switchEl.addEventListener('click', () => {
+                if (disabled) return;
+                const newChecked = !switchEl.classList.contains('checked');
+                updateState(newChecked);
+            });
+
+            switchEl.addEventListener('keydown', (e) => {
+                if (disabled) return;
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    const newChecked = !switchEl.classList.contains('checked');
+                    updateState(newChecked);
+                }
+            });
+
+            const switchInstance = {
+                element: container,
+                getValue: () => container.querySelector('.bili-speed-switch').classList.contains('checked'),
+                setValue: (value) => updateState(!!value),
+                enable: () => {
+                    switchEl.classList.remove('disabled');
+                    switchEl.style.cursor = 'pointer';
+                },
+                disable: () => {
+                    switchEl.classList.add('disabled');
+                    switchEl.style.cursor = 'not-allowed';
+                },
+                destroy: () => {
+                    container.remove();
+                }
+            };
+
+            return switchInstance;
+        }
+    };
+})();
+
+
+const AddGroup = (() => {
+    function create(onSubmit) {
+        const container = document.createElement('div');
+        container.className = 'add-group';
+        container.style.cssText = `
+            display: flex;
+            gap: 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+        `;
+
+        const form = document.createElement('form');
+        form.className = 'input-group';
+        form.style.cssText = `
+            display: flex;
+            width: 100%;
+        `;
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = form.querySelector('input');
+            const name = input.value.trim();
+            if (name && onSubmit) {
+                await onSubmit(name);
+                input.value = '';
+            }
+        });
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.maxLength = 20;
+        input.placeholder = '最多可输入20个字';
+        input.style.cssText = `
+            flex: 1;
+            padding: 10px 12px;
+            border: none;
+            outline: none;
+            font-size: 14px;
+        `;
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const name = input.value.trim();
+                if (name && onSubmit) {
+                    onSubmit(name);
+                    input.value = '';
+                }
+            }
+        });
+
+        const submitBtn = document.createElement('button');
+        submitBtn.type = 'submit';
+        submitBtn.className = 'submit';
+        submitBtn.textContent = '新建';
+        submitBtn.style.cssText = `
+            padding: 10px 20px;
+            border: none;
+            background: #00a1d6;
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+        `;
+
+        form.appendChild(input);
+        form.appendChild(submitBtn);
+        container.appendChild(form);
+
+        return container;
+    }
+
+    return {
+        create
+    };
+})();
+
+/**
  * VideoController - 视频倍速控制模块
  */
 const VideoController = (() => {
@@ -1094,34 +1637,667 @@ const VideoController = (() => {
     };
 })();
 
-/**
- * Favorites - 收藏夹存储模块
- * 提供视频收藏的增删改查及数据导出功能
- */
-const Favorites = (() => {
-    const STORAGE_KEY = 'favorites';
-    const MAX_FAVORITES = 1000;
+const Storage = (() => {
+    const DB_NAME = 'BiliSpeedDB';
+    const DB_VERSION = 2;
+    const NOTES_STORE = 'notes';
+    const FAVORITES_STORE = 'favorites';
+    const FAVORITE_GROUPS_STORE = 'favoriteGroups';
+    const SETTINGS_STORE = 'settings';
 
-    function getFavorites() {
-        try {
-            const data = GM_getValue(STORAGE_KEY);
-            return Array.isArray(data) ? data : [];
-        } catch (err) {
-            Logger.error('读取收藏数据失败:', err);
-            return [];
+    let db = null;
+    let isInitialized = false;
+
+    function openDB() {
+        return new Promise((resolve, reject) => {
+            if (db) {
+                resolve(db);
+                return;
+            }
+
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+            request.onerror = () => {
+                Logger.error('打开 IndexedDB 失败:', request.error);
+                reject(request.error);
+            };
+
+            request.onsuccess = () => {
+                db = request.result;
+                Logger.info('IndexedDB 已打开');
+                resolve(db);
+            };
+
+            request.onupgradeneeded = (event) => {
+        const database = event.target.result;
+        const oldVersion = event.oldVersion || 0;
+
+        if (oldVersion < 1) {
+            if (!database.objectStoreNames.contains(NOTES_STORE)) {
+                const notesStore = database.createObjectStore(NOTES_STORE, { keyPath: 'id' });
+                notesStore.createIndex('bvid', 'bvid', { unique: false });
+                notesStore.createIndex('noteType', 'noteType', { unique: false });
+                notesStore.createIndex('createdAt', 'createdAt', { unique: false });
+                notesStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+            }
+
+            if (!database.objectStoreNames.contains(FAVORITES_STORE)) {
+                const favoritesStore = database.createObjectStore(FAVORITES_STORE, { keyPath: 'id' });
+                favoritesStore.createIndex('bvid', 'bvid', { unique: false });
+                favoritesStore.createIndex('addedAt', 'addedAt', { unique: false });
+            }
+
+            if (!database.objectStoreNames.contains(SETTINGS_STORE)) {
+                database.createObjectStore(SETTINGS_STORE, { keyPath: 'key' });
+            }
         }
+
+        if (oldVersion < 2) {
+            if (!database.objectStoreNames.contains(FAVORITE_GROUPS_STORE)) {
+                const groupsStore = database.createObjectStore(FAVORITE_GROUPS_STORE, { keyPath: 'id' });
+                groupsStore.createIndex('order', 'order', { unique: false });
+                groupsStore.createIndex('isVisible', 'isVisible', { unique: false });
+                groupsStore.createIndex('isDefault', 'isDefault', { unique: false });
+            }
+        }
+    };
+        });
     }
 
-    function saveFavorites(favorites) {
+    async function ensureDB() {
+        if (!isInitialized) {
+            await openDB();
+            isInitialized = true;
+        }
+        return db;
+    }
+
+    function transaction(storeName, mode = 'readonly') {
+        return new Promise((resolve, reject) => {
+            ensureDB().then(database => {
+                const tx = database.transaction(storeName, mode);
+                const store = tx.objectStore(storeName);
+                resolve({ tx, store });
+            }).catch(reject);
+        });
+    }
+
+    async function getAll(storeName) {
+        const { store } = await transaction(storeName, 'readonly');
+        return new Promise((resolve, reject) => {
+            const request = store.getAll();
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async function get(storeName, id) {
+        const { store } = await transaction(storeName, 'readonly');
+        return new Promise((resolve, reject) => {
+            const request = store.get(id);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async function put(storeName, data) {
+        const { store } = await transaction(storeName, 'readwrite');
+        return new Promise((resolve, reject) => {
+            const request = store.put(data);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async function remove(storeName, id) {
+        const { store } = await transaction(storeName, 'readwrite');
+        return new Promise((resolve, reject) => {
+            const request = store.delete(id);
+            request.onsuccess = () => resolve(true);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async function clear(storeName) {
+        const { store } = await transaction(storeName, 'readwrite');
+        return new Promise((resolve, reject) => {
+            const request = store.clear();
+            request.onsuccess = () => resolve(true);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async function count(storeName) {
+        const { store } = await transaction(storeName, 'readonly');
+        return new Promise((resolve, reject) => {
+            const request = store.count();
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async function getByIndex(storeName, indexName, value) {
+        const { store } = await transaction(storeName, 'readonly');
+        const index = store.index(indexName);
+        return new Promise((resolve, reject) => {
+            const request = index.getAll(value);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async function getSettings(key) {
+        const { store } = await transaction(SETTINGS_STORE, 'readonly');
+        return new Promise((resolve, reject) => {
+            const request = store.get(key);
+            request.onsuccess = () => resolve(request.result?.value);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async function setSettings(key, value) {
+        const { store } = await transaction(SETTINGS_STORE, 'readwrite');
+        return new Promise((resolve, reject) => {
+            const request = store.put({ key, value });
+            request.onsuccess = () => resolve(true);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async function migrateFromGM() {
         try {
-            GM_setValue(STORAGE_KEY, favorites);
-            EventBus.emit('favorites:updated');
+            const notesData = GM_getValue('notes');
+            if (notesData && Array.isArray(notesData)) {
+                for (const note of notesData) {
+                    await put(NOTES_STORE, note);
+                }
+                Logger.info(`从 GM 迁移了 ${notesData.length} 条笔记到 IndexedDB`);
+            }
+
+            const favoritesData = GM_getValue('favorites');
+            if (favoritesData && Array.isArray(favoritesData)) {
+                for (const item of favoritesData) {
+                    await put(FAVORITES_STORE, item);
+                }
+                Logger.info(`从 GM 迁移了 ${favoritesData.length} 条收藏到 IndexedDB`);
+            }
             return true;
         } catch (err) {
-            Logger.error('保存收藏数据失败:', err);
+            Logger.error('数据迁移失败:', err);
             return false;
         }
     }
+
+    async function exportData() {
+    const notes = await getAll(NOTES_STORE);
+    const favorites = await getAll(FAVORITES_STORE);
+    return {
+        version: '2.0',
+        exportedAt: Date.now(),
+        notes,
+        favorites
+    };
+}
+
+async function exportFavoritesAsJSON() {
+    const favorites = await getAll(FAVORITES_STORE);
+    const data = {
+        version: '2.0',
+        exportedAt: Date.now(),
+        type: 'favorites',
+        data: favorites
+    };
+    return downloadJSON(data, `bili-speed-favorites-${Date.now()}.json`);
+}
+
+async function exportFavoritesAsCSV() {
+    const favorites = await getAll(FAVORITES_STORE);
+    const headers = ['id', 'bvid', 'title', 'addedAt'];
+    const rows = favorites.map(fav => [
+        fav.id,
+        fav.bvid,
+        `"${(fav.title || '').replace(/"/g, '""')}"`,
+        fav.addedAt
+    ]);
+    const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+    return downloadCSV(csvContent, `bili-speed-favorites-${Date.now()}.csv`);
+}
+
+async function exportNotesAsJSON() {
+    const notes = await getAll(NOTES_STORE);
+    const data = {
+        version: '2.0',
+        exportedAt: Date.now(),
+        type: 'notes',
+        data: notes
+    };
+    return downloadJSON(data, `bili-speed-notes-${Date.now()}.json`);
+}
+
+async function exportNotesAsCSV() {
+    const notes = await getAll(NOTES_STORE);
+    const headers = ['id', 'bvid', 'title', 'noteType', 'content', 'createdAt', 'updatedAt'];
+    const rows = notes.map(note => [
+        note.id,
+        note.bvid,
+        `"${(note.title || '').replace(/"/g, '""')}"`,
+        note.noteType,
+        `"${(note.content || '').replace(/"/g, '""')}"`,
+        note.createdAt,
+        note.updatedAt
+    ]);
+    const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+    return downloadCSV(csvContent, `bili-speed-notes-${Date.now()}.csv`);
+}
+
+function downloadJSON(data, filename) {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    return downloadBlob(blob, filename);
+}
+
+function downloadCSV(content, filename) {
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + content], { type: 'text/csv;charset=utf-8' });
+    return downloadBlob(blob, filename);
+}
+
+function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    return true;
+}
+
+    async function importNotes(notesArray) {
+        let importedCount = 0;
+        for (const note of notesArray) {
+            try {
+                await put(NOTES_STORE, note);
+                importedCount++;
+            } catch (err) {
+                Logger.warn('导入笔记失败:', note.id, err);
+            }
+        }
+        return importedCount;
+    }
+
+    async function importFavorites(favoritesArray) {
+        let importedCount = 0;
+        for (const item of favoritesArray) {
+            try {
+                await put(FAVORITES_STORE, item);
+                importedCount++;
+            } catch (err) {
+                Logger.warn('导入收藏失败:', item.id, err);
+            }
+        }
+        return importedCount;
+    }
+
+    return {
+        init: openDB,
+        ensureDB,
+
+        notes: {
+            getAll: () => getAll(NOTES_STORE),
+            get: (id) => get(NOTES_STORE, id),
+            put: (note) => put(NOTES_STORE, note),
+            remove: (id) => remove(NOTES_STORE, id),
+            clear: () => clear(NOTES_STORE),
+            count: () => count(NOTES_STORE),
+            getByBvid: (bvid) => getByIndex(NOTES_STORE, 'bvid', bvid),
+            getByType: (type) => getByIndex(NOTES_STORE, 'noteType', type)
+        },
+
+        favorites: {
+            getAll: () => getAll(FAVORITES_STORE),
+            get: (id) => get(FAVORITES_STORE, id),
+            put: (item) => put(FAVORITES_STORE, item),
+            remove: (id) => remove(FAVORITES_STORE, id),
+            clear: () => clear(FAVORITES_STORE),
+            count: () => count(FAVORITES_STORE),
+            getByBvid: (bvid) => getByIndex(FAVORITES_STORE, 'bvid', bvid)
+        },
+
+        favoriteGroups: {
+            getAll: () => getAll(FAVORITE_GROUPS_STORE),
+            get: (id) => get(FAVORITE_GROUPS_STORE, id),
+            put: (group) => put(FAVORITE_GROUPS_STORE, group),
+            remove: (id) => remove(FAVORITE_GROUPS_STORE, id),
+            clear: () => clear(FAVORITE_GROUPS_STORE),
+            count: () => count(FAVORITE_GROUPS_STORE),
+            getByOrder: (order) => getByIndex(FAVORITE_GROUPS_STORE, 'order', order),
+            getByIsVisible: (isVisible) => getByIndex(FAVORITE_GROUPS_STORE, 'isVisible', isVisible),
+            getByIsDefault: (isDefault) => getByIndex(FAVORITE_GROUPS_STORE, 'isDefault', isDefault)
+        },
+
+        settings: {
+            get: getSettings,
+            set: setSettings
+        },
+
+        migrateFromGM,
+        exportData,
+        exportFavoritesAsJSON,
+        exportFavoritesAsCSV,
+        exportNotesAsJSON,
+        exportNotesAsCSV,
+        importNotes,
+        importFavorites
+    };
+})();
+
+const FavoritesGroups = (() => {
+    let isInitialized = false;
+    const DEFAULT_GROUP_ID = 'default';
+
+    function generateId() {
+        return 'group_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    }
+
+    function createDefaultGroup() {
+        return {
+            id: DEFAULT_GROUP_ID,
+            name: '默认收藏夹',
+            order: 0,
+            isDefault: true,
+            isVisible: true,
+            isPublic: false,
+            description: '',
+            image: '',
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+        };
+    }
+
+    async function ensureInitialized() {
+        if (isInitialized) return;
+
+        const groups = await Storage.favoriteGroups.getAll();
+        const hasDefault = groups.some(g => g.id === DEFAULT_GROUP_ID);
+
+        if (!hasDefault) {
+            const defaultGroup = createDefaultGroup();
+            await Storage.favoriteGroups.put(defaultGroup);
+            Logger.info('创建了默认收藏夹分组');
+        }
+
+        isInitialized = true;
+    }
+
+    async function getAll() {
+        await ensureInitialized();
+        const groups = await Storage.favoriteGroups.getAll();
+        return groups.sort((a, b) => a.order - b.order);
+    }
+
+    async function getVisibleForModal() {
+        await ensureInitialized();
+        const groups = await getAll();
+
+        const defaultGroup = groups.find(g => g.id === DEFAULT_GROUP_ID);
+        const visibleCustomGroups = groups
+            .filter(g => !g.isDefault && g.isVisible)
+            .sort((a, b) => a.order - b.order)
+            .slice(0, 9);
+
+        const result = [defaultGroup, ...visibleCustomGroups].filter(Boolean);
+        return result;
+    }
+
+    async function get(id) {
+        await ensureInitialized();
+        return Storage.favoriteGroups.get(id);
+    }
+
+    async function create(name, options = {}) {
+        await ensureInitialized();
+
+        const allGroups = await getAll();
+        const nextOrder = allGroups.length > 0 
+            ? Math.max(...allGroups.map(g => g.order)) + 1 
+            : 1;
+
+        const group = {
+            id: generateId(),
+            name: name || '新分组',
+            order: nextOrder,
+            isDefault: false,
+            isVisible: true,
+            isPublic: options.isPublic || false,
+            description: options.description || '',
+            image: options.image || '',
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+        };
+
+        await Storage.favoriteGroups.put(group);
+        EventBus.emit('favoriteGroups:created', group);
+        EventBus.emit('favoriteGroups:updated');
+        Toast.show('分组创建成功');
+        return group;
+    }
+
+    async function update(id, updates) {
+        await ensureInitialized();
+        const group = await Storage.favoriteGroups.get(id);
+
+        if (!group) {
+            Toast.show('分组不存在');
+            return null;
+        }
+
+        if (group.isDefault) {
+            if (updates.name !== undefined || updates.isDefault !== undefined || updates.isVisible !== undefined) {
+                Toast.show('默认分组不可修改');
+                return null;
+            }
+        }
+
+        const updatedGroup = {
+            ...group,
+            ...updates,
+            updatedAt: Date.now()
+        };
+
+        await Storage.favoriteGroups.put(updatedGroup);
+        EventBus.emit('favoriteGroups:updated', updatedGroup);
+        return updatedGroup;
+    }
+
+    async function remove(id) {
+        await ensureInitialized();
+        const group = await Storage.favoriteGroups.get(id);
+
+        if (!group) {
+            Toast.show('分组不存在');
+            return false;
+        }
+
+        if (group.isDefault) {
+            Toast.show('默认分组不可删除');
+            return false;
+        }
+
+        const DEFAULT_GROUP_ID = 'default';
+
+        const allFavorites = await Storage.favorites.getAll();
+        let movedCount = 0;
+
+        for (const item of allFavorites) {
+            if (item.groups && item.groups.includes(id)) {
+                const newGroups = item.groups.filter(g => g !== id);
+                if (!newGroups.includes(DEFAULT_GROUP_ID)) {
+                    newGroups.push(DEFAULT_GROUP_ID);
+                }
+                await Storage.favorites.put({ ...item, groups: newGroups });
+                movedCount++;
+            }
+        }
+
+        await Storage.favoriteGroups.remove(id);
+        EventBus.emit('favoriteGroups:deleted', group);
+        EventBus.emit('favoriteGroups:updated');
+        EventBus.emit('favorites:updated');
+
+        if (movedCount > 0) {
+            Toast.show(`分组已删除，${movedCount}个收藏已移至默认分组`);
+        } else {
+            Toast.show('分组删除成功');
+        }
+        return true;
+    }
+
+    async function moveUp(id) {
+        await ensureInitialized();
+        const groups = await getAll();
+        const index = groups.findIndex(g => g.id === id);
+
+        if (index <= 0) {
+            Toast.show('已经是第一个了');
+            return false;
+        }
+
+        const current = groups[index];
+        const prev = groups[index - 1];
+
+        if (current.isDefault) {
+            if (index >= 10) {
+                Toast.show('默认分组不能移出前10位');
+                return false;
+            }
+            [current.order, prev.order] = [prev.order, current.order];
+            await Storage.favoriteGroups.put(current);
+            await Storage.favoriteGroups.put(prev);
+            EventBus.emit('favoriteGroups:updated');
+            return true;
+        } else {
+            if (index < 10) {
+                [current.order, prev.order] = [prev.order, current.order];
+                await Storage.favoriteGroups.put(current);
+                await Storage.favoriteGroups.put(prev);
+                EventBus.emit('favoriteGroups:updated');
+                return true;
+            } else {
+                Toast.show('前10个分组位置已固定');
+                return false;
+            }
+        }
+    }
+
+    async function moveDown(id) {
+        await ensureInitialized();
+        const groups = await getAll();
+        const index = groups.findIndex(g => g.id === id);
+
+        if (index === -1) {
+            Toast.show('分组不存在');
+            return false;
+        }
+
+        const current = groups[index];
+        const next = groups[index + 1];
+
+        if (!next) {
+            Toast.show('已经是最后一个了');
+            return false;
+        }
+
+        if (current.isDefault) {
+            if (index >= 9) {
+                Toast.show('默认分组不能移出前10位');
+                return false;
+            }
+            [current.order, next.order] = [next.order, current.order];
+            await Storage.favoriteGroups.put(current);
+            await Storage.favoriteGroups.put(next);
+            EventBus.emit('favoriteGroups:updated');
+            return true;
+        } else {
+            if (index < 9) {
+                [current.order, next.order] = [next.order, current.order];
+                await Storage.favoriteGroups.put(current);
+                await Storage.favoriteGroups.put(next);
+                EventBus.emit('favoriteGroups:updated');
+                return true;
+            } else {
+                Toast.show('前10个分组位置已固定');
+                return false;
+            }
+        }
+    }
+
+    async function setVisible(id, isVisible) {
+        await ensureInitialized();
+        const group = await Storage.favoriteGroups.get(id);
+
+        if (!group) {
+            Toast.show('分组不存在');
+            return false;
+        }
+
+        if (group.isDefault) {
+            Toast.show('默认分组始终可见');
+            return false;
+        }
+
+        await update(id, { isVisible });
+        Toast.show(isVisible ? '分组已显示' : '分组已隐藏');
+        return true;
+    }
+
+    async function rename(id, newName) {
+        await ensureInitialized();
+        const group = await Storage.favoriteGroups.get(id);
+
+        if (!group) {
+            Toast.show('分组不存在');
+            return false;
+        }
+
+        if (group.isDefault) {
+            Toast.show('默认分组不可重命名');
+            return false;
+        }
+
+        await update(id, { name: newName });
+        Toast.show('分组重命名成功');
+        return true;
+    }
+
+    return {
+        ensureInitialized,
+        getAll,
+        getVisibleForModal,
+        get,
+        create,
+        update,
+        remove,
+        moveUp,
+        moveDown,
+        setVisible,
+        rename
+    };
+})();
+
+
+const Favorites = (() => {
+    const DEFAULT_VIDEO = {
+        id: 'BV123456789x',
+        bvid: 'BV123456789x',
+        title: '默认视频',
+        author: '默认UP主',
+        duration: 0,
+        cover: '',
+        url: 'https://www.bilibili.com/video/BV123456789x',
+        addedAt: new Date('2026-06-01').getTime(),
+        groups: ['default']
+    };
 
     function escapeHtml(str) {
         if (typeof str !== 'string') return '';
@@ -1153,100 +2329,159 @@ const Favorites = (() => {
             duration: Math.max(0, parseInt(item.duration) || 0),
             cover: escapeHtml(String(item.cover || '')),
             url: escapeHtml(String(item.url)),
-            addedAt: parseInt(item.addedAt) || Date.now()
+            addedAt: parseInt(item.addedAt) || Date.now(),
+            groups: item.groups && Array.isArray(item.groups) ? item.groups : ['default']
         };
     }
 
+    async function ensureGroupsInitialized() {
+        await FavoritesGroups.ensureInitialized();
+    }
+
     return {
-        add(item) {
+        async add(item, groupIds) {
+            await ensureGroupsInitialized();
             if (!validateItem(item)) {
                 Logger.warn('无效的收藏项');
                 return false;
             }
 
-            const favorites = getFavorites();
+            const existing = await Storage.favorites.get(item.id);
             
-            if (favorites.length >= MAX_FAVORITES) {
-                Toast.show(`收藏数量已达上限 (${MAX_FAVORITES})`);
-                return false;
-            }
-
-            const existingIndex = favorites.findIndex(f => f.id === item.id);
-            if (existingIndex !== -1) {
-                Logger.info('视频已在收藏夹中');
-                return false;
-            }
-
-            const sanitizedItem = sanitizeItem(item);
-            favorites.push(sanitizedItem);
+            const groupsToAdd = groupIds && groupIds.length > 0 ? groupIds : ['default'];
             
-            if (saveFavorites(favorites)) {
-                EventBus.emit('favorites:add', sanitizedItem);
-                Toast.show('已添加到收藏夹');
+            if (existing) {
+                const currentGroups = existing.groups || ['default'];
+                const newGroups = [...new Set([...currentGroups, ...groupsToAdd])];
+                const updatedItem = { ...existing, groups: newGroups };
+                await Storage.favorites.put(updatedItem);
+                EventBus.emit('favorites:updated');
+                Toast.show('已更新收藏分组');
                 return true;
             }
-            return false;
+
+            const sanitizedItem = sanitizeItem({ ...item, groups: groupsToAdd });
+            
+            try {
+                await Storage.favorites.put(sanitizedItem);
+                EventBus.emit('favorites:add', sanitizedItem);
+                EventBus.emit('favorites:updated');
+                Toast.show('已添加到收藏夹');
+                return true;
+            } catch (err) {
+                Logger.error('添加收藏失败:', err);
+                Toast.show('添加收藏失败');
+                return false;
+            }
         },
 
-        remove(id) {
+        async remove(id, groupId) {
+            await ensureGroupsInitialized();
             if (!id) return false;
 
-            const favorites = getFavorites();
-            const index = favorites.findIndex(f => f.id === id);
-            
-            if (index === -1) {
+            const existing = await Storage.favorites.get(id);
+            if (!existing) {
                 Logger.warn('未找到要删除的收藏项');
                 return false;
             }
 
-            const removed = favorites.splice(index, 1)[0];
-            
-            if (saveFavorites(favorites)) {
-                EventBus.emit('favorites:remove', removed);
+            if (groupId) {
+                const currentGroups = existing.groups || ['default'];
+                const newGroups = currentGroups.filter(g => g !== groupId);
+                
+                if (newGroups.length === 0) {
+                    await Storage.favorites.remove(id);
+                    Toast.show('已从所有分组移除');
+                } else {
+                    await Storage.favorites.put({ ...existing, groups: newGroups });
+                    Toast.show('已从分组移除');
+                }
+            } else {
+                await Storage.favorites.remove(id);
                 Toast.show('已从收藏夹移除');
-                return true;
             }
-            return false;
+            
+            EventBus.emit('favorites:remove', existing);
+            EventBus.emit('favorites:updated');
+            return true;
         },
 
-        get(id) {
+        async get(id) {
+            await ensureGroupsInitialized();
             if (!id) return null;
-            const favorites = getFavorites();
-            return favorites.find(f => f.id === id) || null;
+            try {
+                return await Storage.favorites.get(id);
+            } catch (err) {
+                Logger.error('获取收藏失败:', err);
+                return null;
+            }
         },
 
-        getAll() {
-            return getFavorites();
+        async getAll(groupId) {
+            await ensureGroupsInitialized();
+            try {
+                const all = await Storage.favorites.getAll();
+                if (!groupId) return all;
+                return all.filter(item => (item.groups || ['default']).includes(groupId));
+            } catch (err) {
+                Logger.error('获取所有收藏失败:', err);
+                return [];
+            }
         },
 
-        has(id) {
+        async has(id, groupId) {
+            await ensureGroupsInitialized();
             if (!id) return false;
-            const favorites = getFavorites();
-            return favorites.some(f => f.id === id);
+            const item = await this.get(id);
+            if (!item) return false;
+            
+            if (!groupId) return true;
+            return (item.groups || ['default']).includes(groupId);
         },
 
-        clear() {
-            saveFavorites([]);
-            EventBus.emit('favorites:clear');
-            Toast.show('收藏夹已清空');
+        async clear() {
+            await ensureGroupsInitialized();
+            try {
+                await Storage.favorites.clear();
+                if (typeof GM_setValue === 'function') {
+                    GM_setValue('favorites', null);
+                }
+                EventBus.emit('favorites:clear');
+                EventBus.emit('favorites:updated');
+                Toast.show('收藏夹已清空');
+            } catch (err) {
+                Logger.error('清空收藏失败:', err);
+                Toast.show('清空收藏失败');
+            }
         },
 
-        count() {
-            return getFavorites().length;
+        async count(groupId) {
+            await ensureGroupsInitialized();
+            try {
+                const all = await Storage.favorites.getAll();
+                if (!groupId) return all.length;
+                return all.filter(item => (item.groups || ['default']).includes(groupId)).length;
+            } catch (err) {
+                Logger.error('获取收藏数量失败:', err);
+                return 0;
+            }
         },
 
-        exportData() {
+        async exportData() {
+            await ensureGroupsInitialized();
+            const groups = await FavoritesGroups.getAll();
             const data = {
-                version: "1.0",
+                version: "3.0",
                 exportedAt: Date.now(),
-                count: this.count(),
-                data: this.getAll()
+                count: await this.count(),
+                groups: groups,
+                data: await this.getAll()
             };
             return JSON.stringify(data, null, 2);
         },
 
-        downloadExport() {
-            const json = this.exportData();
+        async downloadExport() {
+            const json = await this.exportData();
             const blob = new Blob([json], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -1260,12 +2495,22 @@ const Favorites = (() => {
             Toast.show('收藏数据已导出');
         },
 
-        importData(jsonString) {
+        async importData(jsonString) {
+            await ensureGroupsInitialized();
             try {
                 const data = JSON.parse(jsonString);
                 
                 if (!data.data || !Array.isArray(data.data)) {
                     throw new Error('无效的数据格式');
+                }
+
+                if (data.groups && Array.isArray(data.groups)) {
+                    for (const group of data.groups) {
+                        const existing = await FavoritesGroups.get(group.id);
+                        if (!existing) {
+                            await Storage.favoriteGroups.put(group);
+                        }
+                    }
                 }
 
                 const validItems = data.data.filter(item => validateItem(item))
@@ -1276,19 +2521,19 @@ const Favorites = (() => {
                     return false;
                 }
 
-                const favorites = getFavorites();
                 let addedCount = 0;
 
-                validItems.forEach(item => {
-                    if (favorites.length >= MAX_FAVORITES) return;
-                    if (!favorites.some(f => f.id === item.id)) {
-                        favorites.push(item);
+                for (const item of validItems) {
+                    const existing = await Storage.favorites.get(item.id);
+                    if (!existing) {
+                        await Storage.favorites.put(item);
                         addedCount++;
                     }
-                });
+                }
 
                 if (addedCount > 0) {
-                    saveFavorites(favorites);
+                    EventBus.emit('favorites:updated');
+                    EventBus.emit('favoriteGroups:updated');
                     Toast.show(`成功导入 ${addedCount} 条收藏`);
                     return true;
                 } else {
@@ -1300,36 +2545,20 @@ const Favorites = (() => {
                 Toast.show('导入失败：数据格式错误');
                 return false;
             }
+        },
+
+        async removeFromGroup(id, groupId) {
+            return this.remove(id, groupId);
+        },
+
+        getDefaultVideo() {
+            return { ...DEFAULT_VIDEO };
         }
     };
 })();
 
-
 const Notes = (() => {
-    const STORAGE_KEY = 'notes';
-    const MAX_NOTES = 500;
     const MAX_CONTENT_SIZE = 51200;
-
-    function getNotes() {
-        try {
-            const data = GM_getValue(STORAGE_KEY);
-            return Array.isArray(data) ? data : [];
-        } catch (err) {
-            Logger.error('读取笔记数据失败:', err);
-            return [];
-        }
-    }
-
-    function saveNotes(notes) {
-        try {
-            GM_setValue(STORAGE_KEY, notes);
-            EventBus.emit('notes:updated');
-            return true;
-        } catch (err) {
-            Logger.error('保存笔记数据失败:', err);
-            return false;
-        }
-    }
 
     function escapeHtml(str) {
         if (typeof str !== 'string') return '';
@@ -1387,7 +2616,7 @@ const Notes = (() => {
     }
 
     return {
-        add(note) {
+        async add(note) {
             if (!validateNote(note)) {
                 Logger.warn('无效的笔记数据');
                 return false;
@@ -1398,37 +2627,32 @@ const Notes = (() => {
                 return false;
             }
 
-            const notes = getNotes();
-
-            if (notes.length >= MAX_NOTES) {
-                Toast.show(`笔记数量已达上限 (${MAX_NOTES})`);
-                return false;
-            }
-
-            const existingIndex = notes.findIndex(n => n.id === note.id);
-            if (existingIndex !== -1) {
+            const existing = await Storage.notes.get(note.id);
+            if (existing) {
                 Logger.info('笔记ID已存在');
                 return false;
             }
 
             const sanitizedNote = sanitizeNote(note);
-            notes.push(sanitizedNote);
-
-            if (saveNotes(notes)) {
+            
+            try {
+                await Storage.notes.put(sanitizedNote);
                 EventBus.emit('notes:add', sanitizedNote);
+                EventBus.emit('notes:updated');
                 Toast.show('笔记已保存');
                 return true;
+            } catch (err) {
+                Logger.error('保存笔记失败:', err);
+                Toast.show('保存笔记失败');
+                return false;
             }
-            return false;
         },
 
-        update(id, updates) {
+        async update(id, updates) {
             if (!id) return false;
 
-            const notes = getNotes();
-            const index = notes.findIndex(n => n.id === id);
-
-            if (index === -1) {
+            const existingNote = await Storage.notes.get(id);
+            if (!existingNote) {
                 Logger.warn('未找到要更新的笔记');
                 return false;
             }
@@ -1438,7 +2662,7 @@ const Notes = (() => {
                 return false;
             }
 
-            const updatedNote = { ...notes[index] };
+            const updatedNote = { ...existingNote };
 
             if (updates.title !== undefined) updatedNote.title = String(updates.title).substring(0, 200);
             if (updates.content !== undefined) updatedNote.content = String(updates.content);
@@ -1455,73 +2679,95 @@ const Notes = (() => {
             updatedNote.updatedAt = Date.now();
 
             const sanitizedNote = sanitizeNote(updatedNote);
-            notes[index] = sanitizedNote;
 
-            if (saveNotes(notes)) {
+            try {
+                await Storage.notes.put(sanitizedNote);
                 EventBus.emit('notes:update', sanitizedNote);
+                EventBus.emit('notes:updated');
                 Toast.show('笔记已更新');
                 return true;
+            } catch (err) {
+                Logger.error('更新笔记失败:', err);
+                Toast.show('更新笔记失败');
+                return false;
             }
-            return false;
         },
 
-        remove(id) {
+        async remove(id) {
             if (!id) return false;
 
-            const notes = getNotes();
-            const index = notes.findIndex(n => n.id === id);
-
-            if (index === -1) {
+            const existingNote = await Storage.notes.get(id);
+            if (!existingNote) {
                 Logger.warn('未找到要删除的笔记');
                 return false;
             }
 
-            const removed = notes.splice(index, 1)[0];
-
-            if (saveNotes(notes)) {
-                EventBus.emit('notes:remove', removed);
+            try {
+                await Storage.notes.remove(id);
+                EventBus.emit('notes:remove', existingNote);
+                EventBus.emit('notes:updated');
                 Toast.show('笔记已删除');
                 return true;
+            } catch (err) {
+                Logger.error('删除笔记失败:', err);
+                Toast.show('删除笔记失败');
+                return false;
             }
-            return false;
         },
 
-        get(id) {
+        async get(id) {
             if (!id) return null;
-            const notes = getNotes();
-            return notes.find(n => n.id === id) || null;
+            try {
+                return await Storage.notes.get(id);
+            } catch (err) {
+                Logger.error('获取笔记失败:', err);
+                return null;
+            }
         },
 
-        getAll() {
-            return getNotes();
+        async getAll() {
+            try {
+                return await Storage.notes.getAll();
+            } catch (err) {
+                Logger.error('获取所有笔记失败:', err);
+                return [];
+            }
         },
 
-        getByBvid(bvid) {
+        async getByBvid(bvid) {
             if (!bvid) return [];
-            const notes = getNotes();
-            return notes.filter(n => n.bvid === bvid);
+            try {
+                return await Storage.notes.getByBvid(bvid);
+            } catch (err) {
+                Logger.error('获取视频笔记失败:', err);
+                return [];
+            }
         },
 
-        search(keyword) {
-            if (!keyword || typeof keyword !== 'string') return getNotes();
+        async search(keyword) {
+            if (!keyword || typeof keyword !== 'string') {
+                return await this.getAll();
+            }
+            
             const lowerKeyword = keyword.toLowerCase();
-            const notes = getNotes();
+            const notes = await this.getAll();
+            
             return notes.filter(n =>
                 n.title.toLowerCase().includes(lowerKeyword) ||
                 n.content.toLowerCase().includes(lowerKeyword) ||
                 n.videoTitle.toLowerCase().includes(lowerKeyword) ||
-                n.tags.some(t => t.toLowerCase().includes(lowerKeyword))
+                (n.tags && n.tags.some(t => t.toLowerCase().includes(lowerKeyword)))
             );
         },
 
-        getByTag(tag) {
+        async getByTag(tag) {
             if (!tag) return [];
-            const notes = getNotes();
-            return notes.filter(n => n.tags.includes(tag));
+            const notes = await this.getAll();
+            return notes.filter(n => n.tags && n.tags.includes(tag));
         },
 
-        getAllTags() {
-            const notes = getNotes();
+        async getAllTags() {
+            const notes = await this.getAll();
             const tagSet = new Set();
             notes.forEach(n => {
                 if (Array.isArray(n.tags)) {
@@ -1531,46 +2777,69 @@ const Notes = (() => {
             return Array.from(tagSet).sort();
         },
 
-        count() {
-            return getNotes().length;
+        async count() {
+            try {
+                return await Storage.notes.count();
+            } catch (err) {
+                Logger.error('获取笔记数量失败:', err);
+                return 0;
+            }
         },
 
-        countByBvid(bvid) {
+        async countByBvid(bvid) {
             if (!bvid) return 0;
-            const notes = getNotes();
-            return notes.filter(n => n.bvid === bvid).length;
+            const notes = await this.getByBvid(bvid);
+            return notes.length;
         },
 
-        countByType(type) {
+        async countByType(type) {
             if (!type) return 0;
-            const notes = getNotes();
-            return notes.filter(n => n.noteType === type).length;
+            try {
+                const notes = await Storage.notes.getByType(type);
+                return notes ? notes.length : 0;
+            } catch (err) {
+                Logger.error('按类型统计笔记失败:', err);
+                return 0;
+            }
         },
 
-        getByType(type) {
+        async getByType(type) {
             if (!type) return [];
-            const notes = getNotes();
-            return notes.filter(n => n.noteType === type);
+            try {
+                return await Storage.notes.getByType(type);
+            } catch (err) {
+                Logger.error('按类型获取笔记失败:', err);
+                return [];
+            }
         },
 
-        clear() {
-            saveNotes([]);
-            EventBus.emit('notes:clear');
-            Toast.show('所有笔记已清空');
+        async clear() {
+            try {
+                await Storage.notes.clear();
+                if (typeof GM_setValue === 'function') {
+                    GM_setValue('notes', null);
+                }
+                EventBus.emit('notes:clear');
+                EventBus.emit('notes:updated');
+                Toast.show('所有笔记已清空');
+            } catch (err) {
+                Logger.error('清空笔记失败:', err);
+                Toast.show('清空笔记失败');
+            }
         },
 
-        exportData() {
+        async exportData() {
             const data = {
-                version: "1.0",
+                version: "2.0",
                 exportedAt: Date.now(),
-                count: this.count(),
-                data: this.getAll()
+                count: await this.count(),
+                data: await this.getAll()
             };
             return JSON.stringify(data, null, 2);
         },
 
-        downloadExport() {
-            const json = this.exportData();
+        async downloadExport() {
+            const json = await this.exportData();
             const blob = new Blob([json], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -1584,7 +2853,7 @@ const Notes = (() => {
             Toast.show('笔记数据已导出');
         },
 
-        importData(jsonString) {
+        async importData(jsonString) {
             try {
                 const data = JSON.parse(jsonString);
 
@@ -1600,19 +2869,18 @@ const Notes = (() => {
                     return false;
                 }
 
-                const notes = getNotes();
                 let addedCount = 0;
 
-                validItems.forEach(item => {
-                    if (notes.length >= MAX_NOTES) return;
-                    if (!notes.some(n => n.id === item.id)) {
-                        notes.push(item);
+                for (const item of validItems) {
+                    const existing = await Storage.notes.get(item.id);
+                    if (!existing) {
+                        await Storage.notes.put(item);
                         addedCount++;
                     }
-                });
+                }
 
                 if (addedCount > 0) {
-                    saveNotes(notes);
+                    EventBus.emit('notes:updated');
                     Toast.show(`成功导入 ${addedCount} 条笔记`);
                     return true;
                 } else {
@@ -1627,7 +2895,6 @@ const Notes = (() => {
         }
     };
 })();
-
 
 /**
  * CardPanel - 信息卡片视图
@@ -1646,7 +2913,7 @@ const CardPanel = (() => {
     const cleanupFns = new Set();
     let createTimer = null;
 
-    function updateCard() {
+    async function updateCard() {
         const video = VideoController.getVideo();
         if (!video || !cardInstance) return;
 
@@ -1673,8 +2940,8 @@ const CardPanel = (() => {
             }
         }
 
-        updateFavoriteBtn();
-        updateNoteBtn();
+        await updateFavoriteBtn();
+        await updateNoteBtn();
     }
 
     function updatePlayBtn(video) {
@@ -1682,20 +2949,20 @@ const CardPanel = (() => {
         playBtn.textContent = video.paused ? '▶' : '⏸';
     }
 
-    function updateFavoriteBtn() {
+    async function updateFavoriteBtn() {
         if (!favoriteBtn) return;
-        const isFavorited = FavoritesPanel.isCurrentVideoFavorited();
+        const isFavorited = await FavoritesPanel.isCurrentVideoFavorited();
         favoriteBtn.textContent = isFavorited ? '★' : '☆';
         favoriteBtn.classList.toggle('favorited', isFavorited);
         favoriteBtn.title = isFavorited ? '取消收藏' : '添加收藏';
     }
 
-    function updateNoteBtn() {
+    async function updateNoteBtn() {
         if (!noteBtn) return;
         const url = location.href;
         const match = url.match(/BV[\w]+/);
         if (match) {
-            const count = Notes.countByBvid(match[0]);
+            const count = await Notes.countByBvid(match[0]);
             noteBtn.textContent = count > 0 ? '📝' : '🗒️';
             noteBtn.title = count > 0 ? `当前视频有 ${count} 条笔记` : '打开笔记';
         }
@@ -1756,9 +3023,22 @@ const CardPanel = (() => {
                 noteBtn.title = '打开笔记';
                 noteBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; position: relative; z-index: 1000; pointer-events: auto; transition: all 0.2s;';
                 noteBtn.textContent = '🗒️';
-                noteBtn.addEventListener('click', (e) => {
+                noteBtn.addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    EventBus.emit('notes:new');
+                    const url = location.href;
+                    const match = url.match(/BV[\w]+/);
+                    if (match) {
+                        const bvid = match[0];
+                        const existingNotes = await Notes.getByBvid(bvid);
+                        if (existingNotes && existingNotes.length > 0) {
+                            const note = existingNotes[0];
+                            EventBus.emit('notes:edit', note);
+                        } else {
+                            EventBus.emit('notes:new');
+                        }
+                    } else {
+                        EventBus.emit('notes:new');
+                    }
                 });
 
                 favoriteBtn = document.createElement('button');
@@ -1768,8 +3048,14 @@ const CardPanel = (() => {
                 favoriteBtn.textContent = '☆';
                 favoriteBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    FavoritesPanel.toggleCurrentVideo();
-                    updateFavoriteBtn();
+                    const url = location.href;
+                    const match = url.match(/BV[\w]+/);
+                    if (match) {
+                        AddToFavoritesModal.show();
+                    } else {
+                        const defaultVideo = Favorites.getDefaultVideo();
+                        AddToFavoritesModal.show(defaultVideo);
+                    }
                 });
 
                 const settingsBtn = document.createElement('button');
@@ -2061,133 +3347,93 @@ const CardPanel = (() => {
 })();
 
 
-/**
- * ControlPanel - 控制面板视图
- * 视图层 - 使用Card组件渲染设置面板
- * 支持左侧菜单导航和主题切换
- */
-const ControlPanel = (() => {
-    let panelInstance = null;
-    let dragCleanup = null;
-    let multiClickCleanup = null;
-    let currentMenu = 'speed';
+const SystemMenu = (() => {
+    let toggleThemeLocal = null;
 
-    function updateButtonState() {
-        if (!panelInstance) return;
-
-        const panelEl = panelInstance.element;
-
-        const buttonGroups = [
-            { selector: '.step-btn', dataAttr: 'step', configKey: 'step' },
-            { selector: '.default-btn', dataAttr: 'rate', configKey: 'defaultRate' },
-            { selector: '.min-rate-btn', dataAttr: 'rate', configKey: 'minRate' },
-            { selector: '.max-rate-btn', dataAttr: 'rate', configKey: 'maxRate' }
-        ];
-
-        buttonGroups.forEach(({ selector, dataAttr, configKey }) => {
-            panelEl.querySelectorAll(selector).forEach(btn => {
-                const isActive = parseFloat(btn.dataset[dataAttr]) === Config.data[configKey];
-                btn.classList.toggle('active', isActive);
-            });
-        });
-    }
-
-    function validateKey(key) {
-        const lowerKey = key.toLowerCase();
-        if (lowerKey === 'f') return false;
-        return /^[a-z]$/.test(lowerKey);
-    }
-
-    function handleKeyInput(inputId, configKey) {
-        if (!panelInstance) return;
-        const panelEl = panelInstance.element;
-        const input = panelEl.querySelector(`#${inputId}`);
-        if (!input) return;
-
-        input.addEventListener('input', (e) => {
-            let value = e.target.value.toLowerCase();
-            if (value === 'f') {
-                e.target.value = Config.data[configKey].toUpperCase();
-                Toast.show('不支持F键');
-                return;
-            }
-            if (value && !validateKey(value)) {
-                e.target.value = Config.data[configKey].toUpperCase();
-                return;
-            }
-            Config.data[configKey] = value || Config.data[configKey];
-            e.target.value = Config.data[configKey].toUpperCase();
-        });
-    }
-
-    function applyTheme(theme) {
-        if (!panelInstance) return;
-        const panelEl = panelInstance.element;
-        
-        panelEl.classList.remove('theme-light', 'theme-dark');
-        panelEl.classList.add(`theme-${theme}`);
-        
-        const themeBtn = panelEl.querySelector('.theme-toggle-btn');
-        if (themeBtn) {
-            themeBtn.textContent = theme === 'dark' ? '🌙' : '☀️';
-            themeBtn.title = theme === 'dark' ? '切换到浅色主题' : '切换到深色主题';
-        }
-    }
-
-    function toggleTheme() {
-        const currentTheme = Config.data.theme || 'light';
-        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-        Config.data.theme = newTheme;
-        applyTheme(newTheme);
-        EventBus.emit('theme:changed', newTheme);
-        Toast.show(`已切换到${newTheme === 'dark' ? '深色' : '浅色'}主题`);
+    function setToggleThemeCallback(callback) {
+        toggleThemeLocal = callback;
     }
 
     function renderSystemMenu(contentEl) {
         const currentTheme = Config.data.theme || 'light';
         contentEl.innerHTML = `
-            <div style="padding: 16px;">
-                <div style="margin-bottom: 16px;">
-                    <div style="font-size: 14px; font-weight: bold; margin-bottom: 12px;">🎨 主题设置</div>
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <span style="font-size: 13px;">当前主题:</span>
-                        <button class="theme-toggle-btn" style="padding: 8px 16px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer; font-size: 16px;">
+            <div class="bili-speed-panel-menu-container">
+                <div class="bili-speed-panel-menu-section">
+                    <div class="bili-speed-panel-menu-title">🎨 主题设置</div>
+                    <div class="bili-speed-panel-theme-row">
+                        <span class="bili-speed-panel-theme-label">当前主题:</span>
+                        <button class="theme-toggle-btn">
                             ${currentTheme === 'dark' ? '🌙' : '☀️'}
                         </button>
-                        <span style="font-size: 12px; color: #999;">${currentTheme === 'dark' ? '深色模式' : '浅色模式'}</span>
+                        <span class="bili-speed-panel-theme-status">${currentTheme === 'dark' ? '深色模式' : '浅色模式'}</span>
                     </div>
                 </div>
-                <div style="font-size: 12px; color: #999; padding: 8px; background: #f5f5f5; border-radius: 4px;">
+                <div class="bili-speed-panel-tip">
                     💡 提示: 主题设置会应用到所有面板组件
                 </div>
-                <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #eee;">
-                    <div style="font-size: 13px; font-weight: bold; margin-bottom: 8px;">📦 编辑器 CDN 资源</div>
-                    <div style="margin-bottom: 6px;">
-                        <span style="font-size: 12px; color: #666;">Quill JS:</span>
-                        <input type="text" class="cdn-quill-js" value="${Config.data.quillCdnJs}" style="width: 100%; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; outline: none; box-sizing: border-box; margin-top: 2px;">
+                <div class="bili-speed-panel-menu-section bili-speed-panel-export-section">
+                    <div class="bili-speed-panel-menu-title">📤 数据导出</div>
+                    <div class="bili-speed-panel-export-group">
+                        <div class="bili-speed-panel-export-category">⭐ 收藏夹数据</div>
+                        <div class="bili-speed-panel-export-buttons">
+                            <button class="export-favorites-json">📄 导出为 JSON</button>
+                        </div>
                     </div>
-                    <div style="margin-bottom: 6px;">
-                        <span style="font-size: 12px; color: #666;">Quill CSS:</span>
-                        <input type="text" class="cdn-quill-css" value="${Config.data.quillCdnCss}" style="width: 100%; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; outline: none; box-sizing: border-box; margin-top: 2px;">
+                    <div class="bili-speed-panel-export-group">
+                        <div class="bili-speed-panel-export-category">📝 笔记数据</div>
+                        <div class="bili-speed-panel-export-buttons">
+                            <button class="export-notes-json">📄 导出为 JSON</button>
+                        </div>
                     </div>
-                    <div style="margin-bottom: 6px;">
-                        <span style="font-size: 12px; color: #666;">Vditor JS:</span>
-                        <input type="text" class="cdn-vditor-js" value="${Config.data.vditorCdnJs}" style="width: 100%; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; outline: none; box-sizing: border-box; margin-top: 2px;">
+                </div>
+                <div class="bili-speed-panel-menu-section bili-speed-panel-cdn-section">
+                    <div class="bili-speed-panel-menu-title">📦 编辑器 CDN 资源</div>
+                    <div class="bili-speed-panel-cdn-row">
+                        <span class="bili-speed-panel-cdn-label">Quill JS:</span>
+                        <input type="text" class="cdn-quill-js" value="${Config.data.quillCdnJs}">
                     </div>
-                    <div style="margin-bottom: 6px;">
-                        <span style="font-size: 12px; color: #666;">Vditor CSS:</span>
-                        <input type="text" class="cdn-vditor-css" value="${Config.data.vditorCdnCss}" style="width: 100%; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; outline: none; box-sizing: border-box; margin-top: 2px;">
+                    <div class="bili-speed-panel-cdn-row">
+                        <span class="bili-speed-panel-cdn-label">Quill CSS:</span>
+                        <input type="text" class="cdn-quill-css" value="${Config.data.quillCdnCss}">
                     </div>
-                    <div style="display: flex; gap: 8px; margin-top: 8px;">
-                        <button class="cdn-save" style="flex: 1; padding: 6px; border-radius: 4px; border: 1px solid #ccc; background: #fff; color: #000; cursor: pointer; font-size: 12px;">💾 保存 CDN 配置</button>
-                        <button class="cdn-restore" style="flex: 1; padding: 6px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer; font-size: 12px;">↩️ 恢复默认</button>
+                    <div class="bili-speed-panel-cdn-row">
+                        <span class="bili-speed-panel-cdn-label">Vditor JS:</span>
+                        <input type="text" class="cdn-vditor-js" value="${Config.data.vditorCdnJs}">
+                    </div>
+                    <div class="bili-speed-panel-cdn-row">
+                        <span class="bili-speed-panel-cdn-label">Vditor CSS:</span>
+                        <input type="text" class="cdn-vditor-css" value="${Config.data.vditorCdnCss}">
+                    </div>
+                    <div class="bili-speed-panel-cdn-buttons">
+                        <button class="cdn-save">💾 保存 CDN 配置</button>
+                        <button class="cdn-restore">↩️ 恢复默认</button>
                     </div>
                 </div>
             </div>
         `;
 
         const themeBtn = contentEl.querySelector('.theme-toggle-btn');
-        themeBtn.addEventListener('click', toggleTheme);
+        themeBtn.addEventListener('click', () => {
+            if (toggleThemeLocal) toggleThemeLocal();
+        });
+
+        contentEl.querySelector('.export-favorites-json').addEventListener('click', async () => {
+            try {
+                await Favorites.downloadExport();
+            } catch (err) {
+                Logger.error('导出收藏夹失败:', err);
+                Toast.show('导出失败，请重试');
+            }
+        });
+
+        contentEl.querySelector('.export-notes-json').addEventListener('click', async () => {
+            try {
+                await Notes.downloadExport();
+            } catch (err) {
+                Logger.error('导出笔记失败:', err);
+                Toast.show('导出失败，请重试');
+            }
+        });
 
         contentEl.querySelector('.cdn-save').addEventListener('click', () => {
             const quillJs = contentEl.querySelector('.cdn-quill-js').value.trim();
@@ -2214,20 +3460,70 @@ const ControlPanel = (() => {
         });
     }
 
+    return {
+        render: renderSystemMenu,
+        setToggleThemeCallback
+    };
+})();
+
+
+const SpeedMenu = (() => {
+    function updateButtonStateLocal(contentEl) {
+        const buttonGroups = [
+            { selector: '.step-btn', dataAttr: 'step', configKey: 'step' },
+            { selector: '.default-btn', dataAttr: 'rate', configKey: 'defaultRate' },
+            { selector: '.min-rate-btn', dataAttr: 'rate', configKey: 'minRate' },
+            { selector: '.max-rate-btn', dataAttr: 'rate', configKey: 'maxRate' }
+        ];
+
+        buttonGroups.forEach(({ selector, dataAttr, configKey }) => {
+            contentEl.querySelectorAll(selector).forEach(btn => {
+                const isActive = parseFloat(btn.dataset[dataAttr]) === Config.data[configKey];
+                btn.classList.toggle('active', isActive);
+            });
+        });
+    }
+
+    function validateKey(key) {
+        const lowerKey = key.toLowerCase();
+        if (lowerKey === 'f') return false;
+        return /^[a-z]$/.test(lowerKey);
+    }
+
+    function handleKeyInput(inputId, configKey) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+
+        input.addEventListener('input', (e) => {
+            let value = e.target.value.toLowerCase();
+            if (value === 'f') {
+                e.target.value = Config.data[configKey].toUpperCase();
+                Toast.show('不支持F键');
+                return;
+            }
+            if (value && !validateKey(value)) {
+                e.target.value = Config.data[configKey].toUpperCase();
+                return;
+            }
+            Config.data[configKey] = value || Config.data[configKey];
+            e.target.value = Config.data[configKey].toUpperCase();
+        });
+    }
+
     function renderSpeedMenu(contentEl) {
         contentEl.innerHTML = `
-            <div style="padding: 0 16px;">
-                <div style="margin-bottom: 12px;">
-                    <div style="margin-bottom: 8px;">📏 步进值:</div>
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <div class="bili-speed-panel-speed-menu">
+                <div class="bili-speed-panel-option-group">
+                    <div class="bili-speed-panel-option-label">📏 步进值:</div>
+                    <div class="bili-speed-panel-button-group">
                         <button class="step-btn" data-step="0.02">0.02</button>
                         <button class="step-btn" data-step="0.05">0.05</button>
                         <button class="step-btn" data-step="0.10">0.10</button>
                     </div>
                 </div>
-                <div style="margin-bottom: 12px;">
-                    <div style="margin-bottom: 8px;">🎯 初始倍速:</div>
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <div class="bili-speed-panel-option-group">
+                    <div class="bili-speed-panel-option-label">🎯 初始倍速:</div>
+                    <div class="bili-speed-panel-button-group">
                         <button class="default-btn" data-rate="0.8">0.8x</button>
                         <button class="default-btn" data-rate="0.9">0.9x</button>
                         <button class="default-btn" data-rate="1.0">1.0x</button>
@@ -2235,64 +3531,48 @@ const ControlPanel = (() => {
                         <button class="default-btn" data-rate="1.25">1.25x</button>
                     </div>
                 </div>
-                <div style="margin-bottom: 12px; display: none;" class="advanced-option">
-                    <div style="margin-bottom: 8px;">⬇️ 最小倍速:</div>
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <div class="bili-speed-panel-option-group advanced-option" style="display: none;">
+                    <div class="bili-speed-panel-option-label">⬇️ 最小倍速:</div>
+                    <div class="bili-speed-panel-button-group">
                         <button class="min-rate-btn" data-rate="0.3">0.3x</button>
                         <button class="min-rate-btn" data-rate="0.5">0.5x</button>
                         <button class="min-rate-btn" data-rate="0.6">0.6x</button>
                         <button class="min-rate-btn" data-rate="0.7">0.7x</button>
                     </div>
                 </div>
-                <div style="margin-bottom: 12px; display: none;" class="advanced-option">
-                    <div style="margin-bottom: 8px;">⬆️ 最大倍速:</div>
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <div class="bili-speed-panel-option-group advanced-option" style="display: none;">
+                    <div class="bili-speed-panel-option-label">⬆️ 最大倍速:</div>
+                    <div class="bili-speed-panel-button-group">
                         <button class="max-rate-btn" data-rate="2">2x</button>
                         <button class="max-rate-btn" data-rate="3">3x</button>
                         <button class="max-rate-btn" data-rate="4">4x</button>
                         <button class="max-rate-btn" data-rate="5">5x</button>
                     </div>
                 </div>
-                <div style="margin-bottom: 12px; display: none;" class="advanced-option">
-                    <div style="margin-bottom: 8px;">⌨️ 快捷键设置:</div>
-                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                        <div style="display: flex; align-items: center; gap: 4px;">
-                            <span style="font-size: 12px;">🔄 重置:</span>
-                            <input type="text" id="key-reset" maxlength="1" value="${Config.data.keyReset.toUpperCase()}" style="width: 30px; padding: 4px; text-align: center; border-radius: 4px; border: 1px solid #ccc; background: #fff; color: #000; text-transform: uppercase;">
+                <div class="bili-speed-panel-option-group advanced-option" style="display: none;">
+                    <div class="bili-speed-panel-option-label">⌨️ 快捷键设置:</div>
+                    <div class="bili-speed-panel-keybind-group">
+                        <div class="bili-speed-panel-keybind-item">
+                            <span>🔄 重置:</span>
+                            <input type="text" id="key-reset" maxlength="1" value="${Config.data.keyReset.toUpperCase()}">
                         </div>
-                        <div style="display: flex; align-items: center; gap: 4px;">
-                            <span style="font-size: 12px;">⏩ 加速:</span>
-                            <input type="text" id="key-up" maxlength="1" value="${Config.data.keyUp.toUpperCase()}" style="width: 30px; padding: 4px; text-align: center; border-radius: 4px; border: 1px solid #ccc; background: #fff; color: #000; text-transform: uppercase;">
+                        <div class="bili-speed-panel-keybind-item">
+                            <span>⏩ 加速:</span>
+                            <input type="text" id="key-up" maxlength="1" value="${Config.data.keyUp.toUpperCase()}">
                         </div>
-                        <div style="display: flex; align-items: center; gap: 4px;">
-                            <span style="font-size: 12px;">⏪ 减速:</span>
-                            <input type="text" id="key-down" maxlength="1" value="${Config.data.keyDown.toUpperCase()}" style="width: 30px; padding: 4px; text-align: center; border-radius: 4px; border: 1px solid #ccc; background: #fff; color: #000; text-transform: uppercase;">
+                        <div class="bili-speed-panel-keybind-item">
+                            <span>⏪ 减速:</span>
+                            <input type="text" id="key-down" maxlength="1" value="${Config.data.keyDown.toUpperCase()}">
                         </div>
                     </div>
-                    <div style="font-size: 11px; color: #999; margin-top: 4px;">* 快捷键修改后需刷新网页生效，不支持F键</div>
+                    <div class="bili-speed-panel-keybind-tip">* 快捷键修改后需刷新网页生效，不支持F键</div>
                 </div>
-                <div style="display: flex; gap: 8px; justify-content: flex-end; padding: 12px 0;">
-                    <button id="reset-btn" style="padding: 8px 16px; border-radius: 4px; border: none; background: #999; color: #fff; cursor: pointer;">🔄 重置</button>
-                    <button id="save-btn" style="padding: 8px 16px; border-radius: 4px; border: none; background: #00AEEC; color: #fff; cursor: pointer;">💾 保存</button>
+                <div class="bili-speed-panel-action-buttons">
+                    <button id="reset-btn">🔄 重置</button>
+                    <button id="save-btn">💾 保存</button>
                 </div>
             </div>
         `;
-
-        const updateButtonStateLocal = (el) => {
-            const buttonGroups = [
-                { selector: '.step-btn', dataAttr: 'step', configKey: 'step' },
-                { selector: '.default-btn', dataAttr: 'rate', configKey: 'defaultRate' },
-                { selector: '.min-rate-btn', dataAttr: 'rate', configKey: 'minRate' },
-                { selector: '.max-rate-btn', dataAttr: 'rate', configKey: 'maxRate' }
-            ];
-
-            buttonGroups.forEach(({ selector, dataAttr, configKey }) => {
-                el.querySelectorAll(selector).forEach(btn => {
-                    const isActive = parseFloat(btn.dataset[dataAttr]) === Config.data[configKey];
-                    btn.classList.toggle('active', isActive);
-                });
-            });
-        };
 
         updateButtonStateLocal(contentEl);
 
@@ -2359,38 +3639,51 @@ const ControlPanel = (() => {
         });
     }
 
-    function renderFavoritesMenu(contentEl) {
-        const favorites = Favorites.getAll();
+    return {
+        render: renderSpeedMenu
+    };
+})();
+
+
+const FavoritesMenu = (() => {
+    let renderCallback = null;
+
+    function setRenderCallback(callback) {
+        renderCallback = callback;
+    }
+
+    async function renderFavoritesMenu(contentEl) {
+        const favorites = await Favorites.getAll();
         const count = favorites.length;
         
         contentEl.innerHTML = `
-            <div style="padding: 16px;">
-                <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
-                    <div style="font-size: 14px; font-weight: bold;">📚 收藏管理</div>
-                    <div style="font-size: 12px; color: #999;">共 ${count} 条收藏</div>
+            <div class="bili-speed-panel-favorites-menu">
+                <div class="bili-speed-panel-favorites-header">
+                    <div class="bili-speed-panel-favorites-title">📚 收藏管理</div>
+                    <div class="bili-speed-panel-favorites-count">共 ${count} 条收藏</div>
                 </div>
-                <div style="margin-bottom: 16px;">
-                    <button id="export-favorites-btn" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <div class="bili-speed-panel-favorites-action">
+                    <button id="export-favorites-btn">
                         <span>📤</span>
                         <span>导出收藏数据</span>
                     </button>
                 </div>
-                <div style="margin-bottom: 16px;">
-                    <button id="import-favorites-btn" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <div class="bili-speed-panel-favorites-action">
+                    <button id="import-favorites-btn">
                         <span>📥</span>
                         <span>导入收藏数据</span>
                     </button>
-                    <input type="file" id="import-favorites-file" accept=".json" style="display: none;">
+                    <input type="file" id="import-favorites-file" accept=".json">
                 </div>
-                <div style="margin-bottom: 16px;">
-                    <button id="open-favorites-panel-btn" style="width: 100%; padding: 10px; border-radius: 4px; border: none; background: #00AEEC; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <div class="bili-speed-panel-favorites-action bili-speed-panel-favorites-action-primary">
+                    <button id="open-favorites-panel-btn">
                         <span>⭐</span>
                         <span>打开收藏面板</span>
                     </button>
                 </div>
                 ${count > 0 ? `
-                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee;">
-                    <button id="clear-favorites-btn" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ff6b6b; background: #fff; color: #ff6b6b; cursor: pointer;">
+                <div class="bili-speed-panel-favorites-action bili-speed-panel-favorites-action-danger">
+                    <button id="clear-favorites-btn">
                         🗑️ 清空所有收藏
                     </button>
                 </div>
@@ -2409,14 +3702,14 @@ const ControlPanel = (() => {
             importFile.click();
         });
 
-        importFile.addEventListener('change', (e) => {
+        importFile.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
             
             const reader = new FileReader();
-            reader.onload = (event) => {
-                Favorites.importData(event.target.result);
-                renderFavoritesMenu(contentEl);
+            reader.onload = async (event) => {
+                await Favorites.importData(event.target.result);
+                if (renderCallback) await renderCallback(contentEl);
             };
             reader.readAsText(file);
         });
@@ -2427,13 +3720,27 @@ const ControlPanel = (() => {
 
         const clearBtn = contentEl.querySelector('#clear-favorites-btn');
         if (clearBtn) {
-            clearBtn.addEventListener('click', () => {
+            clearBtn.addEventListener('click', async () => {
                 if (confirm('确定要清空所有收藏吗？此操作不可恢复。')) {
-                    Favorites.clear();
-                    renderFavoritesMenu(contentEl);
+                    await Favorites.clear();
+                    if (renderCallback) await renderCallback(contentEl);
                 }
             });
         }
+    }
+
+    return {
+        render: renderFavoritesMenu,
+        setRenderCallback
+    };
+})();
+
+
+const NotesMenu = (() => {
+    let renderCallback = null;
+
+    function setRenderCallback(callback) {
+        renderCallback = callback;
     }
 
     function updateEditorBtnState(contentEl, editor) {
@@ -2452,12 +3759,12 @@ const ControlPanel = (() => {
         });
     }
 
-    function renderNotesMenu(contentEl) {
+    async function renderNotesMenu(contentEl) {
         const currentEditor = Config.data.defaultEditor || 'quill';
-        const noteCount = Notes.count();
+        const noteCount = await Notes.count();
         const url = location.href;
         const match = url.match(/BV[\w]+/);
-        const currentNoteCount = match ? Notes.countByBvid(match[0]) : 0;
+        const currentNoteCount = match ? await Notes.countByBvid(match[0]) : 0;
 
         const currentVditorMode = Config.data.vditorEditorMode || 'ir';
         const currentQuillWidth = Config.data.quillEditorWidth || '520px';
@@ -2682,30 +3989,70 @@ const ControlPanel = (() => {
             importFile.click();
         });
 
-        importFile.addEventListener('change', (e) => {
+        importFile.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = (event) => {
-                Notes.importData(event.target.result);
-                renderNotesMenu(contentEl);
+            reader.onload = async (event) => {
+                await Notes.importData(event.target.result);
+                if (renderCallback) await renderCallback(contentEl);
             };
             reader.readAsText(file);
         });
 
         const clearBtn = contentEl.querySelector('#clear-notes-btn');
         if (clearBtn) {
-            clearBtn.addEventListener('click', () => {
+            clearBtn.addEventListener('click', async () => {
                 if (confirm('确定要清空所有笔记吗？此操作不可恢复。')) {
-                    Notes.clear();
-                    renderNotesMenu(contentEl);
+                    try {
+                        await Notes.clear();
+                        if (renderCallback) await renderCallback(contentEl);
+                    } catch (err) {
+                        Logger.error('清空笔记失败:', err);
+                    }
                 }
             });
         }
     }
 
-    function switchMenu(menuName) {
+    return {
+        render: renderNotesMenu,
+        setRenderCallback
+    };
+})();
+
+
+const ControlPanel = (() => {
+    let panelInstance = null;
+    let dragCleanup = null;
+    let multiClickCleanup = null;
+    let currentMenu = 'speed';
+
+    function applyTheme(theme) {
+        if (!panelInstance) return;
+        const panelEl = panelInstance.element;
+        
+        panelEl.classList.remove('theme-light', 'theme-dark');
+        panelEl.classList.add(`theme-${theme}`);
+        
+        const themeBtn = panelEl.querySelector('.theme-toggle-btn');
+        if (themeBtn) {
+            themeBtn.textContent = theme === 'dark' ? '🌙' : '☀️';
+            themeBtn.title = theme === 'dark' ? '切换到浅色主题' : '切换到深色主题';
+        }
+    }
+
+    function toggleTheme() {
+        const currentTheme = Config.data.theme || 'light';
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        Config.data.theme = newTheme;
+        applyTheme(newTheme);
+        EventBus.emit('theme:changed', newTheme);
+        Toast.show(`已切换到${newTheme === 'dark' ? '深色' : '浅色'}主题`);
+    }
+
+    async function switchMenu(menuName) {
         if (!panelInstance) return;
         
         currentMenu = menuName;
@@ -2720,16 +4067,16 @@ const ControlPanel = (() => {
 
         switch (menuName) {
             case 'system':
-                renderSystemMenu(contentEl);
+                SystemMenu.render(contentEl);
                 break;
             case 'speed':
-                renderSpeedMenu(contentEl);
+                SpeedMenu.render(contentEl);
                 break;
             case 'favorites':
-                renderFavoritesMenu(contentEl);
+                await FavoritesMenu.render(contentEl);
                 break;
             case 'notes':
-                renderNotesMenu(contentEl);
+                await NotesMenu.render(contentEl);
                 break;
         }
     }
@@ -2816,7 +4163,7 @@ const ControlPanel = (() => {
                 const menuItems = bodyEl.querySelectorAll('.bili-speed-panel-menu-item');
                 menuItems.forEach(item => {
                     item.addEventListener('click', () => {
-                        switchMenu(item.dataset.menu);
+                        void switchMenu(item.dataset.menu);
                     });
 
                     item.addEventListener('mouseenter', () => {
@@ -2833,7 +4180,7 @@ const ControlPanel = (() => {
                 });
 
                 const contentEl = bodyEl.querySelector('.bili-speed-panel-content');
-                switchMenu(currentMenu);
+                void switchMenu(currentMenu);
             }
         });
 
@@ -2986,6 +4333,10 @@ const ControlPanel = (() => {
             panelStyle.id = 'bili-speed-panel-style';
             document.head.appendChild(panelStyle);
         }
+
+        SystemMenu.setToggleThemeCallback(toggleTheme);
+        FavoritesMenu.setRenderCallback(FavoritesMenu.render);
+        NotesMenu.setRenderCallback(NotesMenu.render);
     }
 
     return {
@@ -3009,7 +4360,7 @@ const ControlPanel = (() => {
         },
 
         switchMenu(menuName) {
-            switchMenu(menuName);
+            void switchMenu(menuName);
         },
 
         applyTheme(theme) {
@@ -3030,13 +4381,11 @@ const ControlPanel = (() => {
 })();
 
 
-/**
- * FavoritesPanel - 收藏夹面板视图
- * 视图层 - 使用Card组件渲染收藏夹面板
- */
-const FavoritesPanel = (() => {
+const AddToFavoritesModal = (() => {
     let panelInstance = null;
-    let dragCleanup = null;
+    let currentVideoInfo = null;
+    let selectedGroups = [];
+    let confirmBtn = null;
 
     function getCurrentVideoInfo() {
         const url = location.href;
@@ -3045,11 +4394,11 @@ const FavoritesPanel = (() => {
 
         const bvid = match[0];
         const video = VideoController.getVideo();
-        
+
         let title = document.querySelector('h1.video-title, .video-title-href, h1[class*="title"]')?.textContent?.trim() || '未知标题';
         let author = document.querySelector('.up-name, a.up-name, [class*="up-name"]')?.textContent?.trim() || '未知UP主';
         let cover = document.querySelector('meta[property="og:image"]')?.content || '';
-        
+
         return {
             id: bvid,
             bvid: bvid,
@@ -3062,7 +4411,380 @@ const FavoritesPanel = (() => {
         };
     }
 
-    function renderFavoriteItem(item, containerEl) {
+    function updateConfirmButtonState() {
+        if (!confirmBtn) return;
+
+        if (selectedGroups.length > 0) {
+            confirmBtn.disabled = false;
+            confirmBtn.style.background = '#00a1d6';
+            confirmBtn.style.cursor = 'pointer';
+        } else {
+            confirmBtn.disabled = true;
+            confirmBtn.style.background = '#CCCECF';
+            confirmBtn.style.cursor = 'not-allowed';
+        }
+    }
+
+    function createAddGroupForm(container, onComplete) {
+        const form = document.createElement('form');
+        form.className = 'input-group';
+        form.style.cssText = `
+            display: flex;
+            gap: 0;
+            border: 1px dashed #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+        `;
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = form.querySelector('input');
+            const name = input.value.trim();
+            if (name && onComplete) {
+                try {
+                    await FavoritesGroups.create(name, {
+                        isPublic: false,
+                        description: '',
+                        image: ''
+                    });
+                    Toast.show('分组创建成功');
+                    await onComplete();
+                } catch (error) {
+                    Logger.error('创建分组失败:', error);
+                    Toast.show('创建失败，请重试');
+                }
+            }
+        });
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.maxLength = 20;
+        input.placeholder = '最多可输入20个字';
+        input.style.cssText = `
+            flex: 1;
+            padding: 10px 12px;
+            border: none;
+            outline: none;
+            font-size: 14px;
+            background: transparent;
+        `;
+
+        const submitBtn = document.createElement('button');
+        submitBtn.type = 'submit';
+        submitBtn.className = 'submit';
+        submitBtn.textContent = '新建';
+        submitBtn.style.cssText = `
+            padding: 10px 20px;
+            border: none;
+            background: #00a1d6;
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+        `;
+
+        form.appendChild(input);
+        form.appendChild(submitBtn);
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = '取消';
+        cancelBtn.style.cssText = `
+            padding: 10px 16px;
+            border: none;
+            background: transparent;
+            color: #999;
+            cursor: pointer;
+            font-size: 14px;
+        `;
+        cancelBtn.addEventListener('click', () => {
+            onComplete();
+        });
+
+        const rowEl = document.createElement('div');
+        rowEl.style.cssText = `
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        `;
+        rowEl.appendChild(form);
+        rowEl.appendChild(cancelBtn);
+
+        container.innerHTML = '';
+        container.appendChild(rowEl);
+
+        input.focus();
+    }
+
+    function createAddButton(container, onClick) {
+        const addBtn = document.createElement('button');
+        addBtn.className = 'group-item add-group-btn';
+        addBtn.style.cssText = `
+            width: 100%;
+            display: flex;
+            align-items: center;
+            padding: 10px 0;
+            border: none;
+            border-bottom: 1px solid #eee;
+            background: transparent;
+            color: #999;
+            cursor: pointer;
+            font-size: 14px;
+            justify-content: flex-start;
+            gap: 6px;
+        `;
+        addBtn.innerHTML = '<span style="font-size: 16px;">+</span> 新建收藏夹';
+        addBtn.addEventListener('click', onClick);
+        container.innerHTML = '';
+        container.appendChild(addBtn);
+    }
+
+    async function renderGroupsList(bodyEl) {
+        const container = bodyEl.querySelector('.groups-container');
+        if (!container) return;
+
+        container.innerHTML = '';
+
+        const groups = await FavoritesGroups.getVisibleForModal();
+        const existingItem = currentVideoInfo ? await Favorites.get(currentVideoInfo.id) : null;
+        const existingGroups = existingItem ? (existingItem.groups || ['default']) : [];
+
+        selectedGroups = [...existingGroups];
+        updateConfirmButtonState();
+
+        groups.forEach(group => {
+            const itemEl = document.createElement('div');
+            itemEl.className = 'group-item';
+            itemEl.style.cssText = `
+                display: flex;
+                align-items: center;
+                padding: 10px 0;
+                border-bottom: 1px solid #eee;
+                cursor: pointer;
+            `;
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.style.cssText = `
+                width: 18px;
+                height: 18px;
+                margin-right: 10px;
+                cursor: pointer;
+            `;
+            checkbox.checked = selectedGroups.includes(group.id);
+
+            const nameEl = document.createElement('span');
+            nameEl.style.cssText = `
+                flex: 1;
+                font-size: 14px;
+                color: #333;
+            `;
+            nameEl.textContent = group.name;
+
+            if (group.isDefault) {
+                const badgeEl = document.createElement('span');
+                badgeEl.style.cssText = `
+                    background: #00a1d6;
+                    color: #fff;
+                    font-size: 10px;
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    margin-left: 8px;
+                `;
+                badgeEl.textContent = '默认';
+                nameEl.appendChild(badgeEl);
+            }
+
+            itemEl.addEventListener('click', (e) => {
+                if (e.target !== checkbox) {
+                    checkbox.checked = !checkbox.checked;
+                }
+                handleCheckboxChange(group.id, checkbox.checked);
+            });
+
+            checkbox.addEventListener('change', () => {
+                handleCheckboxChange(group.id, checkbox.checked);
+            });
+
+            itemEl.appendChild(checkbox);
+            itemEl.appendChild(nameEl);
+            container.appendChild(itemEl);
+        });
+
+        const addContainer = document.createElement('div');
+        addContainer.className = 'add-group-container';
+        container.appendChild(addContainer);
+
+        createAddButton(addContainer, () => {
+            createAddGroupForm(addContainer, async () => {
+                await renderGroupsList(bodyEl);
+            });
+        });
+    }
+
+    function handleCheckboxChange(groupId, checked) {
+        if (checked) {
+            if (!selectedGroups.includes(groupId)) {
+                selectedGroups.push(groupId);
+            }
+        } else {
+            selectedGroups = selectedGroups.filter(id => id !== groupId);
+        }
+        updateConfirmButtonState();
+    }
+
+    async function createPanel(videoInfo) {
+        currentVideoInfo = videoInfo || getCurrentVideoInfo();
+
+        panelInstance = Card.create({
+            className: 'add-to-favorites-modal',
+            header: {
+                visible: true,
+                draggable: true,
+                title: '添加到收藏夹'
+            },
+            footer: { visible: false },
+            styles: {
+                width: '380px',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                zIndex: 99999
+            },
+            onHeaderReady: (headerEl) => {
+                const actionsEl = headerEl.querySelector('.add-to-favorites-modal-actions');
+
+                const closeBtn = document.createElement('button');
+                closeBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;';
+                closeBtn.textContent = '×';
+                closeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    destroy();
+                });
+
+                actionsEl.appendChild(closeBtn);
+            },
+            onBodyReady: async (bodyEl) => {
+                bodyEl.style.cssText = 'padding: 16px;';
+
+                const titleEl = document.createElement('div');
+                titleEl.style.cssText = `
+                    font-size: 14px;
+                    color: #666;
+                    margin-bottom: 12px;
+                    text-align: center;
+                `;
+                titleEl.textContent = currentVideoInfo ? `收藏：${currentVideoInfo.title}` : '请选择分组';
+                bodyEl.appendChild(titleEl);
+
+                const hintEl = document.createElement('div');
+                hintEl.style.cssText = `
+                    font-size: 12px;
+                    color: #999;
+                    margin-bottom: 12px;
+                    text-align: center;
+                    padding: 8px;
+                    background: #f5f5f5;
+                    border-radius: 4px;
+                `;
+                hintEl.textContent = '提示：最多显示10个分组，支持多选';
+                bodyEl.appendChild(hintEl);
+
+                const container = document.createElement('div');
+                container.className = 'groups-container';
+                container.style.cssText = `
+                    max-height: 300px;
+                    overflow-y: auto;
+                `;
+                bodyEl.appendChild(container);
+
+                const btnContainer = document.createElement('div');
+                btnContainer.style.cssText = `
+                    display: flex;
+                    margin-top: 16px;
+                `;
+
+                confirmBtn = document.createElement('button');
+                confirmBtn.textContent = '确认';
+                confirmBtn.style.cssText = `
+                    flex: 1;
+                    padding: 10px 16px;
+                    border: none;
+                    border-radius: 4px;
+                    background: #CCCECF;
+                    color: #fff;
+                    cursor: not-allowed;
+                `;
+                confirmBtn.disabled = true;
+                confirmBtn.addEventListener('click', async () => {
+                    if (currentVideoInfo && selectedGroups.length > 0) {
+                        await Favorites.add(currentVideoInfo, selectedGroups);
+                    }
+                    destroy();
+                });
+
+                btnContainer.appendChild(confirmBtn);
+                bodyEl.appendChild(btnContainer);
+
+                await renderGroupsList(bodyEl);
+            }
+        });
+    }
+
+    function show(videoInfo) {
+        if (panelInstance) {
+            destroy();
+        }
+        createPanel(videoInfo);
+    }
+
+    function destroy() {
+        if (panelInstance) {
+            panelInstance.destroy();
+            panelInstance = null;
+        }
+        currentVideoInfo = null;
+        selectedGroups = [];
+        confirmBtn = null;
+    }
+
+    return {
+        show,
+        destroy
+    };
+})();
+
+const FavoritesPanel = (() => {
+    let panelInstance = null;
+    let dragCleanup = null;
+    let currentPage = 1;
+    let paginationInstance = null;
+    let currentGroupId = null;
+    const pageSize = 10;
+
+    function getCurrentVideoInfo() {
+        const url = location.href;
+        const match = url.match(/BV[\w]+/);
+        if (!match) return null;
+
+        const bvid = match[0];
+        const video = VideoController.getVideo();
+
+        let title = document.querySelector('h1.video-title, .video-title-href, h1[class*="title"]')?.textContent?.trim() || '未知标题';
+        let author = document.querySelector('.up-name, a.up-name, [class*="up-name"]')?.textContent?.trim() || '未知UP主';
+        let cover = document.querySelector('meta[property="og:image"]')?.content || '';
+
+        return {
+            id: bvid,
+            bvid: bvid,
+            title: title,
+            author: author,
+            duration: video ? video.duration : 0,
+            cover: cover,
+            url: url,
+            addedAt: Date.now()
+        };
+    }
+
+    function renderFavoriteItem(item, containerEl, groupMap) {
         const itemEl = document.createElement('div');
         itemEl.className = 'bili-speed-favorite-item';
         itemEl.dataset.id = item.id;
@@ -3114,6 +4836,7 @@ const FavoritesPanel = (() => {
             color: #999;
             display: flex;
             gap: 8px;
+            flex-wrap: wrap;
         `;
 
         const authorEl = document.createElement('span');
@@ -3122,8 +4845,31 @@ const FavoritesPanel = (() => {
         const durationEl = document.createElement('span');
         durationEl.textContent = Utils.formatTime(item.duration);
 
+        const groupsContainer = document.createElement('div');
+        groupsContainer.style.cssText = `
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        `;
+        if (item.groups && item.groups.length > 0) {
+            item.groups.forEach(groupId => {
+                const groupBadge = document.createElement('span');
+                groupBadge.style.cssText = `
+                    background: #e6f7ff;
+                    color: #1890ff;
+                    padding: 0 4px;
+                    border-radius: 2px;
+                    font-size: 10px;
+                `;
+                const groupName = groupMap.get(groupId) || (groupId === 'default' ? '默认' : groupId);
+                groupBadge.textContent = groupName;
+                groupsContainer.appendChild(groupBadge);
+            });
+        }
+
         metaEl.appendChild(authorEl);
         metaEl.appendChild(durationEl);
+        metaEl.appendChild(groupsContainer);
 
         infoEl.appendChild(titleEl);
         infoEl.appendChild(metaEl);
@@ -3169,40 +4915,58 @@ const FavoritesPanel = (() => {
             window.open(item.url, '_blank');
         });
 
-        deleteBtn.addEventListener('click', (e) => {
+        deleteBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
-            Favorites.remove(item.id);
-            renderFavoritesList(containerEl);
+            await Favorites.remove(item.id);
         });
 
         return itemEl;
     }
 
-    function renderFavoritesList(containerEl) {
+    async function renderFavoritesList(containerEl) {
         containerEl.innerHTML = '';
-        
-        const favorites = Favorites.getAll();
-        
-        if (favorites.length === 0) {
+
+        const allFavorites = await Favorites.getAll(currentGroupId);
+        const total = allFavorites.length;
+        const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+        if (currentPage > totalPages) {
+            currentPage = totalPages;
+        }
+
+        const start = (currentPage - 1) * pageSize;
+        const pageData = allFavorites.slice(start, start + pageSize);
+
+        const groups = await FavoritesGroups.getAll();
+        const groupMap = new Map();
+        groups.forEach(group => {
+            groupMap.set(group.id, group.name);
+        });
+
+        if (pageData.length === 0) {
             containerEl.innerHTML = `
                 <div style="text-align: center; padding: 40px 0; color: #999;">
                     <div style="font-size: 48px; margin-bottom: 8px;">📭</div>
                     <div>暂无收藏</div>
                 </div>
             `;
-            return;
+        } else {
+            pageData.forEach(item => {
+                containerEl.appendChild(renderFavoriteItem(item, containerEl, groupMap));
+            });
         }
 
-        favorites.forEach(item => {
-            containerEl.appendChild(renderFavoriteItem(item, containerEl));
-        });
+        if (paginationInstance) {
+            paginationInstance.setTotal(total);
+        }
     }
 
-    function createPanel() {
+    async function createPanel() {
         let savedPosition = Config.data.favoritesPanelPosition;
+        const currentTheme = Config.data.theme || 'light';
 
         panelInstance = Card.create({
-            className: 'bili-speed-favorites-panel',
+            className: `bili-speed-favorites-panel theme-${currentTheme}`,
             header: {
                 visible: true,
                 draggable: true,
@@ -3224,7 +4988,16 @@ const FavoritesPanel = (() => {
             },
             onHeaderReady: (headerEl) => {
                 const actionsEl = headerEl.querySelector('.bili-speed-favorites-panel-actions');
-                
+
+                const manageBtn = document.createElement('button');
+                manageBtn.title = '管理分组';
+                manageBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px;';
+                manageBtn.textContent = '📁';
+                manageBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    FavoritesGroupPanel.show();
+                });
+
                 const exportBtn = document.createElement('button');
                 exportBtn.className = 'bili-speed-favorites-export';
                 exportBtn.title = '导出收藏数据';
@@ -3244,20 +5017,122 @@ const FavoritesPanel = (() => {
                     EventBus.emit('favorites:toggle');
                 });
 
+                actionsEl.appendChild(manageBtn);
                 actionsEl.appendChild(exportBtn);
                 actionsEl.appendChild(closeBtn);
 
                 dragCleanup = Draggable.make(headerEl.parentElement, 'favoritesPanelPosition', `[class*="-header"]`);
             },
-            onBodyReady: (bodyEl) => {
+            onBodyReady: async (bodyEl) => {
                 bodyEl.className = 'bili-speed-favorites-panel-body';
-                bodyEl.style.cssText = 'padding: 8px; max-height: 400px; overflow-y: auto;';
+                bodyEl.style.cssText = 'padding: 8px; max-height: 400px; overflow-y: auto; display: flex; flex-direction: column;';
 
-                renderFavoritesList(bodyEl);
+                const filterContainer = document.createElement('div');
+                filterContainer.style.cssText = `
+                    display: flex;
+                    gap: 4px;
+                    flex-wrap: wrap;
+                    margin-bottom: 8px;
+                    padding-bottom: 8px;
+                    border-bottom: 1px solid #eee;
+                `;
 
-                EventBus.on('favorites:updated', () => {
+                const allBtn = document.createElement('button');
+                allBtn.textContent = '全部';
+                allBtn.style.cssText = `
+                    padding: 4px 8px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    background: ${!currentGroupId ? '#00a1d6' : '#fff'};
+                    color: ${!currentGroupId ? '#fff' : '#666'};
+                    cursor: pointer;
+                    font-size: 12px;
+                `;
+                allBtn.addEventListener('click', async () => {
+                    currentGroupId = null;
+                    currentPage = 1;
+                    await renderGroupsFilter(filterContainer);
+                    await renderFavoritesList(listEl);
+                });
+
+                filterContainer.appendChild(allBtn);
+
+                const listEl = document.createElement('div');
+                listEl.className = 'bili-speed-favorites-list';
+                bodyEl.appendChild(filterContainer);
+                bodyEl.appendChild(listEl);
+
+                const paginationContainer = document.createElement('div');
+                paginationContainer.className = 'bili-speed-favorites-pagination';
+                bodyEl.appendChild(paginationContainer);
+
+                currentPage = 1;
+                if (paginationInstance) {
+                    paginationInstance.destroy();
+                    paginationInstance = null;
+                }
+
+                paginationInstance = Pagination.create({
+                    container: paginationContainer,
+                    total: 0,
+                    pageSize: pageSize,
+                    currentPage: 1,
+                    theme: Config.data.theme || 'light',
+                    onChange: async (page) => {
+                        currentPage = page;
+                        const list = bodyEl.querySelector('.bili-speed-favorites-list');
+                        if (list) await renderFavoritesList(list);
+                    }
+                });
+
+                async function renderGroupsFilter(container) {
+                    const existingButtons = container.querySelectorAll('button:not(:first-child)');
+                    existingButtons.forEach(btn => btn.remove());
+
+                    const groups = await FavoritesGroups.getAll();
+                    groups.forEach(group => {
+                        const btn = document.createElement('button');
+                        btn.textContent = group.name;
+                        btn.style.cssText = `
+                            padding: 4px 8px;
+                            border: 1px solid #ddd;
+                            border-radius: 4px;
+                            background: ${currentGroupId === group.id ? '#00a1d6' : '#fff'};
+                            color: ${currentGroupId === group.id ? '#fff' : '#666'};
+                            cursor: pointer;
+                            font-size: 12px;
+                        `;
+                        btn.addEventListener('click', async () => {
+                            currentGroupId = group.id;
+                            currentPage = 1;
+                            await renderGroupsFilter(container);
+                            await renderFavoritesList(listEl);
+                        });
+                        container.appendChild(btn);
+                    });
+
+                    const allButton = container.querySelector('button:first-child');
+                    if (allButton) {
+                        allButton.style.background = !currentGroupId ? '#00a1d6' : '#fff';
+                        allButton.style.color = !currentGroupId ? '#fff' : '#666';
+                    }
+                }
+
+                await renderGroupsFilter(filterContainer);
+                await renderFavoritesList(listEl);
+
+                EventBus.on('favorites:updated', async () => {
                     if (panelInstance && bodyEl) {
-                        renderFavoritesList(bodyEl);
+                        currentPage = 1;
+                        const list = bodyEl.querySelector('.bili-speed-favorites-list');
+                        if (list) await renderFavoritesList(list);
+                    }
+                });
+
+                EventBus.on('favoriteGroups:updated', async () => {
+                    if (panelInstance && bodyEl) {
+                        await renderGroupsFilter(filterContainer);
+                        await renderFavoritesList(listEl);
                     }
                 });
             }
@@ -3294,50 +5169,1053 @@ const FavoritesPanel = (() => {
             }
         },
 
-        addCurrentVideo() {
-            const videoInfo = getCurrentVideoInfo();
-            if (!videoInfo) {
-                Toast.show('无法获取当前视频信息');
-                return false;
+        applyTheme(theme) {
+            if (!panelInstance) return;
+            const el = panelInstance.element;
+            el.classList.remove('theme-light', 'theme-dark');
+            el.classList.add(`theme-${theme}`);
+            if (paginationInstance) {
+                paginationInstance.setTheme(theme);
             }
-            return Favorites.add(videoInfo);
         },
 
-        removeCurrentVideo() {
+        async addCurrentVideo() {
             const videoInfo = getCurrentVideoInfo();
             if (!videoInfo) {
                 Toast.show('无法获取当前视频信息');
                 return false;
             }
-            return Favorites.remove(videoInfo.id);
+            return await Favorites.add(videoInfo);
         },
 
-        toggleCurrentVideo() {
+        async removeCurrentVideo() {
             const videoInfo = getCurrentVideoInfo();
             if (!videoInfo) {
                 Toast.show('无法获取当前视频信息');
                 return false;
             }
-            
-            if (Favorites.has(videoInfo.id)) {
-                return Favorites.remove(videoInfo.id);
+            return await Favorites.remove(videoInfo.id);
+        },
+
+        async toggleCurrentVideo() {
+            const videoInfo = getCurrentVideoInfo();
+            if (!videoInfo) {
+                Toast.show('无法获取当前视频信息');
+                return false;
+            }
+
+            if (await Favorites.has(videoInfo.id)) {
+                return await Favorites.remove(videoInfo.id);
             } else {
-                return Favorites.add(videoInfo);
+                return await Favorites.add(videoInfo);
             }
         },
 
-        isCurrentVideoFavorited() {
+        async isCurrentVideoFavorited() {
             const videoInfo = getCurrentVideoInfo();
             if (!videoInfo) return false;
-            return Favorites.has(videoInfo.id);
+            return await Favorites.has(videoInfo.id);
         },
 
         destroy() {
+            if (paginationInstance) {
+                paginationInstance.destroy();
+                paginationInstance = null;
+            }
             if (dragCleanup) dragCleanup();
             dragCleanup = null;
             if (panelInstance) panelInstance.destroy();
             panelInstance = null;
         }
+    };
+})();
+
+
+const FavoritesGroupPanel = (() => {
+    let panelInstance = null;
+    let dragCleanup = null;
+    let paginationInstance = null;
+    let currentPage = 1;
+    let groupsUpdateHandler = null;
+    const pageSize = 10;
+
+    async function renderGroupsList(containerEl) {
+        containerEl.innerHTML = '';
+
+        const allGroups = await FavoritesGroups.getAll();
+        const total = allGroups.length;
+        const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+        if (currentPage > totalPages) {
+            currentPage = totalPages;
+        }
+
+        const start = (currentPage - 1) * pageSize;
+        const pageGroups = allGroups.slice(start, start + pageSize);
+
+        if (pageGroups.length === 0) {
+            containerEl.innerHTML = `
+                <div style="text-align: center; padding: 40px 0; color: #999;">
+                    <div style="font-size: 48px; margin-bottom: 8px;">📁</div>
+                    <div>暂无分组</div>
+                </div>
+            `;
+        } else {
+            const totalGroups = allGroups.length;
+            pageGroups.forEach((group, pageIndex) => {
+                const globalIndex = (currentPage - 1) * pageSize + pageIndex;
+                containerEl.appendChild(renderGroupItem(group, containerEl, globalIndex, totalGroups));
+            });
+        }
+
+        if (paginationInstance) {
+            paginationInstance.setTotal(total);
+            paginationInstance.setCurrentPage(currentPage);
+        }
+    }
+
+    function renderGroupItem(group, containerEl, index, total) {
+        const isFirst = index === 0;
+        const isLast = index === total - 1;
+        const itemEl = document.createElement('div');
+        itemEl.className = 'group-management-item';
+        itemEl.style.cssText = `
+            display: flex;
+            align-items: center;
+            padding: 12px 8px;
+            border-bottom: 1px solid #eee;
+        `;
+
+        const nameEl = document.createElement('div');
+        nameEl.style.cssText = `
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        `;
+
+        const imageContainer = document.createElement('div');
+        imageContainer.className = 'group-image-container';
+        imageContainer.style.cssText = `
+            width: 40px;
+            height: 40px;
+            border-radius: 6px;
+            overflow: hidden;
+            flex-shrink: 0;
+            background: #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+
+        if (group.image) {
+            const img = document.createElement('img');
+            img.src = group.image;
+            img.className = 'group-thumbnail';
+            img.style.cssText = `
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            `;
+            img.onerror = () => {
+                imageContainer.innerHTML = '<span style="font-size: 20px;">📁</span>';
+            };
+            imageContainer.appendChild(img);
+        } else {
+            const defaultIcon = document.createElement('span');
+            defaultIcon.style.cssText = 'font-size: 20px;';
+            defaultIcon.textContent = '📁';
+            imageContainer.appendChild(defaultIcon);
+        }
+
+        const nameTextEl = document.createElement('span');
+        nameTextEl.style.cssText = `
+            font-size: 14px;
+            color: #333;
+        `;
+        nameTextEl.textContent = group.name;
+
+        nameEl.appendChild(imageContainer);
+        nameEl.appendChild(nameTextEl);
+
+        const statusEl = document.createElement('span');
+        statusEl.style.cssText = `
+            font-size: 12px;
+            color: ${group.isVisible ? '#52c41a' : '#999'};
+            margin-right: 12px;
+        `;
+        statusEl.textContent = group.isVisible ? '显示中' : '已隐藏';
+
+        const actionsEl = document.createElement('div');
+        actionsEl.style.cssText = `
+            display: flex;
+            gap: 4px;
+        `;
+
+        if (!group.isDefault) {
+            const deleteBtn = document.createElement('button');
+            deleteBtn.textContent = '删除';
+            deleteBtn.style.cssText = `
+                padding: 4px 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                background: #fff;
+                cursor: pointer;
+                font-size: 12px;
+            `;
+            deleteBtn.addEventListener('click', async () => {
+                if (confirm(`确定要删除分组「${group.name}」吗？该分组下的收藏不会被删除。`)) {
+                    await FavoritesGroups.remove(group.id);
+                }
+            });
+
+            const toggleBtn = document.createElement('button');
+            toggleBtn.textContent = group.isVisible ? '隐藏' : '显示';
+            toggleBtn.style.cssText = `
+                padding: 4px 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                background: #fff;
+                cursor: pointer;
+                font-size: 12px;
+            `;
+            toggleBtn.addEventListener('click', async () => {
+                await FavoritesGroups.setVisible(group.id, !group.isVisible);
+            });
+
+            actionsEl.appendChild(deleteBtn);
+            actionsEl.appendChild(toggleBtn);
+        }
+
+        const publicBtn = document.createElement('button');
+        publicBtn.textContent = group.isPublic ? '公开' : '私密';
+        publicBtn.style.cssText = `
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fff;
+            color: #333;
+            cursor: pointer;
+            font-size: 12px;
+        `;
+        publicBtn.addEventListener('click', async () => {
+            const newIsPublic = !group.isPublic;
+            await FavoritesGroups.update(group.id, { isPublic: newIsPublic });
+            publicBtn.textContent = newIsPublic ? '公开' : '私密';
+        });
+        actionsEl.appendChild(publicBtn);
+
+        const editBtn = document.createElement('button');
+        editBtn.textContent = '编辑';
+        editBtn.style.cssText = `
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fff;
+            cursor: pointer;
+            font-size: 12px;
+        `;
+        editBtn.addEventListener('click', () => {
+            FavoritesGroupFormPanel.show({
+                group: group,
+                onSubmit: async (formData) => {
+                    try {
+                        await FavoritesGroups.update(group.id, {
+                            name: formData.name,
+                            image: formData.image,
+                            description: formData.description,
+                            isPublic: formData.isPublic
+                        });
+                        Toast.show('分组信息已保存');
+                    } catch (error) {
+                        Logger.error('更新分组失败:', error);
+                        Toast.show('保存失败，请重试');
+                    }
+                }
+            });
+        });
+        actionsEl.appendChild(editBtn);
+
+        const upBtn = document.createElement('button');
+        upBtn.textContent = '↑';
+        upBtn.title = isFirst ? '已是第一位' : '上移';
+        upBtn.style.cssText = `
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: ${isFirst ? '#f5f5f5' : '#fff'};
+            color: ${isFirst ? '#999' : '#333'};
+            cursor: ${isFirst ? 'not-allowed' : 'pointer'};
+            font-size: 12px;
+        `;
+        if (!isFirst) {
+            upBtn.addEventListener('click', async () => {
+                await FavoritesGroups.moveUp(group.id);
+            });
+        }
+
+        const downBtn = document.createElement('button');
+        downBtn.textContent = '↓';
+        downBtn.title = isLast ? '已是最后一位' : '下移';
+        downBtn.style.cssText = `
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: ${isLast ? '#f5f5f5' : '#fff'};
+            color: ${isLast ? '#999' : '#333'};
+            cursor: ${isLast ? 'not-allowed' : 'pointer'};
+            font-size: 12px;
+        `;
+        if (!isLast) {
+            downBtn.addEventListener('click', async () => {
+                await FavoritesGroups.moveDown(group.id);
+            });
+        }
+
+        actionsEl.appendChild(upBtn);
+        actionsEl.appendChild(downBtn);
+
+        itemEl.appendChild(nameEl);
+        itemEl.appendChild(statusEl);
+        itemEl.appendChild(actionsEl);
+
+        return itemEl;
+    }
+
+    async function createPanel() {
+        panelInstance = Card.create({
+            className: 'favorites-group-panel',
+            header: {
+                visible: true,
+                draggable: true,
+                title: '分组管理'
+            },
+            footer: { visible: false },
+            styles: {
+                width: '450px',
+                display: 'block',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                zIndex: 99999
+            },
+            onHeaderReady: (headerEl) => {
+                const actionsEl = headerEl.querySelector('.favorites-group-panel-actions');
+
+                const closeBtn = document.createElement('button');
+                closeBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;';
+                closeBtn.textContent = '×';
+                closeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    destroy();
+                });
+
+                actionsEl.appendChild(closeBtn);
+
+                dragCleanup = Draggable.make(headerEl.parentElement, null, '[class*="-header"]');
+            },
+            onBodyReady: async (bodyEl) => {
+                bodyEl.style.cssText = 'padding: 16px;';
+
+                const hintEl = document.createElement('div');
+                hintEl.style.cssText = `
+                    font-size: 12px;
+                    color: #999;
+                    margin-bottom: 12px;
+                    padding: 8px;
+                    background: #f5f5f5;
+                    border-radius: 4px;
+                `;
+                hintEl.innerHTML = `
+                    💡 <strong>提示</strong>：<br>
+                    • 默认分组不可删除<br>
+                    • 「添加到收藏夹」弹窗最多显示10个分组（1个默认+9个可见分组）
+                `;
+                bodyEl.appendChild(hintEl);
+
+                const addBtn = document.createElement('button');
+                addBtn.textContent = '+ 新建分组';
+                addBtn.style.cssText = `
+                    width: 100%;
+                    padding: 10px;
+                    border: 1px dashed #ddd;
+                    border-radius: 4px;
+                    background: #fff;
+                    color: #666;
+                    cursor: pointer;
+                    margin-bottom: 12px;
+                    font-size: 14px;
+                `;
+                addBtn.addEventListener('click', () => {
+                    FavoritesGroupFormPanel.show({
+                        onSubmit: async (formData) => {
+                            try {
+                                await FavoritesGroups.create(formData.name, {
+                                    isPublic: formData.isPublic,
+                                    description: formData.description,
+                                    image: formData.image
+                                });
+                                Toast.show('分组创建成功');
+                            } catch (error) {
+                                Logger.error('创建分组失败:', error);
+                                Toast.show('创建失败，请重试');
+                            }
+                        }
+                    });
+                });
+                bodyEl.appendChild(addBtn);
+
+                const listContainer = document.createElement('div');
+                listContainer.style.cssText = `
+                    max-height: 300px;
+                    overflow-y: auto;
+                `;
+                bodyEl.appendChild(listContainer);
+
+                const paginationContainer = document.createElement('div');
+                paginationContainer.style.cssText = 'margin-top: 12px;';
+                bodyEl.appendChild(paginationContainer);
+
+                currentPage = 1;
+                paginationInstance = Pagination.create({
+                    container: paginationContainer,
+                    total: 0,
+                    pageSize: pageSize,
+                    currentPage: 1,
+                    onChange: async (page) => {
+                        currentPage = page;
+                        await renderGroupsList(listContainer);
+                    }
+                });
+
+                await renderGroupsList(listContainer);
+
+                groupsUpdateHandler = async () => {
+                    await renderGroupsList(listContainer);
+                };
+                EventBus.on('favoriteGroups:updated', groupsUpdateHandler);
+            }
+        });
+    }
+
+    function show() {
+        if (panelInstance) {
+            destroy();
+        }
+        createPanel();
+    }
+
+    function destroy() {
+        if (groupsUpdateHandler) {
+            EventBus.off('favoriteGroups:updated', groupsUpdateHandler);
+            groupsUpdateHandler = null;
+        }
+        if (paginationInstance) {
+            paginationInstance.destroy();
+            paginationInstance = null;
+        }
+        if (dragCleanup) {
+            dragCleanup();
+            dragCleanup = null;
+        }
+        if (panelInstance) {
+            panelInstance.destroy();
+            panelInstance = null;
+        }
+        currentPage = 1;
+    }
+
+    return {
+        show,
+        destroy
+    };
+})();
+
+
+/**
+ * FavoritesGroupFormPanel - 收藏夹分组表单面板
+ * 提供新建/编辑收藏夹分组的表单界面
+ *
+ * @module UI/Views
+ *
+ * @example
+ * // 新建模式
+ * FavoritesGroupFormPanel.show({
+ *   onSubmit: (formData) => {
+ *     console.log('Form submitted:', formData);
+ *   }
+ * });
+ *
+ * // 编辑模式
+ * FavoritesGroupFormPanel.show({
+ *   group: { id: 'xxx', name: '分组1', image: '', description: '', isPublic: false },
+ *   onSubmit: (formData) => {
+ *     console.log('Form updated:', formData);
+ *   }
+ * });
+ */
+const FavoritesGroupFormPanel = (() => {
+    let panelInstance = null;
+    let onSubmitCallback = null;
+    let currentEditGroup = null;
+
+    function createFormPanel(options = {}) {
+        const { onSubmit, group } = options;
+        onSubmitCallback = onSubmit;
+        currentEditGroup = group || null;
+
+        const isEditMode = !!group;
+        const panelTitle = isEditMode ? '编辑收藏夹分组' : '新建收藏夹分组';
+
+        panelInstance = Card.create({
+            className: 'favorites-group-form-panel',
+            header: {
+                visible: true,
+                draggable: true,
+                title: panelTitle
+            },
+            footer: { visible: false },
+            styles: {
+                width: '420px',
+                display: 'block',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                zIndex: 99999
+            },
+            onHeaderReady: (headerEl) => {
+                const actionsEl = headerEl.querySelector('.favorites-group-form-panel-actions');
+
+                const closeBtn = document.createElement('button');
+                closeBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;';
+                closeBtn.textContent = '×';
+                closeBtn.addEventListener('click', () => {
+                    destroy();
+                });
+                actionsEl.appendChild(closeBtn);
+
+                Draggable.make(headerEl.parentElement, null, '[class*="-header"]');
+            },
+            onBodyReady: (bodyEl) => {
+                bodyEl.style.cssText = 'padding: 20px;';
+
+                const formContainer = document.createElement('div');
+                formContainer.className = 'favorites-group-form-container';
+                formContainer.style.cssText = `
+                    display: flex;
+                    flex-direction: column;
+                    gap: 20px;
+                `;
+
+                const nameGroup = createNameGroup();
+                const imageGroup = createImageGroup();
+                const descriptionGroup = createDescriptionGroup();
+                const publicGroup = createPublicGroup();
+                const buttonGroup = createButtonGroup(onSubmit, isEditMode);
+
+                formContainer.appendChild(nameGroup);
+                formContainer.appendChild(imageGroup);
+                formContainer.appendChild(descriptionGroup);
+                formContainer.appendChild(publicGroup);
+                formContainer.appendChild(buttonGroup);
+
+                bodyEl.appendChild(formContainer);
+
+                if (isEditMode) {
+                    populateFormData(group);
+                }
+            }
+        });
+    }
+
+    function populateFormData(group) {
+        const formContainer = document.querySelector('.favorites-group-form-container');
+        if (!formContainer || !group) return;
+
+        const nameInput = formContainer.querySelector('.group-name-input');
+        const imageInput = formContainer.querySelector('.group-image-input');
+        const descriptionInput = formContainer.querySelector('.group-description-input');
+
+        if (nameInput) {
+            nameInput.value = group.name || '';
+        }
+
+        if (imageInput) {
+            imageInput.value = group.image || '';
+            if (group.image) {
+                const previewContainer = formContainer.querySelector('.image-preview-container');
+                if (previewContainer) {
+                    previewContainer.innerHTML = '';
+                    const img = document.createElement('img');
+                    img.className = 'preview-image';
+                    img.src = group.image;
+                    img.style.cssText = `
+                        max-width: 100%;
+                        max-height: 100%;
+                        object-fit: cover;
+                    `;
+                    img.onload = () => {
+                        previewContainer.innerHTML = '';
+                        previewContainer.appendChild(img);
+                    };
+                    img.onerror = () => {
+                        previewContainer.innerHTML = '';
+                        const placeholder = document.createElement('div');
+                        placeholder.className = 'preview-placeholder';
+                        placeholder.style.cssText = 'color: #999; font-size: 14px;';
+                        placeholder.textContent = '图片加载失败';
+                        previewContainer.appendChild(placeholder);
+                    };
+                }
+            }
+        }
+
+        if (descriptionInput) {
+            descriptionInput.value = group.description || '';
+        }
+
+        const publicGroupEl = formContainer.querySelector('.form-group:has(.form-buttons)');
+        if (publicGroupEl && publicGroupEl.switchInstance) {
+            publicGroupEl.switchInstance.setValue(group.isPublic || false);
+        }
+    }
+
+    function createNameGroup() {
+        const group = document.createElement('div');
+        group.className = 'form-group';
+        group.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        `;
+
+        const label = document.createElement('label');
+        label.textContent = '分组名称';
+        label.style.cssText = `
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        `;
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'group-name-input';
+        input.placeholder = '请输入分组名称';
+        input.required = true;
+        input.style.cssText = `
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        `;
+
+        input.addEventListener('focus', () => {
+            input.style.borderColor = '#00aeec';
+        });
+
+        input.addEventListener('blur', () => {
+            input.style.borderColor = '#ddd';
+        });
+
+        group.appendChild(label);
+        group.appendChild(input);
+
+        return group;
+    }
+
+    function createImageGroup() {
+        const group = document.createElement('div');
+        group.className = 'form-group';
+        group.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        `;
+
+        const label = document.createElement('label');
+        label.textContent = '封面图片';
+        label.style.cssText = `
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        `;
+
+        const inputRow = document.createElement('div');
+        inputRow.style.cssText = `
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        `;
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'group-image-input';
+        input.placeholder = '输入图片URL（可选）';
+        input.style.cssText = `
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        `;
+
+        input.addEventListener('focus', () => {
+            input.style.borderColor = '#00aeec';
+        });
+
+        input.addEventListener('blur', () => {
+            input.style.borderColor = '#ddd';
+        });
+
+        const previewBtn = document.createElement('button');
+        previewBtn.type = 'button';
+        previewBtn.textContent = '预览';
+        previewBtn.style.cssText = `
+            padding: 10px 16px;
+            border: 1px solid #00aeec;
+            border-radius: 4px;
+            background: #fff;
+            color: #00aeec;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        `;
+
+        previewBtn.addEventListener('mouseenter', () => {
+            previewBtn.style.background = '#e6f7ff';
+        });
+
+        previewBtn.addEventListener('mouseleave', () => {
+            previewBtn.style.background = '#fff';
+        });
+
+        inputRow.appendChild(input);
+        inputRow.appendChild(previewBtn);
+
+        const previewContainer = document.createElement('div');
+        previewContainer.className = 'image-preview-container';
+        previewContainer.style.cssText = `
+            width: 100%;
+            height: 160px;
+            border: 1px dashed #ddd;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #fafafa;
+            overflow: hidden;
+            margin-top: 8px;
+        `;
+
+        const previewPlaceholder = document.createElement('div');
+        previewPlaceholder.className = 'preview-placeholder';
+        previewPlaceholder.style.cssText = `
+            color: #999;
+            font-size: 14px;
+        `;
+        previewPlaceholder.textContent = '暂无预览图片';
+
+        previewContainer.appendChild(previewPlaceholder);
+
+        previewBtn.addEventListener('click', () => {
+            const imageUrl = input.value.trim();
+            if (!imageUrl) {
+                Toast.show('请先输入图片URL');
+                return;
+            }
+
+            const existingImg = previewContainer.querySelector('.preview-image');
+            if (existingImg) {
+                existingImg.remove();
+            }
+
+            previewPlaceholder.style.display = 'none';
+
+            const img = document.createElement('img');
+            img.className = 'preview-image';
+            img.src = imageUrl;
+            img.style.cssText = `
+                max-width: 100%;
+                max-height: 100%;
+                object-fit: cover;
+            `;
+
+            img.onload = () => {
+                previewContainer.innerHTML = '';
+                previewContainer.appendChild(img);
+            };
+
+            img.onerror = () => {
+                previewContainer.innerHTML = '';
+                previewContainer.appendChild(previewPlaceholder);
+                previewPlaceholder.textContent = '图片加载失败，请检查URL';
+                Toast.show('图片加载失败');
+            };
+        });
+
+        group.appendChild(label);
+        group.appendChild(inputRow);
+        group.appendChild(previewContainer);
+
+        return group;
+    }
+
+    function createDescriptionGroup() {
+        const group = document.createElement('div');
+        group.className = 'form-group';
+        group.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        `;
+
+        const label = document.createElement('label');
+        label.textContent = '简介';
+        label.style.cssText = `
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        `;
+
+        const textarea = document.createElement('textarea');
+        textarea.className = 'group-description-input';
+        textarea.placeholder = '可以简单描述下你的收藏夹';
+        textarea.style.cssText = `
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 80px;
+            max-height: 160px;
+            outline: none;
+            transition: border-color 0.2s;
+            font-family: inherit;
+        `;
+
+        textarea.addEventListener('focus', () => {
+            textarea.style.borderColor = '#00aeec';
+        });
+
+        textarea.addEventListener('blur', () => {
+            textarea.style.borderColor = '#ddd';
+        });
+
+        group.appendChild(label);
+        group.appendChild(textarea);
+
+        return group;
+    }
+
+    function createPublicGroup() {
+        const group = document.createElement('div');
+        group.className = 'form-group';
+        group.style.cssText = `
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: #f5f5f5;
+            border-radius: 4px;
+        `;
+
+        const labelContainer = document.createElement('div');
+        labelContainer.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        `;
+
+        const label = document.createElement('label');
+        label.textContent = '公开';
+        label.style.cssText = `
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        `;
+
+        const hint = document.createElement('small');
+        hint.textContent = '开启后其他用户可以查看此分组';
+        hint.style.cssText = `
+            font-size: 12px;
+            color: #999;
+        `;
+
+        labelContainer.appendChild(label);
+        labelContainer.appendChild(hint);
+
+        const switchInstance = Switch.create({
+            checked: false,
+            onChange: (isChecked) => {
+                console.log('Public status changed:', isChecked);
+            }
+        });
+
+        group.appendChild(labelContainer);
+        group.appendChild(switchInstance.element);
+
+        group.switchInstance = switchInstance;
+
+        return group;
+    }
+
+    function createButtonGroup(onSubmit, isEditMode = false) {
+        const group = document.createElement('div');
+        group.className = 'form-buttons';
+        group.style.cssText = `
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+        `;
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.textContent = '取消';
+        cancelBtn.style.cssText = `
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fff;
+            color: #666;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        `;
+
+        cancelBtn.addEventListener('mouseenter', () => {
+            cancelBtn.style.background = '#f5f5f5';
+        });
+
+        cancelBtn.addEventListener('mouseleave', () => {
+            cancelBtn.style.background = '#fff';
+        });
+
+        cancelBtn.addEventListener('click', () => {
+            destroy();
+        });
+
+        const submitBtn = document.createElement('button');
+        submitBtn.type = 'button';
+        submitBtn.textContent = isEditMode ? '保存' : '创建';
+        submitBtn.className = 'submit-btn';
+        submitBtn.style.cssText = `
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #00aeec;
+            border-radius: 4px;
+            background: #00aeec;
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        `;
+
+        submitBtn.addEventListener('mouseenter', () => {
+            submitBtn.style.background = '#0097d6';
+        });
+
+        submitBtn.addEventListener('mouseleave', () => {
+            submitBtn.style.background = '#00aeec';
+        });
+
+        submitBtn.addEventListener('click', () => {
+            const formData = collectFormData();
+
+            if (!validateForm(formData)) {
+                return;
+            }
+
+            if (onSubmit && typeof onSubmit === 'function') {
+                if (isEditMode && currentEditGroup) {
+                    formData.id = currentEditGroup.id;
+                }
+                onSubmit(formData);
+            }
+
+            destroy();
+        });
+
+        group.appendChild(cancelBtn);
+        group.appendChild(submitBtn);
+
+        return group;
+    }
+
+    function collectFormData() {
+        const formContainer = document.querySelector('.favorites-group-form-container');
+        if (!formContainer) return null;
+
+        const name = formContainer.querySelector('.group-name-input').value.trim();
+        const image = formContainer.querySelector('.group-image-input').value.trim();
+        const description = formContainer.querySelector('.group-description-input').value.trim();
+        const publicGroupEl = formContainer.querySelector('.form-group:has(.form-buttons)');
+        const switchEl = publicGroupEl ? publicGroupEl.querySelector('.bili-speed-switch-container') : null;
+        const isPublic = switchEl && switchEl.querySelector('.bili-speed-switch') ?
+            switchEl.querySelector('.bili-speed-switch').classList.contains('checked') : false;
+
+        return {
+            name,
+            image,
+            description,
+            isPublic
+        };
+    }
+
+    function validateForm(data) {
+        if (!data.name) {
+            Toast.show('请输入分组名称');
+            return false;
+        }
+
+        if (data.name.length > 50) {
+            Toast.show('分组名称不能超过50个字符');
+            return false;
+        }
+
+        if (data.image && !isValidUrl(data.image)) {
+            Toast.show('请输入有效的图片URL');
+            return false;
+        }
+
+        if (data.description && data.description.length > 200) {
+            Toast.show('简介不能超过200个字符');
+            return false;
+        }
+
+        return true;
+    }
+
+    function isValidUrl(string) {
+        try {
+            new URL(string);
+            return true;
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function show(options = {}) {
+        destroy();
+        createFormPanel(options);
+    }
+
+    function destroy() {
+        if (panelInstance) {
+            panelInstance.destroy();
+            panelInstance = null;
+        }
+        onSubmitCallback = null;
+        currentEditGroup = null;
+    }
+
+    return {
+        show,
+        destroy
     };
 })();
 
@@ -3349,6 +6227,9 @@ const NotesPanel = (() => {
     let currentSearchKeyword = '';
     let currentTagFilter = '';
     let currentTypeFilter = 'all';
+    let currentPage = 1;
+    let paginationInstance = null;
+    const pageSize = 10;
 
     function getCurrentBvid() {
         const match = location.href.match(/BV[\w]+/);
@@ -3366,8 +6247,8 @@ const NotesPanel = (() => {
         return `${y}-${m}-${day} ${h}:${min}`;
     }
 
-    function getFilteredNotes() {
-        let notes = Notes.getAll();
+    async function getFilteredNotes() {
+        let notes = await Notes.getAll();
 
         if (currentTypeFilter === 'videoNote') {
             notes = notes.filter(n => n.noteType === 'videoNote');
@@ -3467,11 +6348,10 @@ const NotesPanel = (() => {
         });
 
         const deleteBtn = itemEl.querySelector('.bili-speed-note-delete-btn');
-        deleteBtn.addEventListener('click', (e) => {
+        deleteBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             if (confirm('确定要删除这条笔记吗？')) {
-                Notes.remove(note.id);
-                renderNotesList(containerEl);
+                await Notes.remove(note.id);
             }
         });
 
@@ -3490,32 +6370,44 @@ const NotesPanel = (() => {
         return itemEl;
     }
 
-    function renderNotesList(containerEl) {
+    async function renderNotesList(containerEl) {
         containerEl.innerHTML = '';
 
-        const notes = getFilteredNotes();
+        const allNotes = await getFilteredNotes();
+        const total = allNotes.length;
+        const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-        if (notes.length === 0) {
+        if (currentPage > totalPages) {
+            currentPage = totalPages;
+        }
+
+        const start = (currentPage - 1) * pageSize;
+        const pageData = allNotes.slice(start, start + pageSize);
+
+        if (pageData.length === 0) {
             containerEl.innerHTML = `
                 <div style="text-align: center; padding: 40px 0; color: #999;">
                     <div style="font-size: 48px; margin-bottom: 8px;">📭</div>
                     <div>${currentSearchKeyword || currentTagFilter || currentFilter === 'current' ? '没有匹配的笔记' : '暂无笔记'}</div>
                 </div>
             `;
-            return;
+        } else {
+            pageData.forEach(note => {
+                containerEl.appendChild(renderNoteItem(note, containerEl));
+            });
         }
 
-        notes.forEach(note => {
-            containerEl.appendChild(renderNoteItem(note, containerEl));
-        });
+        if (paginationInstance) {
+            paginationInstance.setTotal(total);
+        }
     }
 
-    function renderFilterBar(bodyEl) {
+    async function renderFilterBar(bodyEl) {
         const bvid = getCurrentBvid();
-        const allTags = Notes.getAllTags();
-        const currentNoteCount = bvid ? Notes.countByBvid(bvid) : 0;
-        const videoNoteCount = Notes.countByType('videoNote');
-        const normalNoteCount = Notes.countByType('normalNote');
+        const allTags = await Notes.getAllTags();
+        const currentNoteCount = bvid ? await Notes.countByBvid(bvid) : 0;
+        const videoNoteCount = await Notes.countByType('videoNote');
+        const normalNoteCount = await Notes.countByType('normalNote');
 
         const filterBar = document.createElement('div');
         filterBar.className = 'bili-speed-notes-filter';
@@ -3540,52 +6432,56 @@ const NotesPanel = (() => {
             </div>
         `;
 
+        async function onFilterChange() {
+            currentPage = 1;
+            const listEl = bodyEl.querySelector('.bili-speed-notes-list');
+            if (listEl) await renderNotesList(listEl);
+        }
+
         const searchInput = filterBar.querySelector('.bili-speed-notes-search-input');
         let searchTimer = null;
         searchInput.addEventListener('input', (e) => {
             if (searchTimer) clearTimeout(searchTimer);
-            searchTimer = setTimeout(() => {
+            searchTimer = setTimeout(async () => {
                 currentSearchKeyword = e.target.value.trim();
-                const listEl = bodyEl.querySelector('.bili-speed-notes-list');
-                if (listEl) renderNotesList(listEl);
+                await onFilterChange();
             }, 300);
         });
 
         filterBar.querySelectorAll('[data-type]').forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', async () => {
                 currentTypeFilter = btn.dataset.type;
                 filterBar.querySelectorAll('[data-type]').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                const listEl = bodyEl.querySelector('.bili-speed-notes-list');
-                if (listEl) renderNotesList(listEl);
+                await onFilterChange();
             });
         });
 
         filterBar.querySelectorAll('[data-filter]').forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', async () => {
                 currentFilter = btn.dataset.filter;
                 filterBar.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                const listEl = bodyEl.querySelector('.bili-speed-notes-list');
-                if (listEl) renderNotesList(listEl);
+                await onFilterChange();
             });
         });
 
         const tagSelect = filterBar.querySelector('.bili-speed-notes-tag-select');
         if (tagSelect) {
-            tagSelect.addEventListener('change', (e) => {
+            tagSelect.addEventListener('change', async (e) => {
                 currentTagFilter = e.target.value;
-                const listEl = bodyEl.querySelector('.bili-speed-notes-list');
-                if (listEl) renderNotesList(listEl);
+                await onFilterChange();
             });
         }
 
         bodyEl.appendChild(filterBar);
     }
 
-    function createPanel() {
+    async function createPanel() {
         let savedPosition = Config.data.notesPanelPosition;
         const currentTheme = Config.data.theme || 'light';
+
+        const noteCount = await Notes.count();
 
         panelInstance = Card.create({
             className: `bili-speed-notes-panel theme-${currentTheme}`,
@@ -3646,30 +6542,57 @@ const NotesPanel = (() => {
 
                 dragCleanup = Draggable.make(headerEl.parentElement, 'notesPanelPosition', `[class*="-header"]`);
             },
-            onBodyReady: (bodyEl) => {
+            onBodyReady: async (bodyEl) => {
                 bodyEl.className = 'bili-speed-notes-panel-body';
-                bodyEl.style.cssText = 'padding: 8px; max-height: 500px; overflow-y: auto;';
+                bodyEl.style.cssText = 'padding: 8px; max-height: 500px; overflow-y: auto; display: flex; flex-direction: column;';
 
-                renderFilterBar(bodyEl);
+                await renderFilterBar(bodyEl);
 
                 const listEl = document.createElement('div');
                 listEl.className = 'bili-speed-notes-list';
                 bodyEl.appendChild(listEl);
 
-                renderNotesList(listEl);
+                const paginationContainer = document.createElement('div');
+                paginationContainer.className = 'bili-speed-notes-pagination';
+                bodyEl.appendChild(paginationContainer);
+
+                currentPage = 1;
+                if (paginationInstance) {
+                    paginationInstance.destroy();
+                    paginationInstance = null;
+                }
+
+                paginationInstance = Pagination.create({
+                    container: paginationContainer,
+                    total: 0,
+                    pageSize: pageSize,
+                    currentPage: 1,
+                    theme: Config.data.theme || 'light',
+                    onChange: async (page) => {
+                        currentPage = page;
+                        const list = bodyEl.querySelector('.bili-speed-notes-list');
+                        if (list) await renderNotesList(list);
+                    }
+                });
+
+                await renderNotesList(listEl);
 
                 const countEl = document.createElement('div');
                 countEl.className = 'bili-speed-notes-count';
                 countEl.style.cssText = 'text-align: center; padding: 8px 0; font-size: 12px; color: #999;';
-                countEl.textContent = `共 ${Notes.count()} 条笔记`;
+                countEl.textContent = `共 ${noteCount} 条笔记`;
                 bodyEl.appendChild(countEl);
 
-                EventBus.on('notes:updated', () => {
+                EventBus.on('notes:updated', async () => {
                     if (panelInstance && bodyEl) {
+                        currentPage = 1;
                         const list = bodyEl.querySelector('.bili-speed-notes-list');
                         const count = bodyEl.querySelector('.bili-speed-notes-count');
-                        if (list) renderNotesList(list);
-                        if (count) count.textContent = `共 ${Notes.count()} 条笔记`;
+                        if (list) await renderNotesList(list);
+                        if (count) {
+                            const newCount = await Notes.count();
+                            count.textContent = `共 ${newCount} 条笔记`;
+                        }
                     }
                 });
             }
@@ -3686,6 +6609,7 @@ const NotesPanel = (() => {
             currentSearchKeyword = '';
             currentTagFilter = '';
             currentTypeFilter = 'all';
+            currentPage = 1;
 
             createPanel();
         },
@@ -3716,9 +6640,16 @@ const NotesPanel = (() => {
             const el = panelInstance.element;
             el.classList.remove('theme-light', 'theme-dark');
             el.classList.add(`theme-${theme}`);
+            if (paginationInstance) {
+                paginationInstance.setTheme(theme);
+            }
         },
 
         destroy() {
+            if (paginationInstance) {
+                paginationInstance.destroy();
+                paginationInstance = null;
+            }
             if (dragCleanup) dragCleanup();
             dragCleanup = null;
             if (panelInstance) panelInstance.destroy();
@@ -3998,7 +6929,7 @@ const QuillEditorPanel = (() => {
         }, 3000);
     }
 
-    function saveNote() {
+    async function saveNote() {
         const panelEl = panelInstance?.element;
         if (!panelEl) return;
 
@@ -4016,7 +6947,7 @@ const QuillEditorPanel = (() => {
         const noteType = videoInfo.hasVideo ? 'videoNote' : 'normalNote';
 
         if (currentNoteId) {
-            Notes.update(currentNoteId, {
+            await Notes.update(currentNoteId, {
                 title: title,
                 content: content,
                 contentDelta: contentDelta,
@@ -4042,7 +6973,7 @@ const QuillEditorPanel = (() => {
                 createdAt: Date.now(),
                 updatedAt: Date.now()
             };
-            Notes.add(note);
+            await Notes.add(note);
             currentNoteId = note.id;
             showSaveStatus('✓ 笔记已保存');
         }
@@ -4604,7 +7535,7 @@ const VditorEditorPanel = (() => {
         }, 3000);
     }
 
-    function saveNote() {
+    async function saveNote() {
         const panelEl = panelInstance?.element;
         if (!panelEl) return;
 
@@ -4627,7 +7558,7 @@ const VditorEditorPanel = (() => {
         const noteType = videoInfo.hasVideo ? 'videoNote' : 'normalNote';
 
         if (currentNoteId) {
-            Notes.update(currentNoteId, {
+            await Notes.update(currentNoteId, {
                 title: title,
                 content: content,
                 contentDelta: '',
@@ -4653,7 +7584,7 @@ const VditorEditorPanel = (() => {
                 createdAt: Date.now(),
                 updatedAt: Date.now()
             };
-            Notes.add(note);
+            await Notes.add(note);
             currentNoteId = note.id;
             showSaveStatus('✓ 笔记已保存');
         }
@@ -4956,6 +7887,18 @@ const VditorEditorPanel = (() => {
             const el = panelInstance.element;
             el.classList.remove('theme-light', 'theme-dark');
             el.classList.add(`theme-${theme}`);
+            
+            // 更新 Vditor 编辑器自身的主题
+            if (vditorInstance) {
+                const Vditor = getVditor();
+                if (Vditor && vditorInstance.element) {
+                    const vditorRoot = vditorInstance.element.querySelector('.vditor');
+                    if (vditorRoot) {
+                        vditorRoot.classList.remove('vditor-classic', 'vditor-dark');
+                        vditorRoot.classList.add(theme === 'dark' ? 'vditor-dark' : 'vditor-classic');
+                    }
+                }
+            }
         },
 
         isOpen() {
@@ -5066,10 +8009,22 @@ const ScreenModeManager = (() => {
 const App = (() => {
     let lastUrl = location.href;
 
-    function init() {
+    async function init() {
         if (PageGuard.isNotAllowedPage()) {
             Logger.info('当前页面不启用脚本');
             return;
+        }
+
+        try {
+            await Storage.init();
+            Logger.info('存储层初始化完成');
+
+            const migrated = await Storage.migrateFromGM();
+            if (migrated) {
+                Logger.info('数据迁移完成');
+            }
+        } catch (err) {
+            Logger.error('存储层初始化失败:', err);
         }
 
         Toast.create();
@@ -5113,6 +8068,7 @@ const App = (() => {
         EventBus.on('theme:changed', (theme) => {
             CardPanel.applyTheme(theme);
             ControlPanel.applyTheme(theme);
+            FavoritesPanel.applyTheme(theme);
             NotesPanel.applyTheme(theme);
             QuillEditorPanel.applyTheme(theme);
             VditorEditorPanel.applyTheme(theme);
@@ -5158,7 +8114,6 @@ const App = (() => {
         }
     };
 })();
-
 
     // 启动应用
     App.start();
