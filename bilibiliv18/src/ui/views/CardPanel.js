@@ -148,15 +148,19 @@ const CardPanel = (() => {
                 favoriteBtn.title = '添加收藏';
                 favoriteBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; position: relative; z-index: 1000; pointer-events: auto;';
                 favoriteBtn.textContent = '☆';
-                favoriteBtn.addEventListener('click', (e) => {
+                favoriteBtn.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     const url = location.href;
                     const match = url.match(/BV[\w]+/);
-                    if (match) {
-                        AddToFavoritesModal.show();
+                    if (!match) return;
+                    
+                    const bvid = match[0];
+                    const isFavorited = await FavoritesPanel.isCurrentVideoFavorited();
+                    
+                    if (isFavorited) {
+                        EventBus.emit('favorites:removeVideo', bvid);
                     } else {
-                        const defaultVideo = Favorites.getDefaultVideo();
-                        AddToFavoritesModal.show(defaultVideo);
+                        AddToFavoritesModal.show(null);
                     }
                 });
 

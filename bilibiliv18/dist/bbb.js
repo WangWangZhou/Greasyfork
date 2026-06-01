@@ -638,6 +638,7 @@ const Card = (() => {
             let bodyEl = null;
             let footerEl = null;
             let isVisible = true;
+            let dragCleanup = null;
 
             function render() {
                 if (cardEl) cardEl.remove();
@@ -728,6 +729,10 @@ const Card = (() => {
 
             render();
 
+            if (header.draggable && cardEl) {
+                dragCleanup = Draggable.make(cardEl, cardId, `.${className.split(' ')[0]}-header`);
+            }
+
             return {
                 id: cardId,
                 element: cardEl,
@@ -803,6 +808,10 @@ const Card = (() => {
                 },
 
                 destroy() {
+                    if (dragCleanup) {
+                        dragCleanup();
+                        dragCleanup = null;
+                    }
                     if (cardEl) {
                         cardEl.remove();
                         cardEl = null;
@@ -2338,6 +2347,45 @@ const Favorites = (() => {
         await FavoritesGroups.ensureInitialized();
     }
 
+    async function remove(id, groupId) {
+        await ensureGroupsInitialized();
+        if (!id) return false;
+
+        const existing = await Storage.favorites.get(id);
+        if (!existing) {
+            Logger.warn('未找到要删除的收藏项');
+            return false;
+        }
+
+        if (groupId) {
+            const currentGroups = existing.groups || ['default'];
+            const newGroups = currentGroups.filter(g => g !== groupId);
+            
+            if (newGroups.length === 0) {
+                await Storage.favorites.remove(id);
+                Toast.show('已从所有分组移除');
+            } else {
+                await Storage.favorites.put({ ...existing, groups: newGroups });
+                Toast.show('已从分组移除');
+            }
+        } else {
+            await Storage.favorites.remove(id);
+            Toast.show('已从收藏夹移除');
+        }
+        
+        EventBus.emit('favorites:remove', existing);
+        EventBus.emit('favorites:updated');
+        return true;
+    }
+
+    EventBus.on('favorites:removeVideo', async (bvid) => {
+        try {
+            await remove(bvid);
+        } catch (err) {
+            Logger.error('删除视频收藏失败:', err);
+        }
+    });
+
     return {
         async add(item, groupIds) {
             await ensureGroupsInitialized();
@@ -2376,34 +2424,7 @@ const Favorites = (() => {
         },
 
         async remove(id, groupId) {
-            await ensureGroupsInitialized();
-            if (!id) return false;
-
-            const existing = await Storage.favorites.get(id);
-            if (!existing) {
-                Logger.warn('未找到要删除的收藏项');
-                return false;
-            }
-
-            if (groupId) {
-                const currentGroups = existing.groups || ['default'];
-                const newGroups = currentGroups.filter(g => g !== groupId);
-                
-                if (newGroups.length === 0) {
-                    await Storage.favorites.remove(id);
-                    Toast.show('已从所有分组移除');
-                } else {
-                    await Storage.favorites.put({ ...existing, groups: newGroups });
-                    Toast.show('已从分组移除');
-                }
-            } else {
-                await Storage.favorites.remove(id);
-                Toast.show('已从收藏夹移除');
-            }
-            
-            EventBus.emit('favorites:remove', existing);
-            EventBus.emit('favorites:updated');
-            return true;
+            return remove(id, groupId);
         },
 
         async get(id) {
@@ -3046,15 +3067,19 @@ const CardPanel = (() => {
                 favoriteBtn.title = '添加收藏';
                 favoriteBtn.style.cssText = 'background: transparent; color: #000; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 14px; position: relative; z-index: 1000; pointer-events: auto;';
                 favoriteBtn.textContent = '☆';
-                favoriteBtn.addEventListener('click', (e) => {
+                favoriteBtn.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     const url = location.href;
                     const match = url.match(/BV[\w]+/);
-                    if (match) {
-                        AddToFavoritesModal.show();
+                    if (!match) return;
+                    
+                    const bvid = match[0];
+                    const isFavorited = await FavoritesPanel.isCurrentVideoFavorited();
+                    
+                    if (isFavorited) {
+                        EventBus.emit('favorites:removeVideo', bvid);
                     } else {
-                        const defaultVideo = Favorites.getDefaultVideo();
-                        AddToFavoritesModal.show(defaultVideo);
+                        AddToFavoritesModal.show(null);
                     }
                 });
 
@@ -4550,7 +4575,11 @@ const AddToFavoritesModal = (() => {
         selectedGroups = [...existingGroups];
         updateConfirmButtonState();
 
-        groups.forEach(group => {
+        const groupCounts = await Promise.all(
+            groups.map(group => Favorites.count(group.id))
+        );
+
+        groups.forEach((group, index) => {
             const itemEl = document.createElement('div');
             itemEl.className = 'group-item';
             itemEl.style.cssText = `
@@ -4593,6 +4622,14 @@ const AddToFavoritesModal = (() => {
                 nameEl.appendChild(badgeEl);
             }
 
+            const countEl = document.createElement('span');
+            countEl.style.cssText = `
+                font-size: 12px;
+                color: #999;
+                margin-left: 8px;
+            `;
+            countEl.textContent = `(${groupCounts[index]})`;
+
             itemEl.addEventListener('click', (e) => {
                 if (e.target !== checkbox) {
                     checkbox.checked = !checkbox.checked;
@@ -4606,6 +4643,7 @@ const AddToFavoritesModal = (() => {
 
             itemEl.appendChild(checkbox);
             itemEl.appendChild(nameEl);
+            itemEl.appendChild(countEl);
             container.appendChild(itemEl);
         });
 

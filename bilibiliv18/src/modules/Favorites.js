@@ -50,6 +50,45 @@ const Favorites = (() => {
         await FavoritesGroups.ensureInitialized();
     }
 
+    async function remove(id, groupId) {
+        await ensureGroupsInitialized();
+        if (!id) return false;
+
+        const existing = await Storage.favorites.get(id);
+        if (!existing) {
+            Logger.warn('未找到要删除的收藏项');
+            return false;
+        }
+
+        if (groupId) {
+            const currentGroups = existing.groups || ['default'];
+            const newGroups = currentGroups.filter(g => g !== groupId);
+            
+            if (newGroups.length === 0) {
+                await Storage.favorites.remove(id);
+                Toast.show('已从所有分组移除');
+            } else {
+                await Storage.favorites.put({ ...existing, groups: newGroups });
+                Toast.show('已从分组移除');
+            }
+        } else {
+            await Storage.favorites.remove(id);
+            Toast.show('已从收藏夹移除');
+        }
+        
+        EventBus.emit('favorites:remove', existing);
+        EventBus.emit('favorites:updated');
+        return true;
+    }
+
+    EventBus.on('favorites:removeVideo', async (bvid) => {
+        try {
+            await remove(bvid);
+        } catch (err) {
+            Logger.error('删除视频收藏失败:', err);
+        }
+    });
+
     return {
         async add(item, groupIds) {
             await ensureGroupsInitialized();
@@ -88,34 +127,7 @@ const Favorites = (() => {
         },
 
         async remove(id, groupId) {
-            await ensureGroupsInitialized();
-            if (!id) return false;
-
-            const existing = await Storage.favorites.get(id);
-            if (!existing) {
-                Logger.warn('未找到要删除的收藏项');
-                return false;
-            }
-
-            if (groupId) {
-                const currentGroups = existing.groups || ['default'];
-                const newGroups = currentGroups.filter(g => g !== groupId);
-                
-                if (newGroups.length === 0) {
-                    await Storage.favorites.remove(id);
-                    Toast.show('已从所有分组移除');
-                } else {
-                    await Storage.favorites.put({ ...existing, groups: newGroups });
-                    Toast.show('已从分组移除');
-                }
-            } else {
-                await Storage.favorites.remove(id);
-                Toast.show('已从收藏夹移除');
-            }
-            
-            EventBus.emit('favorites:remove', existing);
-            EventBus.emit('favorites:updated');
-            return true;
+            return remove(id, groupId);
         },
 
         async get(id) {

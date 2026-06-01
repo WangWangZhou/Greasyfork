@@ -60,6 +60,7 @@ const Card = (() => {
             let bodyEl = null;
             let footerEl = null;
             let isVisible = true;
+            let dragCleanup = null;
 
             function render() {
                 if (cardEl) cardEl.remove();
@@ -150,6 +151,10 @@ const Card = (() => {
 
             render();
 
+            if (header.draggable && cardEl) {
+                dragCleanup = Draggable.make(cardEl, cardId, `.${className.split(' ')[0]}-header`);
+            }
+
             return {
                 id: cardId,
                 element: cardEl,
@@ -225,6 +230,10 @@ const Card = (() => {
                 },
 
                 destroy() {
+                    if (dragCleanup) {
+                        dragCleanup();
+                        dragCleanup = null;
+                    }
                     if (cardEl) {
                         cardEl.remove();
                         cardEl = null;

@@ -167,7 +167,11 @@ const AddToFavoritesModal = (() => {
         selectedGroups = [...existingGroups];
         updateConfirmButtonState();
 
-        groups.forEach(group => {
+        const groupCounts = await Promise.all(
+            groups.map(group => Favorites.count(group.id))
+        );
+
+        groups.forEach((group, index) => {
             const itemEl = document.createElement('div');
             itemEl.className = 'group-item';
             itemEl.style.cssText = `
@@ -210,6 +214,14 @@ const AddToFavoritesModal = (() => {
                 nameEl.appendChild(badgeEl);
             }
 
+            const countEl = document.createElement('span');
+            countEl.style.cssText = `
+                font-size: 12px;
+                color: #999;
+                margin-left: 8px;
+            `;
+            countEl.textContent = `(${groupCounts[index]})`;
+
             itemEl.addEventListener('click', (e) => {
                 if (e.target !== checkbox) {
                     checkbox.checked = !checkbox.checked;
@@ -223,6 +235,7 @@ const AddToFavoritesModal = (() => {
 
             itemEl.appendChild(checkbox);
             itemEl.appendChild(nameEl);
+            itemEl.appendChild(countEl);
             container.appendChild(itemEl);
         });
 
