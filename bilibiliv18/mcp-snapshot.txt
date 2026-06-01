@@ -1,0 +1,550 @@
+uid=86_0 RootWebArea "关于我们 - 哔哩哔哩" url="https://www.bilibili.com/blackboard/aboutUs.html"
+  uid=87_0 ignored
+    uid=87_1 ignored
+      uid=87_2 generic
+        uid=87_3 generic
+          uid=87_4 generic
+            uid=87_5 list
+              uid=87_6 listitem level="1"
+                uid=86_1 link "首页" url="https://www.bilibili.com/"
+                  uid=87_7 image
+                  uid=87_8 ignored
+                    uid=87_9 ignored
+                      uid=86_2 StaticText "首页"
+                        uid=86_40 InlineTextBox "首页"
+                    uid=87_10 image
+              uid=87_11 listitem level="1"
+                uid=86_3 link "番剧" url="https://www.bilibili.com/anime/"
+                  uid=86_4 StaticText "番剧"
+                    uid=86_40 InlineTextBox "番剧"
+              uid=87_12 listitem level="1"
+                uid=86_5 link "直播" url="https://live.bilibili.com/"
+                  uid=86_6 StaticText "直播"
+                    uid=86_40 InlineTextBox "直播"
+              uid=87_13 listitem level="1"
+                uid=86_7 link "游戏中心" url="https://game.bilibili.com/platform"
+                  uid=86_8 StaticText "游戏中心"
+                    uid=86_40 InlineTextBox "游戏中心"
+              uid=87_14 listitem level="1"
+                uid=86_9 link "会员购" url="https://show.bilibili.com/platform/home.html?msource=pc_web"
+                  uid=86_10 StaticText "会员购"
+                    uid=86_40 InlineTextBox "会员购"
+              uid=87_15 listitem level="1"
+                uid=86_11 link "漫画" url="https://manga.bilibili.com/?from=bill_top_mnav"
+                  uid=86_12 StaticText "漫画"
+                    uid=86_40 InlineTextBox "漫画"
+              uid=87_16 listitem level="1"
+                uid=86_13 link "赛事" url="https://www.bilibili.com/match/home/"
+                  uid=86_14 StaticText "赛事"
+                    uid=86_40 InlineTextBox "赛事"
+              uid=87_17 listitem level="1"
+                uid=87_18 ignored
+                  uid=86_15 link "看回放 图片 看回放" url="https://www.bilibili.com/bangumi/play/ep3915324"
+                    uid=87_19 generic
+                      uid=87_20 paragraph
+                        uid=86_16 StaticText "看回放"
+                          uid=86_40 InlineTextBox "看回放"
+                      uid=87_21 paragraph
+                        uid=86_17 image "图片" url="https://i0.hdslb.com/bfs/banner/acb41b5765cdd69e445fe8140980afb5282e02cc.png"
+                      uid=87_22 paragraph
+                        uid=86_18 StaticText "看回放"
+                          uid=86_40 InlineTextBox "看回放"
+              uid=87_23 listitem level="1"
+                uid=86_19 link "下载客户端" url="https://app.bilibili.com/"
+                  uid=87_24 image
+                  uid=87_25 ignored
+                    uid=86_20 StaticText "下载客户端"
+                      uid=86_40 InlineTextBox "下载客户端"
+            uid=87_26 ignored
+              uid=87_27 generic
+                uid=87_28 generic
+                  uid=87_29 generic
+                    uid=86_21 textbox "数学分析陈纪修" keyshortcuts="Alt+s"
+                      uid=87_30 ignored
+                      uid=87_31 generic
+                  uid=87_32 generic
+                    uid=87_33 image
+            uid=87_34 list
+              uid=87_35 listitem level="1"
+                uid=87_36 listitem level="1"
+                  uid=87_37 generic
+                    uid=87_38 generic
+                      uid=86_22 StaticText "登录"
+                        uid=86_40 InlineTextBox "登录"
+                  uid=87_39 generic
+                    uid=87_40 generic
+                      uid=87_41 ignored
+                        uid=87_42 paragraph
+                          uid=86_23 StaticText "登录后你可以："
+                            uid=86_40 InlineTextBox "登录后你可以："
+                        uid=87_43 ignored
+                          uid=87_44 ignored
+                            uid=87_45 image
+                            uid=87_46 ignored
+                              uid=86_24 StaticText "免费看高清视频"
+                                uid=86_40 InlineTextBox "免费看高清视频"
+                          uid=87_47 ignored
+                            uid=87_48 image
+                            uid=87_49 ignored
+                              uid=86_25 StaticText "多端同步播放记录"
+                                uid=86_40 InlineTextBox "多端同步播放记录"
+                          uid=87_50 ignored
+                            uid=87_51 image
+                            uid=87_52 ignored
+                              uid=86_26 StaticText "发表弹幕/评论"
+                                uid=86_40 InlineTextBox "发表弹幕/评论"
+                          uid=87_53 ignored
+                            uid=87_54 image
+                            uid=87_55 ignored
+                              uid=86_27 StaticText "热门番剧影视看不停"
+                                uid=86_40 InlineTextBox "热门番剧影视看不停"
+                        uid=87_56 generic
+                          uid=86_28 StaticText "立即登录"
+                            uid=86_40 InlineTextBox "立即登录"
+                        uid=87_57 generic
+                          uid=86_29 StaticText "首次使用？ "
+                            uid=86_40 InlineTextBox "首次使用？ "
+                          uid=87_58 generic
+                            uid=86_30 StaticText "点我注册"
+                              uid=86_40 InlineTextBox "点我注册"
+              uid=87_59 listitem level="1"
+                uid=87_60 generic
+                  uid=87_61 listitem level="1"
+                    uid=86_31 link "大会员" url="https://account.bilibili.com/big"
+                      uid=87_62 image
+                      uid=87_63 ignored
+                        uid=86_32 StaticText "大会员"
+                          uid=86_40 InlineTextBox "大会员"
+              uid=87_64 listitem level="1"
+                uid=87_65 generic
+                  uid=87_66 image
+                  uid=87_67 ignored
+                    uid=86_33 StaticText "消息"
+                      uid=86_40 InlineTextBox "消息"
+              uid=87_68 listitem level="1"
+                uid=87_69 generic
+                  uid=87_70 image
+                  uid=87_71 ignored
+                    uid=86_34 StaticText "动态"
+                      uid=86_40 InlineTextBox "动态"
+              uid=87_72 listitem level="1"
+                uid=87_73 generic
+                  uid=87_74 image
+                  uid=87_75 ignored
+                    uid=86_35 StaticText "收藏"
+                      uid=86_40 InlineTextBox "收藏"
+              uid=87_76 listitem level="1"
+                uid=87_77 generic
+                  uid=87_78 image
+                  uid=87_79 ignored
+                    uid=86_36 StaticText "历史"
+                      uid=86_40 InlineTextBox "历史"
+              uid=87_80 listitem level="1"
+                uid=87_81 generic
+                  uid=87_82 image
+                  uid=87_83 ignored
+                    uid=86_37 StaticText "创作中心"
+                      uid=86_40 InlineTextBox "创作中心"
+              uid=87_84 listitem level="1"
+                uid=87_85 listitem level="1"
+                  uid=87_86 generic
+                    uid=87_87 ignored
+                      uid=87_88 image
+                      uid=87_89 ignored
+                        uid=86_38 StaticText "投稿"
+                          uid=86_40 InlineTextBox "投稿"
+      uid=87_90 generic
+      uid=87_91 article
+        uid=87_92 generic
+          uid=87_93 generic
+          uid=87_94 generic
+            uid=87_95 generic
+        uid=87_96 generic
+          uid=87_97 generic
+            uid=87_98 generic
+              uid=87_99 generic
+                uid=87_100 generic
+        uid=87_101 generic
+          uid=87_102 generic
+            uid=87_103 generic
+              uid=87_104 ignored
+                uid=87_105 heading level="1"
+                uid=87_106 ignored
+                  uid=87_107 paragraph
+                    uid=86_39 StaticText "哔哩哔哩，简称“B站”，一个有用有趣的综合性视频社区，被用户们亲切地称为“百科全书式的网站、没有围墙的图书馆，成长道路上的加油站，创作者的舞台”。"
+                      uid=86_40 InlineTextBox "哔哩哔哩，简称“B站”，一个有用有趣的综合性视频社区，被用户们亲切地称为“百科全书式的网"
+                      uid=86_40 InlineTextBox "站、没有围墙的图书馆，成长道路上的加油站，创作者的舞台”。"
+                    uid=87_108 ignored
+                      uid=86_40 StaticText "  "
+                        uid=86_40 InlineTextBox " "
+                  uid=87_109 paragraph
+                    uid=87_110 ignored
+                      uid=86_40 StaticText "  "
+                        uid=86_40 InlineTextBox " "
+                  uid=87_111 paragraph
+                    uid=86_41 StaticText "截止2024年第四季度，B站日均活跃用户达1.03亿，月活跃用户达3.4亿。"
+                      uid=86_40 InlineTextBox "截止2024年第四季度，B站日均活跃用户达1.03亿，月活跃用户达3.4亿。"
+                    uid=87_112 ignored
+                      uid=86_40 StaticText "  "
+                        uid=86_40 InlineTextBox " "
+                  uid=87_113 paragraph
+                    uid=87_114 ignored
+                      uid=86_40 StaticText "  "
+                        uid=86_40 InlineTextBox " "
+                  uid=87_115 paragraph
+                    uid=86_42 StaticText "围绕用户、创作者和内容，B站构建了一个源源不断产生优质内容的生态系统。中国最优秀的专业创作者都聚集在B站创作内容，涵盖生活、游戏、时尚、知识、音乐等数千个品类和圈层，引领着流行文化的风潮，成为中文互联网极其独特的存在。"
+                      uid=86_40 InlineTextBox "围绕用户、创作者和内容，B站构建了一个源源不断产生优质内容的生态系统。中国最优秀的专业创作"
+                      uid=86_40 InlineTextBox "者都聚集在B站创作内容，涵盖生活、游戏、时尚、知识、音乐等数千个品类和圈层，引领着流行文化"
+                      uid=86_40 InlineTextBox "的风潮，成为中文互联网极其独特的存在。"
+                    uid=87_116 ignored
+                      uid=86_40 StaticText "  "
+                        uid=86_40 InlineTextBox " "
+                  uid=87_117 paragraph
+                    uid=87_118 ignored
+                      uid=86_40 StaticText "  "
+                        uid=86_40 InlineTextBox " "
+                  uid=87_119 paragraph
+                    uid=86_43 StaticText "在此基础之上，B站提供了移动游戏、直播、付费内容、广告、漫画、电商等商业化产品服务，并对电竞、虚拟偶像等前沿领域展开战略布局。"
+                      uid=86_40 InlineTextBox "在此基础之上，B站提供了移动游戏、直播、付费内容、广告、漫画、电商等商业化产品服务，并对电"
+                      uid=86_40 InlineTextBox "竞、虚拟偶像等前沿领域展开战略布局。"
+                    uid=87_120 ignored
+                      uid=86_40 StaticText "  "
+                        uid=86_40 InlineTextBox " "
+                  uid=87_121 paragraph
+                    uid=87_122 ignored
+                      uid=86_40 StaticText "  "
+                        uid=86_40 InlineTextBox " "
+                  uid=87_123 paragraph
+                    uid=86_44 StaticText "公司于2018年3月登陆美国纳斯达克，并于2021年3月在港交所二次上市。"
+                      uid=86_40 InlineTextBox "公司于2018年3月登陆美国纳斯达克，并于2021年3月在港交所二次上市。"
+                    uid=87_124 ignored
+                      uid=86_40 StaticText "  "
+                        uid=86_40 InlineTextBox " "
+        uid=87_125 generic
+          uid=87_126 generic
+            uid=87_127 generic
+      uid=87_128 generic
+      uid=87_129 generic
+      uid=87_130 generic
+        uid=87_131 generic
+          uid=87_132 ignored
+            uid=87_133 ignored
+              uid=87_134 ignored
+                uid=87_135 ignored
+                  uid=86_45 StaticText "bilibili"
+                    uid=86_40 InlineTextBox "bilibili"
+                uid=87_136 generic
+                  uid=86_46 link "关于我们" url="https://www.bilibili.com/blackboard/aboutUs.html"
+                    uid=86_47 StaticText "关于我们"
+                      uid=86_40 InlineTextBox "关于我们"
+                  uid=86_48 link "联系我们" url="https://www.bilibili.com/blackboard/contact.html"
+                    uid=86_49 StaticText "联系我们"
+                      uid=86_40 InlineTextBox "联系我们"
+                  uid=86_50 link "用户协议" url="https://www.bilibili.com/protocal/licence.html"
+                    uid=86_51 StaticText "用户协议"
+                      uid=86_40 InlineTextBox "用户协议"
+                  uid=86_52 link "加入我们" url="https://www.bilibili.com/blackboard/join.html"
+                    uid=86_53 StaticText "加入我们"
+                      uid=86_40 InlineTextBox "加入我们"
+                  uid=86_54 link "隐私协议" url="https://www.bilibili.com/blackboard/privacy-pc.html"
+                    uid=86_55 StaticText "隐私协议"
+                      uid=86_40 InlineTextBox "隐私协议"
+                  uid=86_56 link "bilibili认证" url="https://account.bilibili.com/account/official/home"
+                    uid=86_57 StaticText "bilibili认证"
+                      uid=86_40 InlineTextBox "bilibili认证"
+                  uid=86_58 link "Investor Relations" url="https://ir.bilibili.com/"
+                    uid=86_59 StaticText "Investor Relations"
+                      uid=86_40 InlineTextBox "Investor Relations"
+              uid=87_137 ignored
+                uid=87_138 ignored
+                  uid=86_60 StaticText "传送门"
+                    uid=86_40 InlineTextBox "传送门"
+                uid=87_139 generic
+                  uid=86_61 link "协议汇总" url="https://www.bilibili.com/blackboard/topic/activity-cn8bxPLzz.html"
+                    uid=86_62 StaticText "协议汇总"
+                      uid=86_40 InlineTextBox "协议汇总"
+                  uid=86_63 link "活动中心" url="https://www.bilibili.com/blackboard/activity-list.html"
+                    uid=86_64 StaticText "活动中心"
+                      uid=86_40 InlineTextBox "活动中心"
+                  uid=86_65 link "活动专题页" url="https://www.bilibili.com/blackboard/topic_list.html"
+                    uid=86_66 StaticText "活动专题页"
+                      uid=86_40 InlineTextBox "活动专题页"
+                  uid=86_67 link "侵权申诉" url="https://www.bilibili.com/v/copyright/intro/"
+                    uid=86_68 StaticText "侵权申诉"
+                      uid=86_40 InlineTextBox "侵权申诉"
+                  uid=86_69 link "帮助中心" url="https://www.bilibili.com/blackboard/help.html"
+                    uid=86_70 StaticText "帮助中心"
+                      uid=86_40 InlineTextBox "帮助中心"
+                  uid=86_71 link "社区中心" url="https://www.bilibili.com/blackboard/activity-5zJxM3spoS.html"
+                    uid=86_72 StaticText "社区中心"
+                      uid=86_40 InlineTextBox "社区中心"
+                  uid=86_73 link "壁纸站" url="https://space.bilibili.com/6823116#/album"
+                    uid=86_74 StaticText "壁纸站"
+                      uid=86_40 InlineTextBox "壁纸站"
+                  uid=86_75 link "广告合作" url="https://e.bilibili.com/"
+                    uid=86_76 StaticText "广告合作"
+                      uid=86_40 InlineTextBox "广告合作"
+                  uid=86_77 link "名人堂" url="https://www.bilibili.com/blackboard/activity-S1jfy69Jz.html"
+                    uid=86_78 StaticText "名人堂"
+                      uid=86_40 InlineTextBox "名人堂"
+                  uid=86_79 link "MCN管理中心" url="https://mcn.bilibili.com/studio/mcn/entry"
+                    uid=86_80 StaticText "MCN管理中心"
+                      uid=86_40 InlineTextBox "MCN管理中心"
+                  uid=86_81 link "高级弹幕" url="https://www.bilibili.com/video/BV1Xx411c7cH/"
+                    uid=86_82 StaticText "高级弹幕"
+                      uid=86_40 InlineTextBox "高级弹幕"
+                  uid=86_83 link "品牌号官网" url="https://b.bilibili.com/"
+                    uid=86_84 StaticText "品牌号官网"
+                      uid=86_40 InlineTextBox "品牌号官网"
+              uid=87_140 ignored
+                uid=87_141 ignored
+                  uid=86_85 link "下载APP" url="https://app.bilibili.com/"
+                    uid=87_142 ignored
+                      uid=87_143 image
+                    uid=87_144 paragraph
+                      uid=86_86 StaticText "下载APP"
+                        uid=86_40 InlineTextBox "下载APP"
+                uid=87_145 ignored
+                  uid=86_87 link "公益" url="https://love.bilibili.com/"
+                    uid=87_146 ignored
+                      uid=87_147 image
+                    uid=87_148 paragraph
+                      uid=86_88 StaticText "公益"
+                        uid=86_40 InlineTextBox "公益"
+                uid=87_149 ignored
+                  uid=86_89 link "官方微博" url="https://weibo.com/bilibiliweb"
+                    uid=87_150 ignored
+                      uid=87_151 image
+                    uid=87_152 paragraph
+                      uid=86_90 StaticText "官方微博"
+                        uid=86_40 InlineTextBox "官方微博"
+                uid=87_153 ignored
+                  uid=87_154 generic
+                    uid=87_155 ignored
+                      uid=87_156 image
+                    uid=87_157 paragraph
+                      uid=86_91 StaticText "官方微信"
+                        uid=86_40 InlineTextBox "官方微信"
+            uid=87_158 ignored
+            uid=87_159 ignored
+              uid=87_160 ignored
+                uid=87_161 generic
+                  uid=86_92 link "营业执照" url="https://i0.hdslb.com/bfs/activity-plat/static/20240516/9ccf041718e5d6d6dfaebc91b85c791c/gd85E6tDco.jpg"
+                    uid=86_93 StaticText "营业执照"
+                      uid=86_40 InlineTextBox "营业执照"
+                  uid=86_94 StaticText "信息网络传播视听节目许可证：0910417"
+                    uid=86_40 InlineTextBox "信息网络传播视听节目许可证：0910417"
+                  uid=86_95 link "网络文化经营许可证 沪网文【2025】0258-085号" url="https://i0.hdslb.com/bfs/activity-plat/static/20260209/3b3c5705bda98d50983f6f47df360fef/K4t52YryBV.jpeg"
+                    uid=86_96 StaticText "网络文化经营许可证 沪网文【2025】0258-085号"
+                      uid=86_40 InlineTextBox "网络文化经营许可证 沪网文【2025】0258-085号"
+                  uid=86_97 StaticText "广播电视节目制作经营许可证：（沪）字第01248号"
+                    uid=86_40 InlineTextBox "广播电视节目制作经营许可证：（沪）字第01248号"
+                  uid=86_98 StaticText "增值电信业务经营许可证 沪B2-20100043"
+                    uid=86_40 InlineTextBox "增值电信业务经营许可证 沪B2-20100043"
+                uid=87_162 generic
+                  uid=86_99 link "互联网ICP备案：沪ICP备13002172号-3" url="https://beian.miit.gov.cn/"
+                    uid=86_100 StaticText "互联网ICP备案：沪ICP备13002172号-3"
+                      uid=86_40 InlineTextBox "互联网ICP备案：沪ICP备13002172号-3"
+                  uid=86_101 link "出版物经营许可证 沪批字第U6699 号" url="https://i0.hdslb.com/bfs/activity-plat/static/20240516/9ccf041718e5d6d6dfaebc91b85c791c/4ainzbFKao.jpg"
+                    uid=86_102 StaticText "出版物经营许可证 沪批字第U6699 号"
+                      uid=86_40 InlineTextBox "出版物经营许可证 沪批字第U6699 号"
+                  uid=86_103 StaticText "互联网药品信息服务资格证 沪-非经营性-2022-0011"
+                    uid=86_40 InlineTextBox "互联网药品信息服务资格证 沪-非经营性-2022-0011"
+                  uid=86_104 StaticText "营业性演出许可证 沪市文演（经）00-2253 |"
+                    uid=86_40 InlineTextBox "营业性演出许可证 沪市文演（经）00-2253 |"
+                uid=87_163 generic
+                  uid=86_105 link "不良信息举报邮箱：help@bilibili.com" url="mailto:help@bilibili.com"
+                    uid=86_106 StaticText "不良信息举报邮箱：help@bilibili.com"
+                      uid=86_40 InlineTextBox "不良信息举报邮箱：help@bilibili.com"
+                  uid=86_107 link "涉未成年举报邮箱：teenprotect@bilibili.com" url="mailto:teenprotect@bilibili.com"
+                    uid=86_108 StaticText "涉未成年举报邮箱：teenprotect@bilibili.com"
+                      uid=86_40 InlineTextBox "涉未成年举报邮箱：teenprotect@bilibili.com"
+                  uid=86_109 StaticText "不良信息举报电话：4006262233转3"
+                    uid=86_40 InlineTextBox "不良信息举报电话：4006262233转3"
+                  uid=87_164 generic
+                  uid=86_110 link "上海互联网举报中心 |" url="http://www.shjbzx.cn/"
+                    uid=86_111 StaticText "上海互联网举报中心 |"
+                      uid=86_40 InlineTextBox "上海互联网举报中心 |"
+                  uid=86_112 link "12345政务服务便民热线 |" url="http://www.sh12345.gov.cn/"
+                    uid=86_113 StaticText "12345政务服务便民热线 |"
+                      uid=86_40 InlineTextBox "12345政务服务便民热线 |"
+                uid=87_165 generic
+                  uid=87_166 generic
+                  uid=86_114 link "沪公网安备31011002002436号 |" url="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=31011002002436"
+                    uid=86_115 StaticText "沪公网安备31011002002436号 |"
+                      uid=86_40 InlineTextBox "沪公网安备31011002002436号 |"
+                  uid=86_116 link "儿童色情信息举报专区 |" url="mailto:userreport@bilibili.com"
+                    uid=86_117 StaticText "儿童色情信息举报专区 |"
+                      uid=86_40 InlineTextBox "儿童色情信息举报专区 |"
+                  uid=86_118 link "扫黄打非举报" url="https://bzpt.shdf.gov.cn/www/shouye/gzfw/wsjb/index.shtml"
+                    uid=86_119 StaticText "扫黄打非举报"
+                      uid=86_40 InlineTextBox "扫黄打非举报"
+                uid=87_167 generic
+                  uid=86_120 link "网信算备310110764385705230011号" url="https://beian.cac.gov.cn/api/static/fileUpload/principalOrithm/additional/user_699bbd78-36f4-459c-aeb0-bf98a2a562d8_6185ea2c-c84c-404a-9280-c5465af05948.pdf"
+                    uid=86_121 StaticText "网信算备310110764385705230011号"
+                      uid=86_40 InlineTextBox "网信算备310110764385705230011号"
+                  uid=86_122 link "网信算备310110764385702230013号" url="https://beian.cac.gov.cn/api/static/fileUpload/principalOrithm/additional/user_699bbd78-36f4-459c-aeb0-bf98a2a562d8_e03e6855-76a6-43fb-b799-d090e7fce25d.pdf"
+                    uid=86_123 StaticText "网信算备310110764385702230013号"
+                      uid=86_40 InlineTextBox "网信算备310110764385702230013号"
+                uid=87_168 generic
+                  uid=86_124 StaticText "网上有害信息举报专区："
+                    uid=86_40 InlineTextBox "网上有害信息举报专区："
+                  uid=87_169 generic
+                  uid=86_125 link "中国互联网违法和不良信息举报中心" url="https://www.12377.cn/"
+                    uid=86_126 StaticText "中国互联网违法和不良信息举报中心"
+                      uid=86_40 InlineTextBox "中国互联网违法和不良信息举报中心"
+                  uid=86_127 StaticText "亲爱的市民朋友，上海警方反诈劝阻电话"96110"系专门针对避免您财产被骗受损而设，请您一旦收到来电，立即接听。"
+                    uid=86_40 InlineTextBox "亲爱的市民朋友，上海警方反诈劝阻电话"96110"系专门针对避免您财产被骗受损而设，请您一旦收到来电，立即接听。"
+                uid=87_170 generic
+                  uid=86_128 StaticText "公司名称：上海宽娱数码科技有限公司 |"
+                    uid=86_40 InlineTextBox "公司名称：上海宽娱数码科技有限公司 |"
+                  uid=86_129 StaticText "公司地址：上海市杨浦区政立路489号 |"
+                    uid=86_40 InlineTextBox "公司地址：上海市杨浦区政立路489号 |"
+                  uid=86_130 StaticText "电话：021-25099888"
+                    uid=86_40 InlineTextBox "电话：021-25099888"
+            uid=87_171 generic
+              uid=87_172 image url="https://i0.hdslb.com/bfs/activity-plat/static/20210729/df3e2ff90b315fca2f8d24a29cb68a47/Dm9M9DZArS.png"
+              uid=87_173 image url="https://i0.hdslb.com/bfs/activity-plat/static/20210729/df3e2ff90b315fca2f8d24a29cb68a47/2xfuvJItn3.png"
+              uid=87_174 image url="https://i0.hdslb.com/bfs/activity-plat/static/20210729/df3e2ff90b315fca2f8d24a29cb68a47/iUlvDrrAnu.png"
+      uid=87_175 generic
+      uid=87_176 generic
+        uid=87_177 generic
+          uid=87_178 generic
+            uid=86_131 StaticText "⚙️ 控制面板"
+              uid=86_40 InlineTextBox "⚙️ 控制面板"
+          uid=87_179 ignored
+            uid=86_132 button "×"
+              uid=87_180 StaticText "×"
+                uid=86_40 InlineTextBox "×"
+        uid=87_181 ignored
+          uid=87_182 ignored
+            uid=87_183 generic
+              uid=86_133 StaticText "🔧 系统菜单"
+                uid=86_40 InlineTextBox "🔧 系统菜单"
+            uid=87_184 generic
+              uid=86_134 StaticText "⚡ 倍速设置"
+                uid=86_40 InlineTextBox "⚡ 倍速设置"
+            uid=87_185 generic
+              uid=86_135 StaticText "⭐ 收藏夹"
+                uid=86_40 InlineTextBox "⭐ 收藏夹"
+            uid=87_186 generic
+              uid=86_136 StaticText "📝 笔记"
+                uid=86_40 InlineTextBox "📝 笔记"
+          uid=87_187 ignored
+      uid=87_188 generic
+        uid=87_189 generic
+          uid=87_190 generic
+            uid=86_137 StaticText "📝 视频笔记"
+              uid=86_40 InlineTextBox "📝 视频笔记"
+          uid=87_191 ignored
+            uid=86_138 button "📤" description="导出笔记数据"
+              uid=87_192 StaticText "📤"
+                uid=86_40 InlineTextBox "📤"
+            uid=86_139 button "➕" description="新建笔记"
+              uid=87_193 StaticText "➕"
+                uid=86_40 InlineTextBox "➕"
+            uid=86_140 button "×"
+              uid=87_194 StaticText "×"
+                uid=86_40 InlineTextBox "×"
+        uid=87_195 ignored
+          uid=87_196 ignored
+            uid=87_197 generic
+              uid=86_141 textbox "搜索笔记..."
+                uid=87_198 ignored
+                uid=87_199 generic
+            uid=87_200 generic
+              uid=86_142 button "全部"
+                uid=87_201 StaticText "全部"
+                  uid=86_40 InlineTextBox "全部"
+              uid=86_143 button "🎬 视频笔记"
+                uid=87_202 StaticText "🎬 视频笔记"
+                  uid=86_40 InlineTextBox "🎬 视频笔记"
+              uid=86_144 button "📄 普通笔记(3)"
+                uid=87_203 StaticText "📄 普通笔记(3)"
+                  uid=86_40 InlineTextBox "📄 普通笔记(3)"
+            uid=87_204 generic
+              uid=86_145 button "全部视频"
+                uid=87_205 StaticText "全部视频"
+                  uid=86_40 InlineTextBox "全部视频"
+              uid=86_146 button "当前视频"
+                uid=87_206 StaticText "当前视频"
+                  uid=86_40 InlineTextBox "当前视频"
+              uid=86_147 combobox expandable haspopup="menu" value="全部标签"
+                uid=87_207 MenuListPopup
+                  uid=86_148 option "全部标签" selectable selected value="全部标签"
+                  uid=86_149 option "测试标签" selectable value="测试标签"
+          uid=87_208 ignored
+            uid=87_209 ignored
+              uid=87_210 generic
+                uid=86_150 StaticText "测试笔记标题"
+                  uid=86_40 InlineTextBox "测试笔记标题"
+              uid=87_211 generic
+                uid=86_151 StaticText "📄 普通"
+                  uid=86_40 InlineTextBox "📄 普通"
+                uid=86_152 StaticText " "
+                  uid=86_40 InlineTextBox " "
+                uid=86_153 StaticText "2026-05-31 21:20"
+                  uid=86_40 InlineTextBox "2026-05-31 21:20"
+                uid=86_154 StaticText " "
+                  uid=86_40 InlineTextBox " "
+                uid=86_155 StaticText "富文本"
+                  uid=86_40 InlineTextBox "富文本"
+              uid=87_212 generic
+                uid=86_156 StaticText "测试标签"
+                  uid=86_40 InlineTextBox "测试标签"
+              uid=87_213 generic
+                uid=86_157 button "✏️" description="编辑笔记"
+                  uid=87_214 StaticText "✏️"
+                    uid=86_40 InlineTextBox "✏️"
+                uid=86_158 button "🗑️" description="删除笔记"
+                  uid=87_215 StaticText "🗑️"
+                    uid=86_40 InlineTextBox "🗑️"
+            uid=87_216 ignored
+              uid=87_217 generic
+                uid=86_159 StaticText "fdgdfg"
+                  uid=86_40 InlineTextBox "fdgdfg"
+              uid=87_218 generic
+                uid=86_160 StaticText "📄 普通"
+                  uid=86_40 InlineTextBox "📄 普通"
+                uid=86_161 StaticText " "
+                  uid=86_40 InlineTextBox " "
+                uid=86_162 StaticText "2026-05-31 20:34"
+                  uid=86_40 InlineTextBox "2026-05-31 20:34"
+                uid=86_163 StaticText " "
+                  uid=86_40 InlineTextBox " "
+                uid=86_164 StaticText "富文本"
+                  uid=86_40 InlineTextBox "富文本"
+              uid=87_219 ignored
+              uid=87_220 generic
+                uid=86_165 button "✏️" description="编辑笔记"
+                  uid=87_221 StaticText "✏️"
+                    uid=86_40 InlineTextBox "✏️"
+                uid=86_166 button "🗑️" description="删除笔记"
+                  uid=87_222 StaticText "🗑️"
+                    uid=86_40 InlineTextBox "🗑️"
+            uid=87_223 ignored
+              uid=87_224 generic
+                uid=86_167 StaticText "fsdfsdf"
+                  uid=86_40 InlineTextBox "fsdfsdf"
+              uid=87_225 generic
+                uid=86_168 StaticText "📄 普通"
+                  uid=86_40 InlineTextBox "📄 普通"
+                uid=86_169 StaticText " "
+                  uid=86_40 InlineTextBox " "
+                uid=86_170 StaticText "2026-05-31 20:29"
+                  uid=86_40 InlineTextBox "2026-05-31 20:29"
+                uid=86_171 StaticText " "
+                  uid=86_40 InlineTextBox " "
+                uid=86_172 StaticText "富文本"
+                  uid=86_40 InlineTextBox "富文本"
+              uid=87_226 ignored
+              uid=87_227 generic
+                uid=86_173 button "✏️" description="编辑笔记"
+                  uid=87_228 StaticText "✏️"
+                    uid=86_40 InlineTextBox "✏️"
+                uid=86_174 button "🗑️" description="删除笔记"
+                  uid=87_229 StaticText "🗑️"
+                    uid=86_40 InlineTextBox "🗑️"
+          uid=87_230 generic
+            uid=86_175 StaticText "共 3 条笔记"
+              uid=86_40 InlineTextBox "共 3 条笔记"
