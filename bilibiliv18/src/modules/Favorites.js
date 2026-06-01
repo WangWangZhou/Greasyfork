@@ -1,31 +1,15 @@
-/**
- * Favorites - 收藏夹存储模块
- * 提供视频收藏的增删改查及数据导出功能
- */
 const Favorites = (() => {
-    const STORAGE_KEY = 'favorites';
-    const MAX_FAVORITES = 1000;
-
-    function getFavorites() {
-        try {
-            const data = GM_getValue(STORAGE_KEY);
-            return Array.isArray(data) ? data : [];
-        } catch (err) {
-            Logger.error('读取收藏数据失败:', err);
-            return [];
-        }
-    }
-
-    function saveFavorites(favorites) {
-        try {
-            GM_setValue(STORAGE_KEY, favorites);
-            EventBus.emit('favorites:updated');
-            return true;
-        } catch (err) {
-            Logger.error('保存收藏数据失败:', err);
-            return false;
-        }
-    }
+    const DEFAULT_VIDEO = {
+        id: 'BV123456789x',
+        bvid: 'BV123456789x',
+        title: '默认视频',
+        author: '默认UP主',
+        duration: 0,
+        cover: '',
+        url: 'https://www.bilibili.com/video/BV123456789x',
+        addedAt: new Date('2026-06-01').getTime(),
+        groups: ['default']
+    };
 
     function escapeHtml(str) {
         if (typeof str !== 'string') return '';
@@ -57,100 +41,171 @@ const Favorites = (() => {
             duration: Math.max(0, parseInt(item.duration) || 0),
             cover: escapeHtml(String(item.cover || '')),
             url: escapeHtml(String(item.url)),
-            addedAt: parseInt(item.addedAt) || Date.now()
+            addedAt: parseInt(item.addedAt) || Date.now(),
+            groups: item.groups && Array.isArray(item.groups) ? item.groups : ['default']
         };
     }
 
+    async function ensureGroupsInitialized() {
+        await FavoritesGroups.ensureInitialized();
+    }
+
+    async function remove(id, groupId) {
+        await ensureGroupsInitialized();
+        if (!id) return false;
+
+        const existing = await Storage.favorites.get(id);
+        if (!existing) {
+            Logger.warn('未找到要删除的收藏项');
+            return false;
+        }
+
+        if (groupId) {
+            const currentGroups = existing.groups || ['default'];
+            const newGroups = currentGroups.filter(g => g !== groupId);
+            
+            if (newGroups.length === 0) {
+                await Storage.favorites.remove(id);
+                Toast.show('已从所有分组移除');
+            } else {
+                await Storage.favorites.put({ ...existing, groups: newGroups });
+                Toast.show('已从分组移除');
+            }
+        } else {
+            await Storage.favorites.remove(id);
+            Toast.show('已从收藏夹移除');
+        }
+        
+        EventBus.emit('favorites:remove', existing);
+        EventBus.emit('favorites:updated');
+        return true;
+    }
+
+    EventBus.on('favorites:removeVideo', async (bvid) => {
+        try {
+            await remove(bvid);
+        } catch (err) {
+            Logger.error('删除视频收藏失败:', err);
+        }
+    });
+
     return {
-        add(item) {
+        async add(item, groupIds) {
+            await ensureGroupsInitialized();
             if (!validateItem(item)) {
                 Logger.warn('无效的收藏项');
                 return false;
             }
 
-            const favorites = getFavorites();
+            const existing = await Storage.favorites.get(item.id);
             
-            if (favorites.length >= MAX_FAVORITES) {
-                Toast.show(`收藏数量已达上限 (${MAX_FAVORITES})`);
-                return false;
+            const groupsToAdd = groupIds && groupIds.length > 0 ? groupIds : ['default'];
+            
+            if (existing) {
+                const currentGroups = existing.groups || ['default'];
+                const newGroups = [...new Set([...currentGroups, ...groupsToAdd])];
+                const updatedItem = { ...existing, groups: newGroups };
+                await Storage.favorites.put(updatedItem);
+                EventBus.emit('favorites:updated');
+                Toast.show('已更新收藏分组');
+                return true;
             }
 
-            const existingIndex = favorites.findIndex(f => f.id === item.id);
-            if (existingIndex !== -1) {
-                Logger.info('视频已在收藏夹中');
-                return false;
-            }
-
-            const sanitizedItem = sanitizeItem(item);
-            favorites.push(sanitizedItem);
+            const sanitizedItem = sanitizeItem({ ...item, groups: groupsToAdd });
             
-            if (saveFavorites(favorites)) {
+            try {
+                await Storage.favorites.put(sanitizedItem);
                 EventBus.emit('favorites:add', sanitizedItem);
+                EventBus.emit('favorites:updated');
                 Toast.show('已添加到收藏夹');
                 return true;
-            }
-            return false;
-        },
-
-        remove(id) {
-            if (!id) return false;
-
-            const favorites = getFavorites();
-            const index = favorites.findIndex(f => f.id === id);
-            
-            if (index === -1) {
-                Logger.warn('未找到要删除的收藏项');
+            } catch (err) {
+                Logger.error('添加收藏失败:', err);
+                Toast.show('添加收藏失败');
                 return false;
             }
-
-            const removed = favorites.splice(index, 1)[0];
-            
-            if (saveFavorites(favorites)) {
-                EventBus.emit('favorites:remove', removed);
-                Toast.show('已从收藏夹移除');
-                return true;
-            }
-            return false;
         },
 
-        get(id) {
+        async remove(id, groupId) {
+            return remove(id, groupId);
+        },
+
+        async get(id) {
+            await ensureGroupsInitialized();
             if (!id) return null;
-            const favorites = getFavorites();
-            return favorites.find(f => f.id === id) || null;
+            try {
+                return await Storage.favorites.get(id);
+            } catch (err) {
+                Logger.error('获取收藏失败:', err);
+                return null;
+            }
         },
 
-        getAll() {
-            return getFavorites();
+        async getAll(groupId) {
+            await ensureGroupsInitialized();
+            try {
+                const all = await Storage.favorites.getAll();
+                if (!groupId) return all;
+                return all.filter(item => (item.groups || ['default']).includes(groupId));
+            } catch (err) {
+                Logger.error('获取所有收藏失败:', err);
+                return [];
+            }
         },
 
-        has(id) {
+        async has(id, groupId) {
+            await ensureGroupsInitialized();
             if (!id) return false;
-            const favorites = getFavorites();
-            return favorites.some(f => f.id === id);
+            const item = await this.get(id);
+            if (!item) return false;
+            
+            if (!groupId) return true;
+            return (item.groups || ['default']).includes(groupId);
         },
 
-        clear() {
-            saveFavorites([]);
-            EventBus.emit('favorites:clear');
-            Toast.show('收藏夹已清空');
+        async clear() {
+            await ensureGroupsInitialized();
+            try {
+                await Storage.favorites.clear();
+                if (typeof GM_setValue === 'function') {
+                    GM_setValue('favorites', null);
+                }
+                EventBus.emit('favorites:clear');
+                EventBus.emit('favorites:updated');
+                Toast.show('收藏夹已清空');
+            } catch (err) {
+                Logger.error('清空收藏失败:', err);
+                Toast.show('清空收藏失败');
+            }
         },
 
-        count() {
-            return getFavorites().length;
+        async count(groupId) {
+            await ensureGroupsInitialized();
+            try {
+                const all = await Storage.favorites.getAll();
+                if (!groupId) return all.length;
+                return all.filter(item => (item.groups || ['default']).includes(groupId)).length;
+            } catch (err) {
+                Logger.error('获取收藏数量失败:', err);
+                return 0;
+            }
         },
 
-        exportData() {
+        async exportData() {
+            await ensureGroupsInitialized();
+            const groups = await FavoritesGroups.getAll();
             const data = {
-                version: "1.0",
+                version: "3.0",
                 exportedAt: Date.now(),
-                count: this.count(),
-                data: this.getAll()
+                count: await this.count(),
+                groups: groups,
+                data: await this.getAll()
             };
             return JSON.stringify(data, null, 2);
         },
 
-        downloadExport() {
-            const json = this.exportData();
+        async downloadExport() {
+            const json = await this.exportData();
             const blob = new Blob([json], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -164,12 +219,22 @@ const Favorites = (() => {
             Toast.show('收藏数据已导出');
         },
 
-        importData(jsonString) {
+        async importData(jsonString) {
+            await ensureGroupsInitialized();
             try {
                 const data = JSON.parse(jsonString);
                 
                 if (!data.data || !Array.isArray(data.data)) {
                     throw new Error('无效的数据格式');
+                }
+
+                if (data.groups && Array.isArray(data.groups)) {
+                    for (const group of data.groups) {
+                        const existing = await FavoritesGroups.get(group.id);
+                        if (!existing) {
+                            await Storage.favoriteGroups.put(group);
+                        }
+                    }
                 }
 
                 const validItems = data.data.filter(item => validateItem(item))
@@ -180,19 +245,19 @@ const Favorites = (() => {
                     return false;
                 }
 
-                const favorites = getFavorites();
                 let addedCount = 0;
 
-                validItems.forEach(item => {
-                    if (favorites.length >= MAX_FAVORITES) return;
-                    if (!favorites.some(f => f.id === item.id)) {
-                        favorites.push(item);
+                for (const item of validItems) {
+                    const existing = await Storage.favorites.get(item.id);
+                    if (!existing) {
+                        await Storage.favorites.put(item);
                         addedCount++;
                     }
-                });
+                }
 
                 if (addedCount > 0) {
-                    saveFavorites(favorites);
+                    EventBus.emit('favorites:updated');
+                    EventBus.emit('favoriteGroups:updated');
                     Toast.show(`成功导入 ${addedCount} 条收藏`);
                     return true;
                 } else {
@@ -204,6 +269,14 @@ const Favorites = (() => {
                 Toast.show('导入失败：数据格式错误');
                 return false;
             }
+        },
+
+        async removeFromGroup(id, groupId) {
+            return this.remove(id, groupId);
+        },
+
+        getDefaultVideo() {
+            return { ...DEFAULT_VIDEO };
         }
     };
 })();

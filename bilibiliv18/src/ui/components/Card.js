@@ -60,6 +60,7 @@ const Card = (() => {
             let bodyEl = null;
             let footerEl = null;
             let isVisible = true;
+            let dragCleanup = null;
 
             function render() {
                 if (cardEl) cardEl.remove();
@@ -93,12 +94,12 @@ const Card = (() => {
                     `;
 
                     const titleEl = document.createElement('div');
-                    titleEl.className = `${className}-drag-text`;
+                    const baseClassName = className.split(' ')[0];
+                    titleEl.className = `${baseClassName}-drag-text`;
                     titleEl.style.cssText = 'font-weight: bold; cursor: default;';
                     titleEl.innerHTML = header.title;
 
                     const actionsEl = document.createElement('div');
-                    const baseClassName = className.split(' ')[0];
                     actionsEl.className = `${baseClassName}-actions`;
                     actionsEl.style.cssText = 'visibility: visible; gap: 4px; display: flex;';
 
@@ -149,6 +150,10 @@ const Card = (() => {
             }
 
             render();
+
+            if (header.draggable && cardEl) {
+                dragCleanup = Draggable.make(cardEl, cardId, `.${className.split(' ')[0]}-header`);
+            }
 
             return {
                 id: cardId,
@@ -225,6 +230,10 @@ const Card = (() => {
                 },
 
                 destroy() {
+                    if (dragCleanup) {
+                        dragCleanup();
+                        dragCleanup = null;
+                    }
                     if (cardEl) {
                         cardEl.remove();
                         cardEl = null;
