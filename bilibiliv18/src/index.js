@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         B站自定义倍速油猴脚本简洁版
 // @namespace    http://tampermonkey.net/
-// @version      v2.0
+// @version      v3.0
 // @description  可以自定义bilibili 播放倍速，方便学习网课，x,c,z分别对减速、加速、恢复（模块化重构版）
 // @author       小明
 // @license MIT

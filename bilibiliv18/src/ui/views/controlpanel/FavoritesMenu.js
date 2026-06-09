@@ -18,13 +18,13 @@ const FavoritesMenu = (() => {
                 <div class="bili-speed-panel-favorites-action">
                     <button id="export-favorites-btn">
                         <span>📤</span>
-                        <span>导出收藏数据</span>
+                        <span>导出收藏分组与收藏条目</span>
                     </button>
                 </div>
                 <div class="bili-speed-panel-favorites-action">
                     <button id="import-favorites-btn">
                         <span>📥</span>
-                        <span>导入收藏数据</span>
+                        <span>导入收藏分组与收藏条目</span>
                     </button>
                     <input type="file" id="import-favorites-file" accept=".json">
                 </div>

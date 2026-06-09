@@ -72,7 +72,7 @@ const NotesMenu = (() => {
                         <input type="text" class="quill-min-height-input" value="${currentQuillMinHeight}" style="width: 80px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; outline: none; margin-left: 8px;">
                     </div>
                     <div style="display: flex; gap: 8px; margin-top: 8px;">
-                        <button class="quill-size-save" style="flex: 1; padding: 6px; border-radius: 4px; border: 1px solid #ccc; background: #fff; color: #000; cursor: pointer; font-size: 12px;">💾 保存</button>
+                        <button class="quill-size-save" style="flex: 1; padding: 6px; border-radius: 4px; border: 1px solid #ccc; background: #fff; color: #000; cursor: pointer; font-size: 12px;">💾 保存尺寸</button>
                         <button class="quill-size-restore" style="flex: 1; padding: 6px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer; font-size: 12px;">↩️ 恢复默认</button>
                     </div>
                 </div>
@@ -101,7 +101,7 @@ const NotesMenu = (() => {
                         <input type="text" class="vditor-min-height-input" value="${currentVditorMinHeight}" style="width: 80px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; outline: none; margin-left: 8px;">
                     </div>
                     <div style="display: flex; gap: 8px; margin-top: 8px;">
-                        <button class="vditor-size-save" style="flex: 1; padding: 6px; border-radius: 4px; border: 1px solid #ccc; background: #fff; color: #000; cursor: pointer; font-size: 12px;">💾 保存</button>
+                        <button class="vditor-size-save" style="flex: 1; padding: 6px; border-radius: 4px; border: 1px solid #ccc; background: #fff; color: #000; cursor: pointer; font-size: 12px;">💾 保存尺寸</button>
                         <button class="vditor-size-restore" style="flex: 1; padding: 6px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer; font-size: 12px;">↩️ 恢复默认</button>
                     </div>
                 </div>

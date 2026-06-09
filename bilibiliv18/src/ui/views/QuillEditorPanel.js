@@ -10,7 +10,6 @@ const QuillEditorPanel = (() => {
     let quillInstance = null;
     let currentNoteId = null;
     let tags = [];
-    let videoTimestamp = 0;
 
     function getCurrentVideoInfo() {
         const url = location.href;
@@ -296,7 +295,6 @@ const QuillEditorPanel = (() => {
                 content: content,
                 contentDelta: contentDelta,
                 tags: [...tags],
-                videoTimestamp: videoTimestamp,
                 videoTitle: videoInfo.videoTitle,
                 videoUrl: videoInfo.videoUrl
             });
@@ -313,7 +311,6 @@ const QuillEditorPanel = (() => {
                 content: content,
                 contentDelta: contentDelta,
                 tags: [...tags],
-                videoTimestamp: videoTimestamp,
                 createdAt: Date.now(),
                 updatedAt: Date.now()
             };
@@ -332,7 +329,6 @@ const QuillEditorPanel = (() => {
 
         currentNoteId = note ? note.id : null;
         tags = note ? [...(note.tags || [])] : [];
-        videoTimestamp = note ? (note.videoTimestamp || 0) : 0;
 
         const videoInfo = getCurrentVideoInfo();
         const noteTitle = note ? note.title : '';
@@ -420,13 +416,6 @@ const QuillEditorPanel = (() => {
                         <input type="text" class="bili-speed-editor-tag-input" placeholder="添加标签..." style="padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; width: 100px; outline: none;">
                         <button class="bili-speed-editor-tag-add" style="padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 12px;">+</button>
                     </div>
-                    ${videoInfo.hasVideo ? `
-                    <div style="margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 12px; color: #999;">时间点:</span>
-                        <span class="bili-speed-editor-timestamp" style="font-size: 12px; color: #00AEEC;">${videoTimestamp > 0 ? Utils.formatTime(videoTimestamp) : '未标记'}</span>
-                        <button class="bili-speed-editor-mark-time" style="padding: 2px 8px; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 11px;">📍标记当前时间</button>
-                    </div>
-                    ` : ''}
                     <div id="quill-editor-container"></div>
                     <div class="bili-speed-editor-loading" style="text-align: center; padding: 40px 0; color: #999; display: none;">
                         <div>正在加载编辑器资源...</div>
@@ -445,21 +434,6 @@ const QuillEditorPanel = (() => {
                         addTag(bodyEl, tagInput);
                     }
                 });
-
-                const markTimeBtn = bodyEl.querySelector('.bili-speed-editor-mark-time');
-                if (markTimeBtn) {
-                    markTimeBtn.addEventListener('click', () => {
-                        const video = VideoController.getVideo();
-                        if (video) {
-                            videoTimestamp = video.currentTime;
-                            const tsEl = bodyEl.querySelector('.bili-speed-editor-timestamp');
-                            if (tsEl) tsEl.textContent = Utils.formatTime(videoTimestamp);
-                            Toast.show(`已标记时间点: ${Utils.formatTime(videoTimestamp)}`);
-                        } else {
-                            Toast.show('未找到视频元素');
-                        }
-                    });
-                }
 
                 const editorContainer = bodyEl.querySelector('#quill-editor-container');
                 if (editorContainer) {
@@ -604,7 +578,6 @@ const QuillEditorPanel = (() => {
             panelInstance = null;
             currentNoteId = null;
             tags = [];
-            videoTimestamp = 0;
         },
 
         applyTheme(theme) {

@@ -73,10 +73,6 @@ const NotesPanel = (() => {
             ? note.tags.map(t => `<span class="bili-speed-note-tag">${t}</span>`).join('')
             : '';
 
-        const timestampHtml = note.videoTimestamp > 0
-            ? `<span class="bili-speed-note-timestamp" data-timestamp="${note.videoTimestamp}">📍 ${Utils.formatTime(note.videoTimestamp)}</span>`
-            : '';
-
         const editorLabel = note.editorType === 'vditor' ? 'Md' : '富文本';
         const typeLabel = note.noteType === 'normalNote' ? '📄 普通' : '🎬 视频';
 
@@ -87,7 +83,6 @@ const NotesPanel = (() => {
                 ${note.noteType === 'videoNote' ? `
                 <span class="bili-speed-note-bvid" data-url="${note.videoUrl}" title="${note.videoTitle}">${note.bvid}</span>
                 <span>${formatDate(note.updatedAt)}</span>
-                ${timestampHtml}
                 ` : `
                 <span>${formatDate(note.updatedAt)}</span>
                 `}
@@ -111,17 +106,6 @@ const NotesPanel = (() => {
                 });
             }
 
-            const timestampEl = itemEl.querySelector('.bili-speed-note-timestamp');
-            if (timestampEl) {
-                timestampEl.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const video = VideoController.getVideo();
-                    if (video) {
-                        video.currentTime = note.videoTimestamp;
-                        Toast.show(`跳转到 ${Utils.formatTime(note.videoTimestamp)}`);
-                    }
-                });
-            }
         }
 
         const editBtn = itemEl.querySelector('.bili-speed-note-edit-btn');

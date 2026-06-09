@@ -27,13 +27,13 @@ const SystemMenu = (() => {
                     <div class="bili-speed-panel-export-group">
                         <div class="bili-speed-panel-export-category">⭐ 收藏夹数据</div>
                         <div class="bili-speed-panel-export-buttons">
-                            <button class="export-favorites-json">📄 导出为 JSON</button>
+                            <button class="export-favorites-json">📄 导出收藏分组与收藏条目</button>
                         </div>
                     </div>
                     <div class="bili-speed-panel-export-group">
                         <div class="bili-speed-panel-export-category">📝 笔记数据</div>
                         <div class="bili-speed-panel-export-buttons">
-                            <button class="export-notes-json">📄 导出为 JSON</button>
+                            <button class="export-notes-json">📄 导出笔记数据</button>
                         </div>
                     </div>
                 </div>

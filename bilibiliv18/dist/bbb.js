@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         B站自定义倍速油猴脚本简洁版
 // @namespace    http://tampermonkey.net/
-// @version      v2.0
+// @version      v3.0
 // @description  可以自定义bilibili 播放倍速，方便学习网课，x,c,z分别对减速、加速、恢复（模块化重构版）
 // @author       小明
 // @license MIT
@@ -2624,7 +2624,6 @@ const Notes = (() => {
             tags: Array.isArray(note.tags)
                 ? note.tags.filter(t => typeof t === 'string').map(t => escapeHtml(t.substring(0, 20))).slice(0, 10)
                 : [],
-            videoTimestamp: Math.max(0, parseFloat(note.videoTimestamp) || 0),
             createdAt: parseInt(note.createdAt) || Date.now(),
             updatedAt: parseInt(note.updatedAt) || Date.now()
         };
@@ -2695,7 +2694,6 @@ const Notes = (() => {
                     ? updates.tags.filter(t => typeof t === 'string').map(t => escapeHtml(t.substring(0, 20))).slice(0, 10)
                     : [];
             }
-            if (updates.videoTimestamp !== undefined) updatedNote.videoTimestamp = Math.max(0, parseFloat(updates.videoTimestamp) || 0);
             if (updates.videoTitle !== undefined) updatedNote.videoTitle = escapeHtml(String(updates.videoTitle));
             if (updates.videoUrl !== undefined) updatedNote.videoUrl = escapeHtml(String(updates.videoUrl));
 
@@ -3466,13 +3464,13 @@ const SystemMenu = (() => {
                     <div class="bili-speed-panel-export-group">
                         <div class="bili-speed-panel-export-category">⭐ 收藏夹数据</div>
                         <div class="bili-speed-panel-export-buttons">
-                            <button class="export-favorites-json">📄 导出为 JSON</button>
+                            <button class="export-favorites-json">📄 导出收藏分组与收藏条目</button>
                         </div>
                     </div>
                     <div class="bili-speed-panel-export-group">
                         <div class="bili-speed-panel-export-category">📝 笔记数据</div>
                         <div class="bili-speed-panel-export-buttons">
-                            <button class="export-notes-json">📄 导出为 JSON</button>
+                            <button class="export-notes-json">📄 导出笔记数据</button>
                         </div>
                     </div>
                 </div>
@@ -3755,13 +3753,13 @@ const FavoritesMenu = (() => {
                 <div class="bili-speed-panel-favorites-action">
                     <button id="export-favorites-btn">
                         <span>📤</span>
-                        <span>导出收藏数据</span>
+                        <span>导出收藏分组与收藏条目</span>
                     </button>
                 </div>
                 <div class="bili-speed-panel-favorites-action">
                     <button id="import-favorites-btn">
                         <span>📥</span>
-                        <span>导入收藏数据</span>
+                        <span>导入收藏分组与收藏条目</span>
                     </button>
                     <input type="file" id="import-favorites-file" accept=".json">
                 </div>
@@ -3900,7 +3898,7 @@ const NotesMenu = (() => {
                         <input type="text" class="quill-min-height-input" value="${currentQuillMinHeight}" style="width: 80px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; outline: none; margin-left: 8px;">
                     </div>
                     <div style="display: flex; gap: 8px; margin-top: 8px;">
-                        <button class="quill-size-save" style="flex: 1; padding: 6px; border-radius: 4px; border: 1px solid #ccc; background: #fff; color: #000; cursor: pointer; font-size: 12px;">💾 保存</button>
+                        <button class="quill-size-save" style="flex: 1; padding: 6px; border-radius: 4px; border: 1px solid #ccc; background: #fff; color: #000; cursor: pointer; font-size: 12px;">💾 保存尺寸</button>
                         <button class="quill-size-restore" style="flex: 1; padding: 6px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer; font-size: 12px;">↩️ 恢复默认</button>
                     </div>
                 </div>
@@ -3929,7 +3927,7 @@ const NotesMenu = (() => {
                         <input type="text" class="vditor-min-height-input" value="${currentVditorMinHeight}" style="width: 80px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; outline: none; margin-left: 8px;">
                     </div>
                     <div style="display: flex; gap: 8px; margin-top: 8px;">
-                        <button class="vditor-size-save" style="flex: 1; padding: 6px; border-radius: 4px; border: 1px solid #ccc; background: #fff; color: #000; cursor: pointer; font-size: 12px;">💾 保存</button>
+                        <button class="vditor-size-save" style="flex: 1; padding: 6px; border-radius: 4px; border: 1px solid #ccc; background: #fff; color: #000; cursor: pointer; font-size: 12px;">💾 保存尺寸</button>
                         <button class="vditor-size-restore" style="flex: 1; padding: 6px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer; font-size: 12px;">↩️ 恢复默认</button>
                     </div>
                 </div>
@@ -6443,10 +6441,6 @@ const NotesPanel = (() => {
             ? note.tags.map(t => `<span class="bili-speed-note-tag">${t}</span>`).join('')
             : '';
 
-        const timestampHtml = note.videoTimestamp > 0
-            ? `<span class="bili-speed-note-timestamp" data-timestamp="${note.videoTimestamp}">📍 ${Utils.formatTime(note.videoTimestamp)}</span>`
-            : '';
-
         const editorLabel = note.editorType === 'vditor' ? 'Md' : '富文本';
         const typeLabel = note.noteType === 'normalNote' ? '📄 普通' : '🎬 视频';
 
@@ -6457,7 +6451,6 @@ const NotesPanel = (() => {
                 ${note.noteType === 'videoNote' ? `
                 <span class="bili-speed-note-bvid" data-url="${note.videoUrl}" title="${note.videoTitle}">${note.bvid}</span>
                 <span>${formatDate(note.updatedAt)}</span>
-                ${timestampHtml}
                 ` : `
                 <span>${formatDate(note.updatedAt)}</span>
                 `}
@@ -6481,17 +6474,6 @@ const NotesPanel = (() => {
                 });
             }
 
-            const timestampEl = itemEl.querySelector('.bili-speed-note-timestamp');
-            if (timestampEl) {
-                timestampEl.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const video = VideoController.getVideo();
-                    if (video) {
-                        video.currentTime = note.videoTimestamp;
-                        Toast.show(`跳转到 ${Utils.formatTime(note.videoTimestamp)}`);
-                    }
-                });
-            }
         }
 
         const editBtn = itemEl.querySelector('.bili-speed-note-edit-btn');
@@ -6844,7 +6826,6 @@ const QuillEditorPanel = (() => {
     let quillInstance = null;
     let currentNoteId = null;
     let tags = [];
-    let videoTimestamp = 0;
 
     function getCurrentVideoInfo() {
         const url = location.href;
@@ -7130,7 +7111,6 @@ const QuillEditorPanel = (() => {
                 content: content,
                 contentDelta: contentDelta,
                 tags: [...tags],
-                videoTimestamp: videoTimestamp,
                 videoTitle: videoInfo.videoTitle,
                 videoUrl: videoInfo.videoUrl
             });
@@ -7147,7 +7127,6 @@ const QuillEditorPanel = (() => {
                 content: content,
                 contentDelta: contentDelta,
                 tags: [...tags],
-                videoTimestamp: videoTimestamp,
                 createdAt: Date.now(),
                 updatedAt: Date.now()
             };
@@ -7166,7 +7145,6 @@ const QuillEditorPanel = (() => {
 
         currentNoteId = note ? note.id : null;
         tags = note ? [...(note.tags || [])] : [];
-        videoTimestamp = note ? (note.videoTimestamp || 0) : 0;
 
         const videoInfo = getCurrentVideoInfo();
         const noteTitle = note ? note.title : '';
@@ -7254,13 +7232,6 @@ const QuillEditorPanel = (() => {
                         <input type="text" class="bili-speed-editor-tag-input" placeholder="添加标签..." style="padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; width: 100px; outline: none;">
                         <button class="bili-speed-editor-tag-add" style="padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 12px;">+</button>
                     </div>
-                    ${videoInfo.hasVideo ? `
-                    <div style="margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 12px; color: #999;">时间点:</span>
-                        <span class="bili-speed-editor-timestamp" style="font-size: 12px; color: #00AEEC;">${videoTimestamp > 0 ? Utils.formatTime(videoTimestamp) : '未标记'}</span>
-                        <button class="bili-speed-editor-mark-time" style="padding: 2px 8px; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 11px;">📍标记当前时间</button>
-                    </div>
-                    ` : ''}
                     <div id="quill-editor-container"></div>
                     <div class="bili-speed-editor-loading" style="text-align: center; padding: 40px 0; color: #999; display: none;">
                         <div>正在加载编辑器资源...</div>
@@ -7279,21 +7250,6 @@ const QuillEditorPanel = (() => {
                         addTag(bodyEl, tagInput);
                     }
                 });
-
-                const markTimeBtn = bodyEl.querySelector('.bili-speed-editor-mark-time');
-                if (markTimeBtn) {
-                    markTimeBtn.addEventListener('click', () => {
-                        const video = VideoController.getVideo();
-                        if (video) {
-                            videoTimestamp = video.currentTime;
-                            const tsEl = bodyEl.querySelector('.bili-speed-editor-timestamp');
-                            if (tsEl) tsEl.textContent = Utils.formatTime(videoTimestamp);
-                            Toast.show(`已标记时间点: ${Utils.formatTime(videoTimestamp)}`);
-                        } else {
-                            Toast.show('未找到视频元素');
-                        }
-                    });
-                }
 
                 const editorContainer = bodyEl.querySelector('#quill-editor-container');
                 if (editorContainer) {
@@ -7438,7 +7394,6 @@ const QuillEditorPanel = (() => {
             panelInstance = null;
             currentNoteId = null;
             tags = [];
-            videoTimestamp = 0;
         },
 
         applyTheme(theme) {
@@ -7473,7 +7428,6 @@ const VditorEditorPanel = (() => {
     let isResourcesLoaded = false;
     let isLoadingResources = false;
     let tags = [];
-    let videoTimestamp = 0;
     let pendingContent = '';
 
     function getCurrentVideoInfo() {
@@ -7746,7 +7700,6 @@ const VditorEditorPanel = (() => {
                 content: content,
                 contentDelta: '',
                 tags: [...tags],
-                videoTimestamp: videoTimestamp,
                 videoTitle: videoInfo.videoTitle,
                 videoUrl: videoInfo.videoUrl
             });
@@ -7763,7 +7716,6 @@ const VditorEditorPanel = (() => {
                 content: content,
                 contentDelta: '',
                 tags: [...tags],
-                videoTimestamp: videoTimestamp,
                 createdAt: Date.now(),
                 updatedAt: Date.now()
             };
@@ -7780,7 +7732,6 @@ const VditorEditorPanel = (() => {
 
         currentNoteId = note ? note.id : null;
         tags = note ? [...(note.tags || [])] : [];
-        videoTimestamp = note ? (note.videoTimestamp || 0) : 0;
         pendingContent = note ? (note.content || '') : '';
 
         const noteTitle = note ? note.title : '';
@@ -7910,13 +7861,6 @@ const VditorEditorPanel = (() => {
                         <input type="text" class="bili-speed-editor-tag-input" placeholder="添加标签..." style="padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; width: 100px; outline: none;">
                         <button class="bili-speed-editor-tag-add" style="padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 12px;">+</button>
                     </div>
-                    ${videoInfo.hasVideo ? `
-                    <div style="margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 12px; color: #999;">时间点:</span>
-                        <span class="bili-speed-editor-timestamp" style="font-size: 12px; color: #00AEEC;">${videoTimestamp > 0 ? Utils.formatTime(videoTimestamp) : '未标记'}</span>
-                        <button class="bili-speed-editor-mark-time" style="padding: 2px 8px; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 11px;">📍标记当前时间</button>
-                    </div>
-                    ` : ''}
                     <div id="vditor-editor-container"></div>
                     <div class="bili-speed-editor-loading" style="text-align: center; padding: 40px 0; color: #999; display: none;">
                         <div>正在加载编辑器资源...</div>
@@ -7960,21 +7904,6 @@ const VditorEditorPanel = (() => {
                         addTag(bodyEl, tagInput);
                     }
                 });
-
-                const markTimeBtn = bodyEl.querySelector('.bili-speed-editor-mark-time');
-                if (markTimeBtn) {
-                    markTimeBtn.addEventListener('click', () => {
-                        const video = VideoController.getVideo();
-                        if (video) {
-                            videoTimestamp = video.currentTime;
-                            const tsEl = bodyEl.querySelector('.bili-speed-editor-timestamp');
-                            if (tsEl) tsEl.textContent = Utils.formatTime(videoTimestamp);
-                            Toast.show(`已标记时间点: ${Utils.formatTime(videoTimestamp)}`);
-                        } else {
-                            Toast.show('未找到视频元素');
-                        }
-                    });
-                }
 
                 const loadingEl = bodyEl.querySelector('.bili-speed-editor-loading');
                 const panelEl = bodyEl.parentElement;
@@ -8061,7 +7990,6 @@ const VditorEditorPanel = (() => {
             panelInstance = null;
             currentNoteId = null;
             tags = [];
-            videoTimestamp = 0;
             pendingContent = '';
         },
 

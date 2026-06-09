@@ -446,8 +446,6 @@
 .bili-speed-notes-panel.theme-dark .bili-speed-notes-filter-btn,
 .bili-speed-quill-panel.theme-dark .bili-speed-editor-tag-input,
 .bili-speed-vditor-panel.theme-dark .bili-speed-editor-tag-input,
-.bili-speed-quill-panel.theme-dark .bili-speed-editor-mark-time,
-.bili-speed-vditor-panel.theme-dark .bili-speed-editor-mark-time,
 .bili-speed-quill-panel.theme-dark .bili-speed-editor-fallback,
 .bili-speed-vditor-panel.theme-dark .bili-speed-editor-fallback,
 .bili-speed-notes-panel.theme-dark .bili-speed-notes-tag-select {
@@ -1070,15 +1068,6 @@
     text-decoration: underline;
 }
 
-.bili-speed-note-timestamp {
-    color: #00AEEC;
-    cursor: pointer;
-}
-
-.bili-speed-note-timestamp:hover {
-    text-decoration: underline;
-}
-
 .bili-speed-note-editor-type {
     font-size: 11px;
     padding: 1px 4px;
@@ -1205,20 +1194,6 @@
     border-color: #00AEEC;
 }
 
-.bili-speed-editor-mark-time {
-    padding: 2px 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    background: #fff;
-    cursor: pointer;
-    font-size: 11px;
-    transition: all 0.2s;
-}
-
-.bili-speed-editor-mark-time:hover {
-    background: #e0e0e0;
-}
-
 .bili-speed-editor-fallback {
     width: 100%;
     min-height: 200px;
@@ -1320,8 +1295,6 @@
 
 .bili-speed-quill-panel.theme-dark .bili-speed-editor-tag-input,
 .bili-speed-vditor-panel.theme-dark .bili-speed-editor-tag-input,
-.bili-speed-quill-panel.theme-dark .bili-speed-editor-mark-time,
-.bili-speed-vditor-panel.theme-dark .bili-speed-editor-mark-time,
 .bili-speed-quill-panel.theme-dark .bili-speed-editor-fallback,
 .bili-speed-vditor-panel.theme-dark .bili-speed-editor-fallback {
     background: #333;

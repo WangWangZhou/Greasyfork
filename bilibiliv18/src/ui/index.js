@@ -12,7 +12,7 @@ export { default as ControlPanel } from './components/ControlPanel.js';
 export { default as Toast } from './components/Toast.js';
 export { default as Draggable } from './behaviors/Draggable.js';
 
-export const UIVersion = '2.0.0';
+export const UIVersion = '3.0.0';
 
 export const UIComponents = {
     CardPanel: 'CardPanel - 信息卡片组件',

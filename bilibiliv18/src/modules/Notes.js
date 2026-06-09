@@ -42,7 +42,6 @@ const Notes = (() => {
             tags: Array.isArray(note.tags)
                 ? note.tags.filter(t => typeof t === 'string').map(t => escapeHtml(t.substring(0, 20))).slice(0, 10)
                 : [],
-            videoTimestamp: Math.max(0, parseFloat(note.videoTimestamp) || 0),
             createdAt: parseInt(note.createdAt) || Date.now(),
             updatedAt: parseInt(note.updatedAt) || Date.now()
         };
@@ -113,7 +112,6 @@ const Notes = (() => {
                     ? updates.tags.filter(t => typeof t === 'string').map(t => escapeHtml(t.substring(0, 20))).slice(0, 10)
                     : [];
             }
-            if (updates.videoTimestamp !== undefined) updatedNote.videoTimestamp = Math.max(0, parseFloat(updates.videoTimestamp) || 0);
             if (updates.videoTitle !== undefined) updatedNote.videoTitle = escapeHtml(String(updates.videoTitle));
             if (updates.videoUrl !== undefined) updatedNote.videoUrl = escapeHtml(String(updates.videoUrl));
 
