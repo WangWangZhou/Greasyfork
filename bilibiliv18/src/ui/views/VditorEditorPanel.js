@@ -1,3 +1,8 @@
+/**
+ * VditorEditorPanel - Vditor Markdown编辑器面板视图
+ * 视图层 - 使用Card和Resizable组件渲染基于Vditor的Markdown笔记编辑器
+ * 支持所见即所得(wysiwyg)/即时渲染(ir)/分屏预览(sv)三种编辑模式
+ */
 const VditorEditorPanel = (() => {
     let panelInstance = null;
     let dragCleanup = null;

@@ -80,20 +80,43 @@ const CardPanel = (() => {
         }
     }
 
+    function isValidPosition(pos) {
+        if (!pos || typeof pos.left === 'undefined') return false;
+        const left = parseFloat(pos.left);
+        const top = pos.top ? parseFloat(pos.top) : NaN;
+        // 检查位置是否在视口内（允许负值但不太离谱，且不能远超出右侧/底部）
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        if (isNaN(left) || left < -200 || left >= vw) return false;
+        if (!isNaN(top) && (top < -200 || top >= vh + 200)) return false;
+        return true;
+    }
+
     function createCard() {
         const danmukuBox = document.getElementById('danmukuBox');
         const panelWidth = danmukuBox ? danmukuBox.offsetWidth + 'px' : '260px';
 
         let savedPosition = Config.data.cardPosition;
+        let useSavedPosition = false;
         let initialPosition = { left: '20px', bottom: '100px' };
 
         if (danmukuBox) {
             const rect = danmukuBox.getBoundingClientRect();
-            initialPosition = { left: rect.left + 'px', top: rect.top + 'px' };
+            const dmPos = { left: rect.left + 'px', top: rect.top + 'px' };
+            if (isValidPosition(dmPos)) {
+                initialPosition = dmPos;
+            }
         }
 
         if (savedPosition) {
-            initialPosition = savedPosition;
+            if (isValidPosition(savedPosition)) {
+                initialPosition = savedPosition;
+                useSavedPosition = true;
+            } else {
+                // 保存的位置无效（可能超出屏幕），重置并回退默认位置
+                Config.data.cardPosition = null;
+                Logger.warn('CardPanel 保存的位置无效，已重置', savedPosition);
+            }
         }
 
         const currentTheme = Config.data.theme || 'light';
@@ -109,7 +132,8 @@ const CardPanel = (() => {
             styles: {
                 width: panelWidth,
                 display: Config.data.cardVisible ? 'block' : 'none',
-                ...(savedPosition ? {
+                zIndex: 1998,
+                ...(useSavedPosition ? {
                     left: savedPosition.left,
                     top: savedPosition.top,
                     right: 'auto',

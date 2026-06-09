@@ -1,3 +1,8 @@
+/**
+ * ControlPanel - 控制面板视图
+ * 视图层 - 使用Card组件渲染设置面板
+ * 提供左侧菜单导航（系统菜单/倍速设置/收藏夹/笔记），支持主题切换
+ */
 const ControlPanel = (() => {
     let panelInstance = null;
     let dragCleanup = null;
@@ -56,6 +61,17 @@ const ControlPanel = (() => {
         }
     }
 
+    function isValidPosition(pos) {
+        if (!pos || typeof pos.left === 'undefined') return false;
+        const left = parseFloat(pos.left);
+        const top = pos.top ? parseFloat(pos.top) : NaN;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        if (isNaN(left) || left < -200 || left >= vw) return false;
+        if (!isNaN(top) && (top < -200 || top >= vh + 200)) return false;
+        return true;
+    }
+
     function createPanel() {
         if (multiClickCleanup) {
             multiClickCleanup();
@@ -63,7 +79,16 @@ const ControlPanel = (() => {
         }
 
         let savedPosition = Config.data.panelPosition;
+        let useSavedPosition = false;
         const currentTheme = Config.data.theme || 'light';
+
+        if (savedPosition) {
+            if (isValidPosition(savedPosition)) {
+                useSavedPosition = true;
+            } else {
+                Config.data.panelPosition = null;
+            }
+        }
 
         panelInstance = Card.create({
             className: `bili-speed-panel theme-${currentTheme}`,
@@ -80,7 +105,7 @@ const ControlPanel = (() => {
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
                 zIndex: 9999,
-                ...(savedPosition ? {
+                ...(useSavedPosition ? {
                     left: savedPosition.left,
                     top: savedPosition.top,
                     transform: 'none'

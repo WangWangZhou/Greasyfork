@@ -1,3 +1,8 @@
+/**
+ * NotesPanel - 笔记面板视图
+ * 视图层 - 使用Card和Pagination组件渲染笔记列表
+ * 支持筛选（全部/当前视频/视频笔记/普通笔记）、搜索、标签过滤和分页
+ */
 const NotesPanel = (() => {
     let panelInstance = null;
     let dragCleanup = null;
@@ -255,11 +260,31 @@ const NotesPanel = (() => {
         bodyEl.appendChild(filterBar);
     }
 
+    function isValidPosition(pos) {
+        if (!pos || typeof pos.left === 'undefined') return false;
+        const left = parseFloat(pos.left);
+        const top = pos.top ? parseFloat(pos.top) : NaN;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        if (isNaN(left) || left < -200 || left >= vw) return false;
+        if (!isNaN(top) && (top < -200 || top >= vh + 200)) return false;
+        return true;
+    }
+
     async function createPanel() {
         let savedPosition = Config.data.notesPanelPosition;
+        let useSavedPosition = false;
         const currentTheme = Config.data.theme || 'light';
 
         const noteCount = await Notes.count();
+
+        if (savedPosition) {
+            if (isValidPosition(savedPosition)) {
+                useSavedPosition = true;
+            } else {
+                Config.data.notesPanelPosition = null;
+            }
+        }
 
         panelInstance = Card.create({
             className: `bili-speed-notes-panel theme-${currentTheme}`,
@@ -276,7 +301,7 @@ const NotesPanel = (() => {
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
                 zIndex: 9999,
-                ...(savedPosition ? {
+                ...(useSavedPosition ? {
                     left: savedPosition.left,
                     top: savedPosition.top,
                     transform: 'none'

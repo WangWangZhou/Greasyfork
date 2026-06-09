@@ -207,9 +207,29 @@ const FavoritesPanel = (() => {
         }
     }
 
+    function isValidPosition(pos) {
+        if (!pos || typeof pos.left === 'undefined') return false;
+        const left = parseFloat(pos.left);
+        const top = pos.top ? parseFloat(pos.top) : NaN;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        if (isNaN(left) || left < -200 || left >= vw) return false;
+        if (!isNaN(top) && (top < -200 || top >= vh + 200)) return false;
+        return true;
+    }
+
     async function createPanel() {
         let savedPosition = Config.data.favoritesPanelPosition;
+        let useSavedPosition = false;
         const currentTheme = Config.data.theme || 'light';
+
+        if (savedPosition) {
+            if (isValidPosition(savedPosition)) {
+                useSavedPosition = true;
+            } else {
+                Config.data.favoritesPanelPosition = null;
+            }
+        }
 
         panelInstance = Card.create({
             className: `bili-speed-favorites-panel theme-${currentTheme}`,
@@ -226,7 +246,7 @@ const FavoritesPanel = (() => {
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
                 zIndex: 9999,
-                ...(savedPosition ? {
+                ...(useSavedPosition ? {
                     left: savedPosition.left,
                     top: savedPosition.top,
                     transform: 'none'

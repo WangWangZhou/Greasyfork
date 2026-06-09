@@ -3001,20 +3001,43 @@ const CardPanel = (() => {
         }
     }
 
+    function isValidPosition(pos) {
+        if (!pos || typeof pos.left === 'undefined') return false;
+        const left = parseFloat(pos.left);
+        const top = pos.top ? parseFloat(pos.top) : NaN;
+        // 检查位置是否在视口内（允许负值但不太离谱，且不能远超出右侧/底部）
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        if (isNaN(left) || left < -200 || left >= vw) return false;
+        if (!isNaN(top) && (top < -200 || top >= vh + 200)) return false;
+        return true;
+    }
+
     function createCard() {
         const danmukuBox = document.getElementById('danmukuBox');
         const panelWidth = danmukuBox ? danmukuBox.offsetWidth + 'px' : '260px';
 
         let savedPosition = Config.data.cardPosition;
+        let useSavedPosition = false;
         let initialPosition = { left: '20px', bottom: '100px' };
 
         if (danmukuBox) {
             const rect = danmukuBox.getBoundingClientRect();
-            initialPosition = { left: rect.left + 'px', top: rect.top + 'px' };
+            const dmPos = { left: rect.left + 'px', top: rect.top + 'px' };
+            if (isValidPosition(dmPos)) {
+                initialPosition = dmPos;
+            }
         }
 
         if (savedPosition) {
-            initialPosition = savedPosition;
+            if (isValidPosition(savedPosition)) {
+                initialPosition = savedPosition;
+                useSavedPosition = true;
+            } else {
+                // 保存的位置无效（可能超出屏幕），重置并回退默认位置
+                Config.data.cardPosition = null;
+                Logger.warn('CardPanel 保存的位置无效，已重置', savedPosition);
+            }
         }
 
         const currentTheme = Config.data.theme || 'light';
@@ -3030,7 +3053,8 @@ const CardPanel = (() => {
             styles: {
                 width: panelWidth,
                 display: Config.data.cardVisible ? 'block' : 'none',
-                ...(savedPosition ? {
+                zIndex: 1998,
+                ...(useSavedPosition ? {
                     left: savedPosition.left,
                     top: savedPosition.top,
                     right: 'auto',
@@ -4089,6 +4113,11 @@ const NotesMenu = (() => {
 })();
 
 
+/**
+ * ControlPanel - 控制面板视图
+ * 视图层 - 使用Card组件渲染设置面板
+ * 提供左侧菜单导航（系统菜单/倍速设置/收藏夹/笔记），支持主题切换
+ */
 const ControlPanel = (() => {
     let panelInstance = null;
     let dragCleanup = null;
@@ -4147,6 +4176,17 @@ const ControlPanel = (() => {
         }
     }
 
+    function isValidPosition(pos) {
+        if (!pos || typeof pos.left === 'undefined') return false;
+        const left = parseFloat(pos.left);
+        const top = pos.top ? parseFloat(pos.top) : NaN;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        if (isNaN(left) || left < -200 || left >= vw) return false;
+        if (!isNaN(top) && (top < -200 || top >= vh + 200)) return false;
+        return true;
+    }
+
     function createPanel() {
         if (multiClickCleanup) {
             multiClickCleanup();
@@ -4154,7 +4194,16 @@ const ControlPanel = (() => {
         }
 
         let savedPosition = Config.data.panelPosition;
+        let useSavedPosition = false;
         const currentTheme = Config.data.theme || 'light';
+
+        if (savedPosition) {
+            if (isValidPosition(savedPosition)) {
+                useSavedPosition = true;
+            } else {
+                Config.data.panelPosition = null;
+            }
+        }
 
         panelInstance = Card.create({
             className: `bili-speed-panel theme-${currentTheme}`,
@@ -4171,7 +4220,7 @@ const ControlPanel = (() => {
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
                 zIndex: 9999,
-                ...(savedPosition ? {
+                ...(useSavedPosition ? {
                     left: savedPosition.left,
                     top: savedPosition.top,
                     transform: 'none'
@@ -5040,9 +5089,29 @@ const FavoritesPanel = (() => {
         }
     }
 
+    function isValidPosition(pos) {
+        if (!pos || typeof pos.left === 'undefined') return false;
+        const left = parseFloat(pos.left);
+        const top = pos.top ? parseFloat(pos.top) : NaN;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        if (isNaN(left) || left < -200 || left >= vw) return false;
+        if (!isNaN(top) && (top < -200 || top >= vh + 200)) return false;
+        return true;
+    }
+
     async function createPanel() {
         let savedPosition = Config.data.favoritesPanelPosition;
+        let useSavedPosition = false;
         const currentTheme = Config.data.theme || 'light';
+
+        if (savedPosition) {
+            if (isValidPosition(savedPosition)) {
+                useSavedPosition = true;
+            } else {
+                Config.data.favoritesPanelPosition = null;
+            }
+        }
 
         panelInstance = Card.create({
             className: `bili-speed-favorites-panel theme-${currentTheme}`,
@@ -5059,7 +5128,7 @@ const FavoritesPanel = (() => {
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
                 zIndex: 9999,
-                ...(savedPosition ? {
+                ...(useSavedPosition ? {
                     left: savedPosition.left,
                     top: savedPosition.top,
                     transform: 'none'
@@ -6299,6 +6368,11 @@ const FavoritesGroupFormPanel = (() => {
 })();
 
 
+/**
+ * NotesPanel - 笔记面板视图
+ * 视图层 - 使用Card和Pagination组件渲染笔记列表
+ * 支持筛选（全部/当前视频/视频笔记/普通笔记）、搜索、标签过滤和分页
+ */
 const NotesPanel = (() => {
     let panelInstance = null;
     let dragCleanup = null;
@@ -6556,11 +6630,31 @@ const NotesPanel = (() => {
         bodyEl.appendChild(filterBar);
     }
 
+    function isValidPosition(pos) {
+        if (!pos || typeof pos.left === 'undefined') return false;
+        const left = parseFloat(pos.left);
+        const top = pos.top ? parseFloat(pos.top) : NaN;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        if (isNaN(left) || left < -200 || left >= vw) return false;
+        if (!isNaN(top) && (top < -200 || top >= vh + 200)) return false;
+        return true;
+    }
+
     async function createPanel() {
         let savedPosition = Config.data.notesPanelPosition;
+        let useSavedPosition = false;
         const currentTheme = Config.data.theme || 'light';
 
         const noteCount = await Notes.count();
+
+        if (savedPosition) {
+            if (isValidPosition(savedPosition)) {
+                useSavedPosition = true;
+            } else {
+                Config.data.notesPanelPosition = null;
+            }
+        }
 
         panelInstance = Card.create({
             className: `bili-speed-notes-panel theme-${currentTheme}`,
@@ -6577,7 +6671,7 @@ const NotesPanel = (() => {
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
                 zIndex: 9999,
-                ...(savedPosition ? {
+                ...(useSavedPosition ? {
                     left: savedPosition.left,
                     top: savedPosition.top,
                     transform: 'none'
@@ -6738,6 +6832,11 @@ const NotesPanel = (() => {
 })();
 
 
+/**
+ * QuillEditorPanel - Quill富文本编辑器面板视图
+ * 视图层 - 使用Card和Resizable组件渲染基于Quill的富文本笔记编辑器
+ * 支持笔记的新建、编辑、保存，以及标签管理和视频时间戳跳转
+ */
 const QuillEditorPanel = (() => {
     let panelInstance = null;
     let dragCleanup = null;
@@ -7360,6 +7459,11 @@ const QuillEditorPanel = (() => {
 })();
 
 
+/**
+ * VditorEditorPanel - Vditor Markdown编辑器面板视图
+ * 视图层 - 使用Card和Resizable组件渲染基于Vditor的Markdown笔记编辑器
+ * 支持所见即所得(wysiwyg)/即时渲染(ir)/分屏预览(sv)三种编辑模式
+ */
 const VditorEditorPanel = (() => {
     let panelInstance = null;
     let dragCleanup = null;

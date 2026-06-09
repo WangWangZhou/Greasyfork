@@ -1,3 +1,8 @@
+/**
+ * QuillEditorPanel - Quill富文本编辑器面板视图
+ * 视图层 - 使用Card和Resizable组件渲染基于Quill的富文本笔记编辑器
+ * 支持笔记的新建、编辑、保存，以及标签管理和视频时间戳跳转
+ */
 const QuillEditorPanel = (() => {
     let panelInstance = null;
     let dragCleanup = null;
