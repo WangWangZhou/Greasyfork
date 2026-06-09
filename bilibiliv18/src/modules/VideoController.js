@@ -11,8 +11,9 @@ const VideoController = (() => {
         init() {
             video = document.querySelector('video');
             if (!video) {
-                Logger.info('未找到视频元素');
-                return false;
+                Logger.info('未找到视频元素（非视频页面）');
+                // 非视频页面也返回true，允许继续初始化
+                return true;
             }
             Logger.info('视频元素已找到');
             EventBus.emit('video:found', video);

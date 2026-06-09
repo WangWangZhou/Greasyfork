@@ -17,7 +17,17 @@ const CardPanel = (() => {
 
     async function updateCard() {
         const video = VideoController.getVideo();
-        if (!video || !cardInstance) return;
+        if (!cardInstance) return;
+
+        // 非视频页面：显示简化信息
+        if (!video) {
+            if (rateEl) rateEl.textContent = 'N/A';
+            if (timeEl) timeEl.textContent = '非视频页面';
+            if (collectionEl) collectionEl.style.display = 'none';
+            await updateFavoriteBtn();
+            await updateNoteBtn();
+            return;
+        }
 
         if (rateEl) rateEl.textContent = `${video.playbackRate}x`;
 
@@ -224,10 +234,20 @@ const CardPanel = (() => {
                 let video = VideoController.getVideo();
                 updatePlayBtn(video);
 
+                // 非视频页面：禁用播放按钮
+                if (!video) {
+                    playBtn.style.opacity = '0.5';
+                    playBtn.style.cursor = 'not-allowed';
+                    playBtn.title = '非视频页面';
+                }
+
                 playBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     const v = VideoController.getVideo();
-                    if (!v) return;
+                    if (!v) {
+                        Toast.show('当前页面没有视频');
+                        return;
+                    }
                     if (v.paused) {
                         v.play();
                     } else {
@@ -260,13 +280,24 @@ const CardPanel = (() => {
                     if (v) v.currentTime = time;
                 }, 100);
 
-                const onMouseEnter = (e) => updateTooltip(e.clientX);
-                const onMouseMove = (e) => { if (!isDraggingProgress) updateTooltip(e.clientX); };
-                const onMouseLeave = () => { if (!isDraggingProgress) tooltip.style.display = 'none'; };
+                const onMouseEnter = (e) => {
+                    const v = VideoController.getVideo();
+                    if (v && v.duration) updateTooltip(e.clientX);
+                };
+                const onMouseMove = (e) => {
+                    const v = VideoController.getVideo();
+                    if (v && v.duration && !isDraggingProgress) updateTooltip(e.clientX);
+                };
+                const onMouseLeave = () => {
+                    if (!isDraggingProgress) tooltip.style.display = 'none';
+                };
 
                 const onClick = (e) => {
                     const v = VideoController.getVideo();
-                    if (!v || !v.duration) return;
+                    if (!v || !v.duration) {
+                        Toast.show('当前页面没有视频');
+                        return;
+                    }
                     v.currentTime = getTimeFromPosition(e.clientX);
                 };
 
@@ -363,22 +394,30 @@ const CardPanel = (() => {
             updatePlayBtn(video);
             setTimeout(updateCard, 500);
         } else {
+            // 非视频页面：仍然尝试检测视频（可能后续加载）
+            updateCard();
             const retryTimer = setInterval(() => {
                 const retryVideo = VideoController.getVideo();
                 if (retryVideo) {
                     clearInterval(retryTimer);
                     const onRateChange = () => updateCard();
                     const onTimeUpdate = () => updateCard();
+                    const onPlay = () => updatePlayBtn(retryVideo);
+                    const onPause = () => updatePlayBtn(retryVideo);
                     retryVideo.addEventListener('timeupdate', onTimeUpdate);
                     retryVideo.addEventListener('ratechange', onRateChange);
+                    retryVideo.addEventListener('play', onPlay);
+                    retryVideo.addEventListener('pause', onPause);
                     cleanupFns.add(() => {
                         retryVideo.removeEventListener('timeupdate', onTimeUpdate);
                         retryVideo.removeEventListener('ratechange', onRateChange);
+                        retryVideo.removeEventListener('play', onPlay);
+                        retryVideo.removeEventListener('pause', onPause);
                     });
                     updateCard();
                     updatePlayBtn(retryVideo);
                 }
-            }, 500);
+            }, 1000);
             cleanupFns.add(() => clearInterval(retryTimer));
         }
 
