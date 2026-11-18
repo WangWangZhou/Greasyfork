@@ -11,9 +11,6 @@
 		{
 			"path": "csdn.net",
 			"name": "csdn.net"
-		},{
-			"path": "rustwiki",
-			"name": "rustwiki"
 		},
 		{
 			"path": "bilibili.com",
@@ -44,5 +41,8 @@
 			"name":"bilibiliv12"
 		}
 	],
-	"settings": {}
+	"settings": {},
+	"trae": {
+		"workspaceId": "745558f76e07637bb4c500d8c215d254"
+	}
 }
