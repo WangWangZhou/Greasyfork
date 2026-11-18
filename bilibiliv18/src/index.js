@@ -13,6 +13,7 @@
 // @grant        GM_addStyle
 // @grant        unsafeWindow
 // @run-at       document-end
+// @noframes
 // ==/UserScript==
 
 (function () {

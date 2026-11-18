@@ -132,7 +132,7 @@ const CardPanel = (() => {
             styles: {
                 width: panelWidth,
                 display: Config.data.cardVisible ? 'block' : 'none',
-                zIndex: 1998,
+                zIndex: Config.data.panelAbovePopups ? 15000 : 500,
                 ...(useSavedPosition ? {
                     left: savedPosition.left,
                     top: savedPosition.top,

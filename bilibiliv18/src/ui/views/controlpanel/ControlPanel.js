@@ -58,6 +58,12 @@ const ControlPanel = (() => {
             case 'notes':
                 await NotesMenu.render(contentEl);
                 break;
+            case 'noLogin':
+                NoLoginMenu.render(contentEl);
+                break;
+            case 'other':
+                OtherMenu.render(contentEl);
+                break;
         }
     }
 
@@ -104,7 +110,7 @@ const ControlPanel = (() => {
                 top: '50%',
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
-                zIndex: 9999,
+                zIndex: Config.data.panelAbovePopups ? 15001 : 501,
                 ...(useSavedPosition ? {
                     left: savedPosition.left,
                     top: savedPosition.top,
@@ -155,6 +161,12 @@ const ControlPanel = (() => {
                         </div>
                         <div class="bili-speed-panel-menu-item ${currentMenu === 'notes' ? 'active' : ''}" data-menu="notes" style="padding: 10px 12px; cursor: pointer; font-size: 13px; border-left: 3px solid transparent; transition: all 0.2s;">
                             📝 笔记
+                        </div>
+                        <div class="bili-speed-panel-menu-item ${currentMenu === 'noLogin' ? 'active' : ''}" data-menu="noLogin" style="padding: 10px 12px; cursor: pointer; font-size: 13px; border-left: 3px solid transparent; transition: all 0.2s;">
+                            🚫 免登录
+                        </div>
+                        <div class="bili-speed-panel-menu-item ${currentMenu === 'other' ? 'active' : ''}" data-menu="other" style="padding: 10px 12px; cursor: pointer; font-size: 13px; border-left: 3px solid transparent; transition: all 0.2s;">
+                            ⚙️ 其它
                         </div>
                     </div>
                     <div class="bili-speed-panel-content" style="flex: 1; min-height: 300px;"></div>

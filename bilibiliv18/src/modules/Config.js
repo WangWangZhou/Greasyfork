@@ -4,6 +4,9 @@
  */
 const Config = (() => {
     const DEFAULTS = {
+        noLoginEnabled: true,
+        noLoginBlockTrialEnd: true,
+        panelAbovePopups: true,
         step: 0.05,
         minRate: 0.5,
         maxRate: 2.0,
@@ -77,6 +80,34 @@ const Config = (() => {
             Object.entries(updates).forEach(([key, value]) => {
                 proxy[key] = value;
             });
+        },
+
+        /**
+         * 统一更新所有脚本面板的 z-index
+         * 当 panelAbovePopups 开关变化时调用
+         */
+        applyPanelZIndex() {
+            const above = proxy.panelAbovePopups;
+            const cardZ = above ? 15000 : 500;
+            const panelZ = above ? 15001 : 501;
+
+            // 信息卡片
+            document.querySelectorAll('.bili-speed-card').forEach(el => {
+                el.style.zIndex = cardZ;
+            });
+
+            // 各功能面板
+            document.querySelectorAll(
+                '.bili-speed-panel,' +
+                '.bili-speed-favorites-panel,' +
+                '.bili-speed-notes-panel,' +
+                '.bili-speed-quill-panel,' +
+                '.bili-speed-vditor-panel'
+            ).forEach(el => {
+                el.style.zIndex = panelZ;
+            });
+
+            Logger.info('Config.applyPanelZIndex: ' + (above ? '面板在弹出层之上' : '面板在弹出层之下'));
         }
     };
 })();

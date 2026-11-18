@@ -19,8 +19,10 @@ const App = (() => {
             Logger.error('存储层初始化失败:', err);
         }
 
+        NoLoginGuard.init();
         Toast.create();
         VideoController.init();
+        PlayerModifier.init();
         CardPanel.create();
         ControlPanel.create();
         FavoritesPanel.create();
@@ -80,7 +82,9 @@ const App = (() => {
         ScreenModeManager.destroy();
         KeyboardHandler.unregister();
         EventBus.clear();
+        PlayerModifier.destroy();
         VideoController.reset();
+        NoLoginGuard.destroy();
     }
 
     function checkUrlChange() {
