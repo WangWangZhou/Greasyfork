@@ -7,6 +7,7 @@ const Config = (() => {
         noLoginEnabled: true,
         noLoginBlockTrialEnd: true,
         panelAbovePopups: true,
+        playerRateSliderEnabled: true,
         step: 0.05,
         minRate: 0.5,
         maxRate: 2.0,

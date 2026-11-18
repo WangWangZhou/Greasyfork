@@ -106,6 +106,15 @@ Chrome 插件,右键，选择Manage extension，打开Allow access to file URLs
 
 ## 更新日志
 
+### v3.1.2
+- 新增播放器设置菜单（PlayerMenu）
+  - 控制面板 → 🎬 播放器 → 倍速滚动条开关
+  - 默认开启，关闭后恢复 B 站原始倍速菜单样式（6 档竖排、70px 宽、无 slider）
+  - 重新开启后立即注入横排 grid + slider +/- 按钮（200px 宽）
+- PlayerModifier 模块增强：支持 enable()/disable() 动态切换
+  - 宽限期识别扩展：清晰度菜单「登录即享」项现在可正确放行
+  - 新增 restoreOriginalMenu()：还原 DOM 到注入前状态
+
 ### v3.1
 - 新增免登录守卫模块（NoLoginGuard）
   - 阻止未登录时的自动登录弹窗（60s 全屏遮罩）

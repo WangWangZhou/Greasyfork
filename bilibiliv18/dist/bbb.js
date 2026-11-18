@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         B站自定义倍速油猴脚本简洁版
 // @namespace    http://tampermonkey.net/
-// @version      v3.1
+// @version      v3.1.2
 // @description  可以自定义bilibili 播放倍速，方便学习网课，x,c,z分别对减速、加速、恢复（模块化重构版）
 // @author       小明
 // @license MIT
@@ -214,6 +214,7 @@ const Config = (() => {
         noLoginEnabled: true,
         noLoginBlockTrialEnd: true,
         panelAbovePopups: true,
+        playerRateSliderEnabled: true,
         step: 0.05,
         minRate: 0.5,
         maxRate: 2.0,
@@ -2208,7 +2209,6 @@ const VideoController = (() => {
  * 持久化的只有 defaultRate（默认倍速）和 step（步进值）。
  */
 const PlayerModifier = (() => {
-    let observer = null;
     let injectedSlider = null;     // 当前注入的 slider 容器
     let boundRateChangeListener = null; // video 的 ratechange 监听
 
@@ -2488,12 +2488,68 @@ const PlayerModifier = (() => {
         }
     }
 
+    /**
+     * 还原倍速菜单到 B 站原始样式
+     * 清除 grid 包裹、slider、宽度修改
+     */
+    function restoreOriginalMenu() {
+        const menu = document.querySelector('.bpx-player-ctrl-playbackrate-menu');
+        if (!menu) return;
+
+        // 1. 还原宽度
+        menu.style.width = '';
+        menu.style.minWidth = '';
+
+        // 2. 移除 slider 包裹
+        cleanupSlider();
+
+        // 3. 把 grid 里的 LI 还原回 menu 直属子元素
+        const gridWrap = menu.querySelector('.bili-speed-rate-grid');
+        if (gridWrap) {
+            const lis = Array.from(gridWrap.children);
+            gridWrap.remove();
+            lis.forEach(li => {
+                // 还原 LI 的内联样式（清掉我们加的）
+                li.style.cssText = '';
+                menu.appendChild(li);
+            });
+        }
+
+        Logger.info('PlayerModifier: 已还原 B 站原始倍速菜单');
+    }
+
+    let observer = null;
+    let enabled = true;  // 当前是否启用
+
+    /**
+     * MutationObserver 回调：检测倍速菜单是否出现
+     */
+    function onMutation() {
+        if (!enabled) {
+            // 关闭状态下尝试还原（可能是刚被关闭）
+            restoreOriginalMenu();
+            return;
+        }
+
+        const menu = document.querySelector('.bpx-player-ctrl-playbackrate-menu');
+        if (menu) {
+            const style = window.getComputedStyle(menu);
+            if (style.display !== 'none' && style.visibility !== 'hidden') {
+                injectRateSlider(menu);
+            }
+        }
+    }
+
     return {
         init() {
-            // 先扫一次（可能菜单已经在 DOM 里了）
-            onMutation();
+            enabled = Config.data.playerRateSliderEnabled !== false;
+            if (!enabled) {
+                // 关闭状态，直接跳过
+                Logger.info('PlayerModifier 已禁用（playerRateSliderEnabled=false）');
+            } else {
+                onMutation();
+            }
 
-            // 持续监听
             observer = new MutationObserver(onMutation);
             observer.observe(document.body, {
                 childList: true,
@@ -2501,6 +2557,20 @@ const PlayerModifier = (() => {
             });
 
             Logger.info('PlayerModifier 已启动');
+        },
+
+        enable() {
+            enabled = true;
+            Config.data.playerRateSliderEnabled = true;
+            Toast.show('播放器倍速滑块：已开启');
+            onMutation(); // 立即尝试注入
+        },
+
+        disable() {
+            enabled = false;
+            Config.data.playerRateSliderEnabled = false;
+            restoreOriginalMenu();
+            Toast.show('播放器倍速滑块：已关闭');
         },
 
         destroy() {
@@ -5065,6 +5135,55 @@ const NoLoginMenu = (() => {
 
 
 /**
+ * PlayerMenu - 播放器设置菜单
+ * 控制面板子菜单：播放器倍速滑块开关
+ */
+const PlayerMenu = (() => {
+    function renderPlayerMenu(contentEl) {
+        contentEl.innerHTML = `
+            <div class="bili-speed-panel-menu-container">
+                <div class="bili-speed-panel-menu-section">
+                    <div class="bili-speed-panel-menu-title">🎬 播放器倍速</div>
+                    <div class="bili-speed-panel-switch-row">
+                        <span class="bili-speed-panel-switch-label">倍速滚动条:</span>
+                        <span class="player-slider-switch-wrapper"></span>
+                        <span class="bili-speed-panel-switch-status player-slider-status">
+                            ${Config.data.playerRateSliderEnabled ? '已开启' : '已关闭'}
+                        </span>
+                    </div>
+                    <div class="bili-speed-panel-tip">
+                        开启：在 B 站播放器倍速菜单内注入精细调节滑块和 +/- 按钮<br>
+                        关闭：恢复 B 站原始倍速菜单样式（仅 6 个固定档位）
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const switchWrapper = contentEl.querySelector('.player-slider-switch-wrapper');
+        const statusEl = contentEl.querySelector('.player-slider-status');
+
+        const switchInstance = Switch.create({
+            checked: Config.data.playerRateSliderEnabled,
+            onChange: (checked) => {
+                if (checked) {
+                    PlayerModifier.enable();
+                    statusEl.textContent = '已开启';
+                } else {
+                    PlayerModifier.disable();
+                    statusEl.textContent = '已关闭';
+                }
+            }
+        });
+        switchWrapper.appendChild(switchInstance.element);
+    }
+
+    return {
+        render: renderPlayerMenu
+    };
+})();
+
+
+/**
  * OtherMenu - 其它设置菜单
  * 控制面板子菜单：面板层级等杂项设置
  */
@@ -5173,6 +5292,9 @@ const ControlPanel = (() => {
             case 'noLogin':
                 NoLoginMenu.render(contentEl);
                 break;
+            case 'player':
+                PlayerMenu.render(contentEl);
+                break;
             case 'other':
                 OtherMenu.render(contentEl);
                 break;
@@ -5276,6 +5398,9 @@ const ControlPanel = (() => {
                         </div>
                         <div class="bili-speed-panel-menu-item ${currentMenu === 'noLogin' ? 'active' : ''}" data-menu="noLogin" style="padding: 10px 12px; cursor: pointer; font-size: 13px; border-left: 3px solid transparent; transition: all 0.2s;">
                             🚫 免登录
+                        </div>
+                        <div class="bili-speed-panel-menu-item ${currentMenu === 'player' ? 'active' : ''}" data-menu="player" style="padding: 10px 12px; cursor: pointer; font-size: 13px; border-left: 3px solid transparent; transition: all 0.2s;">
+                            🎬 播放器
                         </div>
                         <div class="bili-speed-panel-menu-item ${currentMenu === 'other' ? 'active' : ''}" data-menu="other" style="padding: 10px 12px; cursor: pointer; font-size: 13px; border-left: 3px solid transparent; transition: all 0.2s;">
                             ⚙️ 其它

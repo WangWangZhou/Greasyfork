@@ -11,7 +11,6 @@
  * 持久化的只有 defaultRate（默认倍速）和 step（步进值）。
  */
 const PlayerModifier = (() => {
-    let observer = null;
     let injectedSlider = null;     // 当前注入的 slider 容器
     let boundRateChangeListener = null; // video 的 ratechange 监听
 
@@ -291,12 +290,68 @@ const PlayerModifier = (() => {
         }
     }
 
+    /**
+     * 还原倍速菜单到 B 站原始样式
+     * 清除 grid 包裹、slider、宽度修改
+     */
+    function restoreOriginalMenu() {
+        const menu = document.querySelector('.bpx-player-ctrl-playbackrate-menu');
+        if (!menu) return;
+
+        // 1. 还原宽度
+        menu.style.width = '';
+        menu.style.minWidth = '';
+
+        // 2. 移除 slider 包裹
+        cleanupSlider();
+
+        // 3. 把 grid 里的 LI 还原回 menu 直属子元素
+        const gridWrap = menu.querySelector('.bili-speed-rate-grid');
+        if (gridWrap) {
+            const lis = Array.from(gridWrap.children);
+            gridWrap.remove();
+            lis.forEach(li => {
+                // 还原 LI 的内联样式（清掉我们加的）
+                li.style.cssText = '';
+                menu.appendChild(li);
+            });
+        }
+
+        Logger.info('PlayerModifier: 已还原 B 站原始倍速菜单');
+    }
+
+    let observer = null;
+    let enabled = true;  // 当前是否启用
+
+    /**
+     * MutationObserver 回调：检测倍速菜单是否出现
+     */
+    function onMutation() {
+        if (!enabled) {
+            // 关闭状态下尝试还原（可能是刚被关闭）
+            restoreOriginalMenu();
+            return;
+        }
+
+        const menu = document.querySelector('.bpx-player-ctrl-playbackrate-menu');
+        if (menu) {
+            const style = window.getComputedStyle(menu);
+            if (style.display !== 'none' && style.visibility !== 'hidden') {
+                injectRateSlider(menu);
+            }
+        }
+    }
+
     return {
         init() {
-            // 先扫一次（可能菜单已经在 DOM 里了）
-            onMutation();
+            enabled = Config.data.playerRateSliderEnabled !== false;
+            if (!enabled) {
+                // 关闭状态，直接跳过
+                Logger.info('PlayerModifier 已禁用（playerRateSliderEnabled=false）');
+            } else {
+                onMutation();
+            }
 
-            // 持续监听
             observer = new MutationObserver(onMutation);
             observer.observe(document.body, {
                 childList: true,
@@ -304,6 +359,20 @@ const PlayerModifier = (() => {
             });
 
             Logger.info('PlayerModifier 已启动');
+        },
+
+        enable() {
+            enabled = true;
+            Config.data.playerRateSliderEnabled = true;
+            Toast.show('播放器倍速滑块：已开启');
+            onMutation(); // 立即尝试注入
+        },
+
+        disable() {
+            enabled = false;
+            Config.data.playerRateSliderEnabled = false;
+            restoreOriginalMenu();
+            Toast.show('播放器倍速滑块：已关闭');
         },
 
         destroy() {

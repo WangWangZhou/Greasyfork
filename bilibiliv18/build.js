@@ -28,6 +28,7 @@ const moduleOrder = [
     { name: 'FavoritesMenu', path: 'ui/views/controlpanel' },
     { name: 'NotesMenu', path: 'ui/views/controlpanel' },
     { name: 'NoLoginMenu', path: 'ui/views/controlpanel' },
+    { name: 'PlayerMenu', path: 'ui/views/controlpanel' },
     { name: 'OtherMenu', path: 'ui/views/controlpanel' },
     { name: 'ControlPanel', path: 'ui/views/controlpanel' },
     { name: 'AddToFavoritesModal', path: 'ui/views/favorites' },

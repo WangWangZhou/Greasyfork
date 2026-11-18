@@ -61,6 +61,9 @@ const ControlPanel = (() => {
             case 'noLogin':
                 NoLoginMenu.render(contentEl);
                 break;
+            case 'player':
+                PlayerMenu.render(contentEl);
+                break;
             case 'other':
                 OtherMenu.render(contentEl);
                 break;
@@ -164,6 +167,9 @@ const ControlPanel = (() => {
                         </div>
                         <div class="bili-speed-panel-menu-item ${currentMenu === 'noLogin' ? 'active' : ''}" data-menu="noLogin" style="padding: 10px 12px; cursor: pointer; font-size: 13px; border-left: 3px solid transparent; transition: all 0.2s;">
                             🚫 免登录
+                        </div>
+                        <div class="bili-speed-panel-menu-item ${currentMenu === 'player' ? 'active' : ''}" data-menu="player" style="padding: 10px 12px; cursor: pointer; font-size: 13px; border-left: 3px solid transparent; transition: all 0.2s;">
+                            🎬 播放器
                         </div>
                         <div class="bili-speed-panel-menu-item ${currentMenu === 'other' ? 'active' : ''}" data-menu="other" style="padding: 10px 12px; cursor: pointer; font-size: 13px; border-left: 3px solid transparent; transition: all 0.2s;">
                             ⚙️ 其它
