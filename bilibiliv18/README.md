@@ -63,10 +63,26 @@ npm run build
 采用file url
 在浏览器中的油猴脚本添加require file。例如
 ```
+// ==UserScript==
+// @name         B站自定义倍速油猴脚本
+// @namespace    https://docs.scriptcat.org/
+// @version      0.1.0
+// @description  B站自定义倍速油猴脚本
+// @author       XiaoMing
+// @match        https://*.bilibili.com/*
+// @icon         https://www.bilibili.com/favicon.ico
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @run-at       document-end
-// @require file://D:/code/bilibiliv13/bbb.js
+// @require      file://D:/code/bilibiliv18/bbb.js
+// @noframes
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    console.log('B站自定义倍速油猴脚本加载成功');
+})();
 ```
 Chrome 插件,右键，选择Manage extension，打开Allow access to file URLs
 
@@ -89,6 +105,28 @@ Chrome 插件,右键，选择Manage extension，打开Allow access to file URLs
 | ScreenModeManager | 宽屏/全屏模式检测 |
 
 ## 更新日志
+
+### v3.1
+- 新增免登录守卫模块（NoLoginGuard）
+  - 阻止未登录时的自动登录弹窗（60s 全屏遮罩）
+  - 阻止 30 秒高清试看结束后的降画质 + 弹窗诱导
+  - 阻止播放器容器内的「登录免费享高清」提示弹窗
+  - 支持宽限期放行：用户主动点击登录按钮时 5 秒内放行弹窗，不影响手动登录
+  - 支持配置开关：控制面板 → 免登录 → 启用免登录 / 关闭试看弹窗
+- 新增播放器倍速精细调节（PlayerModifier）
+  - Hook B 站播放器自带的倍速菜单，注入 range slider
+  - 支持 +/- 按钮步进调节，步进值与全局 step 配置联动
+  - 范围 0.5x ~ 2.0x（可配置），三种调节方式互相同步
+  - 所有播放器倍速调节均为临时生效（刷新后重置为 defaultRate）
+  - 菜单宽度从 70px 扩展到 200px，原 6 档改为横排 3×2 grid
+- 新增面板层级切换（OtherMenu）
+  - 控制面板 → 其它 → 面板层级开关
+  - 开启：脚本面板显示在 B 站弹出层之上（z-index 15000）
+  - 关闭：脚本面板显示在 B 站弹出层之下（z-index 500）
+  - 实时切换，即时生效
+- UserScript Header 新增 `@noframes`，脚本只在顶层页面运行
+- 修复点击清晰度菜单「登录即享」无法弹出登录窗口的问题
+- 构建脚本支持多环境（local/prod），dist/bbb.js 为合并产物
 
 ### v3.0
 - 新增收藏夹系统（支持分组管理、添加/删除收藏）
