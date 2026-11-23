@@ -4,6 +4,8 @@
 // @version      1.1.1
 // @description  修改空仓库页的克隆提示：main↔master、删 --global、自定义删减，支持HTTPS/SSH动态切换
 // @author       Y小明
+// @license MIT
+// @icon         chrome://favicon/http://www.gitcode.com/
 // @match        https://gitee.com/*
 // @match        https://gitcode.com/*
 // @grant        none
